@@ -1101,11 +1101,19 @@ export default defineConfig({
       '/learn_frontend/scss/': [
         {
           text: '基本介绍',
-          link: '/learn_frontend/scss/基本介绍.md',
+          link: '/learn_frontend/scss/基本介绍',
         },
         {
           text: '环境搭建',
-          link: '/learn_frontend/scss/环境搭建.md',
+          link: '/learn_frontend/scss/环境搭建',
+        },
+        {
+          text: '扩展语法',
+          link: '/learn_frontend/scss/扩展语法.md',
+        },
+        {
+          text: '变量',
+          link: '/learn_frontend/scss/变量',
         },
       ],
       '/learn_frontend/react/': [
