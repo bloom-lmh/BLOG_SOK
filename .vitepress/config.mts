@@ -22,6 +22,10 @@ export default defineConfig({
             link: '/learn_frontend/css/盒模型及其样式设置/盒模型',
           },
           {
+            text: 'SCSS',
+            link: '/learn_frontend/scss/基本介绍',
+          },
+          {
             text: 'Javascript',
             link: '/learn_frontend/javascript/语法基础/数据类型',
           },
@@ -1092,6 +1096,16 @@ export default defineConfig({
               link: '/learn_frontend/vue3/vue3源码/vue3开发环境搭建',
             },
           ],
+        },
+      ],
+      '/learn_frontend/scss/': [
+        {
+          text: '基本介绍',
+          link: '/learn_frontend/scss/基本介绍.md',
+        },
+        {
+          text: '环境搭建',
+          link: '/learn_frontend/scss/环境搭建.md',
         },
       ],
       '/learn_frontend/react/': [
