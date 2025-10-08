@@ -1106,6 +1106,10 @@ export default defineConfig({
           text: '变量',
           link: '/learn_frontend/scss/变量',
         },
+        {
+          text: '常用指令',
+          link: '/learn_frontend/scss/常用指令',
+        },
       ],
       '/learn_frontend/react/': [
         {
