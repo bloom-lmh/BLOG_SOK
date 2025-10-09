@@ -1108,7 +1108,14 @@ export default defineConfig({
         },
         {
           text: '常用指令',
-          link: '/learn_frontend/scss/常用指令',
+          items: [
+            { text: '@import', link: '/learn_frontend/scss/常用指令/@import' },
+            { text: '@extend', link: '/learn_frontend/scss/常用指令/@extend' },
+            { text: '@forward', link: '/learn_frontend/scss/常用指令/@forward' },
+            { text: '@mixin', link: '/learn_frontend/scss/常用指令/@mixin' },
+            { text: '@use', link: '/learn_frontend/scss/常用指令/@use' },
+            { text: '@at-root', link: '/learn_frontend/scss/常用指令/@at-root' },
+          ],
         },
       ],
       '/learn_frontend/react/': [

@@ -1,12 +1,12 @@
-# 常用指令
+# @import 模块化导入指令详解
 
 [[toc]]
 
-## @import 模块化导入指令详解
+## 基本概念
 
 Sass 拓展了 `@import` 的功能，允许其导入 `SCSS` 或 `Sass` 文件。被导入的文件将合并编译到同一个 CSS 文件中，另外，被导入的文件中所包含的变量或者混合指令 (`mixin`) 都可以在导入的文件中使用。
 
-### 传统 css 导入
+## 传统 css 导入
 
 通常，`@import` 寻找 `Sass` 文件并将其导入，但在以下情况下，`@import` 仅作为普通的 `CSS` 语句，不会导入任何 `Sass` 文件。传统的 `css` 导入：
 
@@ -29,7 +29,7 @@ Sass 拓展了 `@import` 的功能，允许其导入 `SCSS` 或 `Sass` 文件。
 @import 'foo';
 ```
 
-### 基本使用
+## 基本使用
 
 准备`public.scss`文件
 
@@ -59,7 +59,7 @@ $color: #666;
 
 ![编译后](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251008223343610.png)
 
-### 导入多个文件
+## 导入多个文件
 
 Sass 允许同时导入多个文件，例如同时导入 `rounded-corners` 与 `text-shadow` 两个文件：
 
@@ -67,7 +67,7 @@ Sass 允许同时导入多个文件，例如同时导入 `rounded-corners` 与 `
 @import 'rounded-corners', 'text-shadow';
 ```
 
-### 使用 `#{ }` 插值语句
+## 使用 `#{ }` 插值语句
 
 导入文件也可以使用 `#{ }` 插值语句，但不是通过变量动态导入 Sass 文件，只能作用于 CSS 的 `url()` 导入其方式为：
 
@@ -82,7 +82,7 @@ $family: unquote('Droid+Sans');
 @import url('http://fonts.googleapis.com/css?family=Droid+Sans');
 ```
 
-### 局部文件(Partials)
+## 局部文件(Partials)
 
 `Sass`源文件中可以通过`@import`指令导入其他 Sass 源文件，被导入的文件就是局部文件，局部文件让 Sass 模块化编写更加容易。
 如果一个目录正在被 Sass 程序监测，目录下的所有`scss/sass`源文件都会被编译，但通常不希望局部文件被编译，因为局部文件是用来被导入到其他文件的。
