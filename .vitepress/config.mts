@@ -1,4 +1,5 @@
 import path from 'path';
+import { text } from 'stream/consumers';
 import { defineConfig } from 'vitepress';
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -40,7 +41,11 @@ export default defineConfig({
           },
           {
             text: 'Vue3',
-            link: '/learn_frontend/vue3/vue3基础/起步/简介',
+            items: [
+              { text: 'vue3', link: '/learn_frontend/vue3/起步/简介' },
+              { text: '手写vue3', link: '/learn_frontend/vue3源码/vue3的设计思想和原理' },
+              { text: 'pinia', link: '/learn_frontend/pinia/基本概念' },
+            ],
           },
           {
             text: 'React',
@@ -48,7 +53,12 @@ export default defineConfig({
           },
           {
             text: 'Tools',
-            link: '/learn_frontend/tools/jest/起步/基本介绍',
+            items: [
+              { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
+              { text: 'msw', link: '/learn_frontend/tools/msw/模拟HTTP/起步' },
+              { text: 'joi', link: '/learn_frontend/tools/joi/joi的基本使用' },
+              { text: 'faker', link: '/learn_frontend/tools/faker/起步' },
+            ],
           },
 
           {
@@ -974,19 +984,37 @@ export default defineConfig({
           ],
         },
       ],
+      '/learn_frontend/pinia/': [
+        {
+          text: '基本概念',
+          link: '/learn_frontend/vue3/状态管理/基本概念',
+        },
+        {
+          text: '定义和使用store',
+          link: '/learn_frontend/vue3/状态管理/定义和使用store',
+        },
+        {
+          text: 'store三要素',
+          link: '/learn_frontend/vue3/状态管理/store三要素',
+        },
+        {
+          text: '扩展pinia',
+          link: '/learn_frontend/vue3/状态管理/扩展pinia',
+        },
+      ],
       '/learn_frontend/vue3/': [
         {
           text: '起步',
           collapsed: true,
           items: [
-            { text: '简介', link: '/learn_frontend/vue3/vue3基础/起步/简介' },
+            { text: '简介', link: '/learn_frontend/vue3/起步/简介' },
             {
               text: '选项式和组合式',
-              link: '/learn_frontend/vue3/vue3基础/起步/选项式和组合式',
+              link: '/learn_frontend/vue3/起步/选项式和组合式',
             },
             {
               text: '应用实例',
-              link: '/learn_frontend/vue3/vue3基础/起步/应用实例',
+              link: '/learn_frontend/vue3/起步/应用实例',
             },
           ],
         },
@@ -1001,11 +1029,11 @@ export default defineConfig({
           items: [
             {
               text: '指令基本概念',
-              link: '/learn_frontend/vue3/vue3基础/指令/指令基本概念',
+              link: '/learn_frontend/vue3/指令/指令基本概念',
             },
             {
               text: '内置指令',
-              link: '/learn_frontend/vue3/vue3基础/指令/内置指令',
+              link: '/learn_frontend/vue3/指令/内置指令',
             },
           ],
         },
@@ -1017,7 +1045,36 @@ export default defineConfig({
         {
           text: '组件',
           collapsed: true,
-          items: [],
+          items: [
+            {
+              text: '组件基础',
+              link: '/learn_frontend/vue3/组件/组件基础',
+            },
+            {
+              text: '组件通信-props',
+              link: '/learn_frontend/vue3/组件/组件通信-props',
+            },
+            {
+              text: '组件通信-事件',
+              link: '/learn_frontend/vue3/组件/组件通信-事件',
+            },
+            {
+              text: '组件通信-v-model',
+              link: '/learn_frontend/vue3/组件/组件通信-v-model',
+            },
+            {
+              text: '组件通信-provide',
+              link: '/learn_frontend/vue3/组件/组件通信-provide',
+            },
+            {
+              text: '动态组件',
+              link: '/learn_frontend/vue3/组件/动态组件',
+            },
+            {
+              text: '透传',
+              link: '/learn_frontend/vue3/组件/透传',
+            },
+          ],
         },
         {
           text: '生命周期',
@@ -1030,15 +1087,15 @@ export default defineConfig({
           items: [
             {
               text: 'ref和reactive',
-              link: '/learn_frontend/vue3/vue3基础/响应式/ref和reactive',
+              link: '/learn_frontend/vue3/响应式/ref和reactive',
             },
             {
               text: '计算属性',
-              link: '/learn_frontend/vue3/vue3基础/响应式/计算属性',
+              link: '/learn_frontend/vue3/响应式/计算属性',
             },
             {
               text: '监听器',
-              link: '/learn_frontend/vue3/vue3基础/响应式/监听器',
+              link: '/learn_frontend/vue3/响应式/监听器',
             },
           ],
         },
@@ -1051,42 +1108,6 @@ export default defineConfig({
           text: '插件',
           collapsed: true,
           items: [],
-        },
-        {
-          text: '状态管理Pinia',
-          collapsed: true,
-          items: [
-            {
-              text: '基本概念',
-              link: '/learn_frontend/vue3/vue3基础/状态管理/基本概念',
-            },
-            {
-              text: '定义和使用store',
-              link: '/learn_frontend/vue3/vue3基础/状态管理/定义和使用store',
-            },
-            {
-              text: 'store三要素',
-              link: '/learn_frontend/vue3/vue3基础/状态管理/store三要素',
-            },
-            {
-              text: '扩展pinia',
-              link: '/learn_frontend/vue3/vue3基础/状态管理/扩展pinia',
-            },
-          ],
-        },
-        {
-          text: '手写Vue3',
-          collapsed: true,
-          items: [
-            {
-              text: '设计思想和原理',
-              link: '/learn_frontend/vue3/vue3源码/vue3的设计思想和原理',
-            },
-            {
-              text: '开发环境搭建',
-              link: '/learn_frontend/vue3/vue3源码/vue3开发环境搭建',
-            },
-          ],
         },
       ],
       '/learn_frontend/scss/': [
