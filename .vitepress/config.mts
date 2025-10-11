@@ -1117,6 +1117,14 @@ export default defineConfig({
             { text: '@at-root', link: '/learn_frontend/scss/常用指令/@at-root' },
           ],
         },
+        {
+          text: '函数',
+          link: '/learn_frontend/scss/函数',
+        },
+        {
+          text: '流程控制',
+          link: '/learn_frontend/scss/流程控制',
+        },
       ],
       '/learn_frontend/react/': [
         {
