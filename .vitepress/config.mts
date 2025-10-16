@@ -34,7 +34,6 @@ export default defineConfig({
             text: 'Typescript',
             link: '/learn_frontend/typescript/起步/基本介绍',
           },
-
           {
             text: 'Axios',
             link: '/learn_frontend/axios/起步/基本介绍',
@@ -60,7 +59,13 @@ export default defineConfig({
               { text: 'faker', link: '/learn_frontend/tools/faker/起步' },
             ],
           },
-
+          {
+            text: '工程化',
+            items: [
+              { text: 'rollup', link: '/learn_frontend/rollup/起步' },
+              { text: 'esbuild', link: '/learn_frontend/rollup/起步' },
+            ],
+          },
           {
             text: 'Browser',
             link: '/learn_frontend/browser/browser基础/浏览器渲染原理',
@@ -926,6 +931,7 @@ export default defineConfig({
           ],
         },
       ],
+      'learn_frontend/rollup/': [{ text: '起步', link: '/learn_frontend/rollup/起步' }],
       '/learn_frontend/axios/': [
         {
           text: '起步',

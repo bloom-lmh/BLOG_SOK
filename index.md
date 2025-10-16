@@ -11,11 +11,8 @@ hero:
     alt: logo
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
-    - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: 快速开始
+      link: /learn_frontend/元编程
 # features:
 #   - title:
 #     details:
