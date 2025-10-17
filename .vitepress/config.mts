@@ -931,7 +931,11 @@ export default defineConfig({
           ],
         },
       ],
-      'learn_frontend/rollup/': [{ text: '起步', link: '/learn_frontend/rollup/起步' }],
+      'learn_frontend/rollup/': [
+        { text: '起步', link: '/learn_frontend/rollup/起步' },
+        { text: '命令行接口', link: '/learn_frontend/rollup/命令行接口' },
+        { text: 'JavaScript API', link: '/learn_frontend/rollup/JavaScript API' },
+      ],
       '/learn_frontend/axios/': [
         {
           text: '起步',
