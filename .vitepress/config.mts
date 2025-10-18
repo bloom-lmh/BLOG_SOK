@@ -62,7 +62,7 @@ export default defineConfig({
           {
             text: '工程化',
             items: [
-              { text: 'rollup', link: '/learn_frontend/rollup/起步' },
+              { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
               { text: 'esbuild', link: '/learn_frontend/rollup/起步' },
             ],
           },
@@ -932,10 +932,36 @@ export default defineConfig({
         },
       ],
       'learn_frontend/rollup/': [
-        { text: '起步', link: '/learn_frontend/rollup/起步' },
-        { text: '命令行接口', link: '/learn_frontend/rollup/命令行接口' },
-        { text: 'JavaScript API', link: '/learn_frontend/rollup/JavascriptAPI' },
-        { text: '基本使用', link: '/learn_frontend/rollup/基本使用' },
+        {
+          text: '起步',
+          items: [
+            { text: '基本概念', link: '/learn_frontend/rollup/基本概念' },
+            { text: '命令行接口', link: '/learn_frontend/rollup/命令行接口' },
+            { text: 'JavaScript API', link: '/learn_frontend/rollup/JavascriptAPI' },
+            { text: '基本使用', link: '/learn_frontend/rollup/基本使用' },
+          ],
+        },
+        {
+          text: '配置选项',
+          items: [
+            {
+              text: '输入配置选项',
+              link: '/learn_frontend/rollup/输入配置选项',
+            },
+            {
+              text: '输出配置选项',
+              link: '/learn_frontend/rollup/输出配置选项',
+            },
+            {
+              text: '监视配置选项',
+              link: '/learn_frontend/rollup/监视配置选项.md',
+            },
+            {
+              text: '其它配置选项',
+              link: '/learn_frontend/rollup/其它配置选项.md',
+            },
+          ],
+        },
       ],
       '/learn_frontend/axios/': [
         {
@@ -998,19 +1024,19 @@ export default defineConfig({
       '/learn_frontend/pinia/': [
         {
           text: '基本概念',
-          link: '/learn_frontend/vue3/状态管理/基本概念',
+          link: '/learn_frontend/pinia/基本概念.md',
         },
         {
           text: '定义和使用store',
-          link: '/learn_frontend/vue3/状态管理/定义和使用store',
+          link: '/learn_frontend/pinia/定义和使用store',
         },
         {
           text: 'store三要素',
-          link: '/learn_frontend/vue3/状态管理/store三要素',
+          link: '/learn_frontend/pinia/store三要素',
         },
         {
           text: '扩展pinia',
-          link: '/learn_frontend/vue3/状态管理/扩展pinia',
+          link: '/learn_frontend/pinia/扩展pinia',
         },
       ],
       '/learn_frontend/vue3/': [
