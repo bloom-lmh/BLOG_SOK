@@ -51,6 +51,13 @@ export default defineConfig({
             link: '/learn_frontend/react/react基础/jsx',
           },
           {
+            text: '工程化',
+            items: [
+              { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
+              { text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' },
+            ],
+          },
+          {
             text: 'Tools',
             items: [
               { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
@@ -59,13 +66,7 @@ export default defineConfig({
               { text: 'faker', link: '/learn_frontend/tools/faker/起步' },
             ],
           },
-          {
-            text: '工程化',
-            items: [
-              { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
-              { text: 'esbuild', link: '/learn_frontend/rollup/起步' },
-            ],
-          },
+
           {
             text: 'Browser',
             link: '/learn_frontend/browser/browser基础/浏览器渲染原理',
@@ -960,6 +961,37 @@ export default defineConfig({
               text: '其它配置选项',
               link: '/learn_frontend/rollup/其它配置选项.md',
             },
+          ],
+        },
+      ],
+      '/learn_frontend/pnpm/': [
+        {
+          text: '基本介绍',
+          items: [
+            { text: '初衷', link: '/learn_frontend/pnpm/基本介绍/初衷' },
+            { text: '特性比较', link: '/learn_frontend/pnpm/基本介绍/特性比较' },
+            { text: '安装', link: '/learn_frontend/pnpm/基本介绍/安装' },
+          ],
+        },
+        {
+          text: '用法',
+          items: [
+            { text: '命令行接口', link: '/learn_frontend/pnpm/用法/命令行接口' },
+            { text: '配置', link: '/learn_frontend/pnpm/用法/配置' },
+            { text: '过滤', link: '/learn_frontend/pnpm/用法/过滤' },
+          ],
+        },
+        {
+          text: '命令',
+          items: [
+            { text: '管理依赖', link: '/learn_frontend/pnpm/命令/管理依赖' },
+            { text: '修补依赖', link: '/learn_frontend/pnpm/命令/修补依赖' },
+            { text: '检查依赖', link: '/learn_frontend/pnpm/命令/检查依赖' },
+            { text: '运行脚本', link: '/learn_frontend/pnpm/命令/运行脚本' },
+            { text: '管理环境', link: '/learn_frontend/pnpm/命令/管理环境' },
+            { text: '检查存储', link: '/learn_frontend/pnpm/命令/检查存储' },
+            { text: '管理缓存', link: '/learn_frontend/pnpm/命令/管理缓存' },
+            { text: '其它', link: '/learn_frontend/pnpm/命令/其它' },
           ],
         },
       ],
