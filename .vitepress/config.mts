@@ -99,6 +99,10 @@ export default defineConfig({
         text: '机器学习',
         items: [],
       },
+      {
+        text: '算法',
+        items: [],
+      },
       { text: '学习计划', link: '/learn_plan/2025年学习计划' },
     ],
 
@@ -989,9 +993,22 @@ export default defineConfig({
             { text: '检查依赖', link: '/learn_frontend/pnpm/命令/检查依赖' },
             { text: '运行脚本', link: '/learn_frontend/pnpm/命令/运行脚本' },
             { text: '管理环境', link: '/learn_frontend/pnpm/命令/管理环境' },
-            { text: '检查存储', link: '/learn_frontend/pnpm/命令/检查存储' },
-            { text: '管理缓存', link: '/learn_frontend/pnpm/命令/管理缓存' },
             { text: '其它', link: '/learn_frontend/pnpm/命令/其它' },
+          ],
+        },
+        {
+          text: '配置',
+          items: [
+            { text: '包清单文件', link: '/learn_frontend/pnpm/配置/包清单文件' },
+            { text: 'pnpm配置文件', link: '/learn_frontend/pnpm/配置/pnpm配置文件' },
+            { text: 'npmrc配置文件', link: '/learn_frontend/pnpm/配置/npmrc' },
+          ],
+        },
+        {
+          text: '特性',
+          items: [
+            { text: '工作区', link: '/learn_frontend/pnpm/特性/工作区' },
+            { text: '目录', link: '/learn_frontend/pnpm/特性/目录' },
           ],
         },
       ],
