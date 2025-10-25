@@ -55,6 +55,7 @@ export default defineConfig({
             items: [
               { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
               { text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' },
+              { text: 'monorepo', link: '/learn_frontend/monorepo/monorepo工程管理' },
             ],
           },
           {
@@ -101,7 +102,7 @@ export default defineConfig({
       },
       {
         text: '算法',
-        items: [],
+        link: '/learn_algorithm/数组.md',
       },
       { text: '学习计划', link: '/learn_plan/2025年学习计划' },
     ],
@@ -1317,6 +1318,16 @@ export default defineConfig({
               link: '/learn_frontend/browser/browser基础/重排和重绘',
             },
           ],
+        },
+      ],
+      '/learn_algorithm/': [
+        {
+          text: '数组',
+          link: '/learn_algorithm/数组',
+        },
+        {
+          text: '队列',
+          link: '/learn_algorithm/队列',
         },
       ],
       '/learn_sofrwareArchitecture/designPattern/': [
