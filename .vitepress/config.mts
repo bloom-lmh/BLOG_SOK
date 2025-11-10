@@ -1001,6 +1001,7 @@ export default defineConfig({
           text: '配置',
           items: [
             { text: '包清单文件', link: '/learn_frontend/pnpm/配置/包清单文件' },
+            { text: 'package.json', link: '/learn_frontend/pnpm/配置/package详解.md ' },
             { text: 'pnpm配置文件', link: '/learn_frontend/pnpm/配置/pnpm配置文件' },
             { text: 'npmrc配置文件', link: '/learn_frontend/pnpm/配置/npmrc' },
           ],
