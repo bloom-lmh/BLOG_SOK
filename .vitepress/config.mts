@@ -1162,6 +1162,36 @@ export default defineConfig({
               text: '透传',
               link: '/learn_frontend/vue3/组件/透传',
             },
+            {
+              text: '异步组件',
+              link: '/learn_frontend/vue3/组件/异步组件',
+            },
+          ],
+        },
+        {
+          text: '内置组件',
+          collapsed: true,
+          items: [
+            {
+              text: 'Transition',
+              link: '/learn_frontend/vue3/内置组件/Transition',
+            },
+            {
+              text: 'TransitionGroup',
+              link: '/learn_frontend/vue3/内置组件/TransitionGroup',
+            },
+            {
+              text: 'Teleport',
+              link: '/learn_frontend/vue3/内置组件/Teleport',
+            },
+            {
+              text: 'KeepAlive',
+              link: '/learn_frontend/vue3/内置组件/KeepAlive',
+            },
+            {
+              text: 'Suspense',
+              link: '/learn_frontend/vue3/内置组件/Suspense',
+            },
           ],
         },
         {

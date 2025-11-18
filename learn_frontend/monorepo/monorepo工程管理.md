@@ -470,10 +470,10 @@ git init
 pnpm -Dw add @commitlint/cli @commitlint/config-conventional commitizen cz-git
 ```
 
-- `@commitlint/cli 是 commitlint` 工具的核心。
-- `@commitlint/config-conventional` 是基于 conventional commits 规范的配置文件。
-- `commitizen` 提供了一个交互式撰写 commit 信息的插件
-- [cz-git](https://cz-git.qbb.sh/zh/guide/)是国人开发了这一款工具，工程性更强，自定义更高，交互性更好。
+- `@commitlint/cli 是 commitlint` 工具的核心。在提交代码时，自动检查 `commit message` 是否符合规范
+- `@commitlint/config-conventional` 是基于 `conventional commits` 规范的配置文件。
+- `commitizen` 提供了一个交互式撰写 `commit` 信息的插件,提供交互式命令行界面，引导你一步步填写符合规范的 `commit message`
+- [cz-git](https://cz-git.qbb.sh/zh/guide/)是国人开发了这一款工具，工程性更强，自定义更高，交互性更好,是 `commitizen` 的一个适配器（adapter），专为 `Conventional Commits` 设计，提供更现代化、更友好的交互体验。
 
 配置命令：
 
@@ -637,6 +637,10 @@ pnpm -Dw add rollup @rollup/plugin-node-resolve @rollup/plugin-commonjs rollup-p
 - `rollup-plugin-postcss`： 处理 css 代码
 
 配置：在工作区编写`scripts/build.ts`,这个`build.ts`
+然后配置命令：
+
+- `"build": "node ./scripts/build.js"`,
+- `"dev": "node ./scripts/dev.js"`,
 
 ::: code-group
 
