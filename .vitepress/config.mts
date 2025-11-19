@@ -1163,6 +1163,10 @@ export default defineConfig({
               link: '/learn_frontend/vue3/组件/透传',
             },
             {
+              text: '插槽',
+              link: '/learn_frontend/vue3/组件/插槽',
+            },
+            {
               text: '异步组件',
               link: '/learn_frontend/vue3/组件/异步组件',
             },
