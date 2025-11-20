@@ -174,13 +174,70 @@ console.log(argv.host); // "localhost"
 
 ### `opts.stopEarly`
 
+当设置为`true`，`minimist`当遇到第一个非选项参数时，函数会停止解析选项参数，并将剩余参数全部视为非选项参数。比如：
+
+```bash
+node app.js b --name=123 a --age 23 b c d
+```
+
+由于第一个解析到 `b` 为非选项参数，函数会停止解析选项参数，并将剩余参数全部视为非选项参数。所以解析结果如下，从`b`开始全部参数被放入了`_`：
+
+```json
+{
+  "_": ["b", "--name=123", "a", "--age", "23", "b", "c", "d"],
+  "verbose": false,
+  "v": false
+}
+```
+
 ### `opts.unknown`
 
-### -- 分割选项
+`unknown`是一个函数，它会在解析选项参数时，遇到未知选项参数时调用（所谓的未知参数就是没有在`opts`中声明的选项参数）。
 
-<!-- ### -- 分割选项
+```javascript
+const argv = minimist(process.argv.slice(2), {
+  string: ['name'],
+  boolean: ['verbose'],
+  alias: { v: 'verbose' },
+  default: { verbose: false },
+  '--': true,
+  unknown: arg => {
+    if (arg.startsWith('--custom-')) {
+      return true; // 允许自定义参数
+    }
+    console.error(`未知参数: ${arg}`);
+    return false; // 阻止未知参数添加到 argv
+  },
+});
+```
 
-对于`--` 后面的所有内容都会放到`--`键对应的数组中。比如：
+对于下面的案例
+
+```bash
+node ./scripts/dev.js "b" "--name=123" "a" "--age" "23" "b" "c" "d"
+```
+
+解析结果：
+
+```json
+未知参数: b
+未知参数: a
+未知参数: --age
+未知参数: b
+未知参数: c
+未知参数: d
+{
+  "_": [],
+  "verbose": false,
+  "v": false,
+  "name": "123",
+  "--": []
+}
+```
+
+### `opts.--`
+
+当设置为`true`，`minimist`会将`--`后面的所有内容都特殊处理，即从`--`开始后的所有内容都会放到`--`。比如：
 
 ```bash
 # -- 后面的所有内容都特殊处理
@@ -194,4 +251,9 @@ node app.js --name John -- file1.txt --force file2.txt
   "_": ["file1.txt", "file2.txt"],
   "name": "John",
   "force": true
-} -->
+}
+```
+
+::: warning 注意
+一般命令会将`--`后的空格移除导致观察不到效果
+:::

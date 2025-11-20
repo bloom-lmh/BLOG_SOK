@@ -56,6 +56,7 @@ export default defineConfig({
               { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
               { text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' },
               { text: 'monorepo', link: '/learn_frontend/monorepo/monorepo工程管理' },
+              { text: 'minimist', link: '/learn_frontend/minimist/minimist' },
             ],
           },
           {
