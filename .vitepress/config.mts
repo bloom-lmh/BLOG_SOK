@@ -945,6 +945,7 @@ export default defineConfig({
             { text: '基本概念', link: '/learn_frontend/rollup/基本概念' },
             { text: '核心概念', link: '/learn_frontend/rollup/核心概念' },
             { text: '包配置', link: '/learn_frontend/rollup/包配置' },
+            { text: '插件', link: '/learn_frontend/rollup/插件' },
             { text: '命令行接口', link: '/learn_frontend/rollup/命令行接口' },
             { text: 'JavaScript API', link: '/learn_frontend/rollup/JavascriptAPI' },
             { text: '基本使用', link: '/learn_frontend/rollup/基本使用' },
