@@ -42,7 +42,7 @@ export default defineConfig({
             text: 'Vue3',
             items: [
               { text: 'vue3', link: '/learn_frontend/vue3/起步/简介' },
-              { text: '手写vue3', link: '/learn_frontend/vue3源码/vue3的设计思想和原理' },
+              { text: 'vue3.4源码', link: '/learn_frontend/vue3.4源码/响应式原理' },
               { text: 'pinia', link: '/learn_frontend/pinia/基本概念' },
             ],
           },
@@ -109,6 +109,12 @@ export default defineConfig({
     ],
 
     sidebar: {
+      '/learn_frontend/vue3.4源码': [
+        {
+          text: '响应式原理',
+          link: '/learn_frontend/vue3.4源码/响应式原理',
+        },
+      ],
       '/learn_frontend/css/': [
         {
           text: '盒模型及其样式设置',
