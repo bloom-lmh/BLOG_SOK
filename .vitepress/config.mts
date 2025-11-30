@@ -105,10 +105,16 @@ export default defineConfig({
         text: '算法',
         link: '/learn_algorithm/数组.md',
       },
-      { text: '学习计划', link: '/learn_plan/2025年学习计划' },
+      { text: '分享生活', link: '/shred_life/森海塞尔momentum4' },
     ],
 
     sidebar: {
+      '/shred_life/森海塞尔momentum4': [
+        {
+          text: '森海塞尔momentum4',
+          link: '/shred_life/森海塞尔momentum4',
+        },
+      ],
       '/learn_frontend/vue3.4源码': [
         {
           text: '响应式原理',
