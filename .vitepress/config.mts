@@ -53,7 +53,7 @@ export default defineConfig({
           {
             text: '工程化',
             items: [
-              { text: 'rollup', link: '/learn_frontend/rollup/基本概念' },
+              { text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' },
               { text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' },
               { text: 'monorepo', link: '/learn_frontend/monorepo/monorepo工程管理' },
               { text: 'minimist', link: '/learn_frontend/minimist/minimist' },
@@ -954,34 +954,38 @@ export default defineConfig({
         {
           text: '起步',
           items: [
-            { text: '基本概念', link: '/learn_frontend/rollup/基本概念' },
-            { text: '核心概念', link: '/learn_frontend/rollup/核心概念' },
-            { text: '包配置', link: '/learn_frontend/rollup/包配置' },
-            { text: '插件', link: '/learn_frontend/rollup/插件' },
-            { text: '命令行接口', link: '/learn_frontend/rollup/命令行接口' },
-            { text: 'JavaScript API', link: '/learn_frontend/rollup/JavascriptAPI' },
-            { text: '基本使用', link: '/learn_frontend/rollup/基本使用' },
+            { text: '基本概念', link: '/learn_frontend/rollup/起步/基本概念' },
+            { text: '核心概念', link: '/learn_frontend/rollup/起步/核心概念' },
+            { text: '基本使用', link: '/learn_frontend/rollup/起步/基本使用' },
+
+            { text: '命令行接口', link: '/learn_frontend/rollup/起步/命令行接口' },
+            { text: 'JavaScript API', link: '/learn_frontend/rollup/起步/JavascriptAPI' },
           ],
+        },
+        {
+          text: '插件',
+          items: [{ text: '插件', link: '/learn_frontend/rollup/插件/插件' }],
         },
         {
           text: '配置选项',
           items: [
             {
               text: '输入配置选项',
-              link: '/learn_frontend/rollup/输入配置选项',
+              link: '/learn_frontend/rollup/配置/输入配置选项',
             },
             {
               text: '输出配置选项',
-              link: '/learn_frontend/rollup/输出配置选项',
+              link: '/learn_frontend/rollup/配置/输出配置选项',
             },
             {
               text: '监视配置选项',
-              link: '/learn_frontend/rollup/监视配置选项.md',
+              link: '/learn_frontend/rollup/配置/监视配置选项.md',
             },
             {
               text: '其它配置选项',
-              link: '/learn_frontend/rollup/其它配置选项.md',
+              link: '/learn_frontend/rollup/配置/其它配置选项.md',
             },
+            { text: '包配置', link: '/learn_frontend/rollup/配置/包配置' },
           ],
         },
       ],
