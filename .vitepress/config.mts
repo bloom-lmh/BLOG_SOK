@@ -166,7 +166,7 @@ export default defineConfig({
               link: '/learn_frontend/vue3.4源码/运行时核心/虚拟DOM',
             },
             {
-              text: '副作用函数effect',
+              text: '渲染器',
               link: '/learn_frontend/vue3.4源码/运行时核心/渲染器',
             },
           ],
