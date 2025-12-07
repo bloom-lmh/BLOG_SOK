@@ -42,7 +42,7 @@ export default defineConfig({
             text: 'Vue3',
             items: [
               { text: 'vue3', link: '/learn_frontend/vue3/起步/简介' },
-              { text: 'vue3.4源码', link: '/learn_frontend/vue3.4源码/响应式原理' },
+              { text: 'vue3.4源码', link: '/learn_frontend/vue3.4源码/响应式原理/前言' },
               { text: 'pinia', link: '/learn_frontend/pinia/基本概念' },
             ],
           },
@@ -117,8 +117,68 @@ export default defineConfig({
       ],
       '/learn_frontend/vue3.4源码': [
         {
+          text: '项目架构',
+          items: [
+            {
+              text: '设计思想和原理',
+              link: '/learn_frontend/vue3.4源码/项目架构/设计思想和原理',
+            },
+            {
+              text: 'monorepo架构',
+              link: '/learn_frontend/vue3.4源码/项目架构/monorepo架构',
+            },
+          ],
+        },
+        {
           text: '响应式原理',
-          link: '/learn_frontend/vue3.4源码/响应式原理',
+          items: [
+            {
+              text: '前言',
+              link: '/learn_frontend/vue3.4源码/响应式原理/前言',
+            },
+            {
+              text: '副作用函数effect',
+              link: '/learn_frontend/vue3.4源码/响应式原理/副作用函数effect',
+            },
+            {
+              text: '依赖追踪',
+              link: '/learn_frontend/vue3.4源码/响应式原理/依赖追踪track',
+            },
+            {
+              text: '实现ref',
+              link: '/learn_frontend/vue3.4源码/响应式原理/实现ref',
+            },
+            {
+              text: '实现computed',
+              link: '/learn_frontend/vue3.4源码/响应式原理/实现computed',
+            },
+            {
+              text: '实现watch和watchEffect',
+              link: '/learn_frontend/vue3.4源码/响应式原理/实现watch和watchEffect',
+            },
+          ],
+        },
+        {
+          text: '运行时核心',
+          items: [
+            {
+              text: '虚拟DOM',
+              link: '/learn_frontend/vue3.4源码/运行时核心/虚拟DOM',
+            },
+            {
+              text: '副作用函数effect',
+              link: '/learn_frontend/vue3.4源码/运行时核心/渲染器',
+            },
+          ],
+        },
+        {
+          text: '编译核心',
+          items: [
+            {
+              text: '编译原理',
+              link: '/learn_frontend/vue3.4源码/编译核心/编译原理',
+            },
+          ],
         },
       ],
       '/learn_frontend/css/': [
