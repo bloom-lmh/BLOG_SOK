@@ -169,6 +169,10 @@ export default defineConfig({
               text: '渲染器',
               link: '/learn_frontend/vue3.4源码/运行时核心/渲染器',
             },
+            {
+              text: 'render函数',
+              link: '/learn_frontend/vue3.4源码/运行时核心/render函数',
+            },
           ],
         },
         {
