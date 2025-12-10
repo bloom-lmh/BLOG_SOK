@@ -156,6 +156,10 @@ export default defineConfig({
               text: '实现watch和watchEffect',
               link: '/learn_frontend/vue3.4源码/响应式原理/实现watch和watchEffect',
             },
+            {
+              text: '总结响应式原理',
+              link: '/learn_frontend/vue3.4源码/响应式原理/响应式原理总结',
+            },
           ],
         },
         {
@@ -172,6 +176,10 @@ export default defineConfig({
             {
               text: 'render函数',
               link: '/learn_frontend/vue3.4源码/运行时核心/render函数',
+            },
+            {
+              text: 'diff算法',
+              link: '/learn_frontend/vue3.4源码/运行时核心/diff算法',
             },
           ],
         },

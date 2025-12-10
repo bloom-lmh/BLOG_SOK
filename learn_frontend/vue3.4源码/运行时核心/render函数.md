@@ -378,19 +378,19 @@ const patchElement = (n1, n2, container, anchor, parentComponent) => {
 
 ### 更新孩子节点 patchChildren
 
-以下是 Vue 3 中 `patchChildren` 处理新旧子节点（`children`）时的几种情况：
+以下是 `patchChildren` 处理新旧子节点（`children`）时的几种情况：
 
-| 新子节点类型         | 旧子节点类型         | 操作方式                         |
-| -------------------- | -------------------- | -------------------------------- |
-| 文本                 | 数组                 | 删除所有旧子节点，设置新文本内容 |
-| 文本                 | 文本                 | 直接更新文本内容                 |
-| 文本                 | 空（null/undefined） | 设置新文本内容                   |
-| 数组                 | 数组                 | 使用 diff 算法进行高效更新       |
-| 数组                 | 文本                 | 清除旧文本，挂载新子节点数组     |
-| 数组                 | 空（null/undefined） | 挂载新子节点数组                 |
-| 空（null/undefined） | 数组                 | 删除所有旧子节点                 |
-| 空（null/undefined） | 文本                 | 清空旧文本内容                   |
-| 空（null/undefined） | 空                   | 无需任何操作                     |
+| 新子节点类型           | 旧子节点类型           | 操作方式                         |
+| ---------------------- | ---------------------- | -------------------------------- |
+| 文本                   | 数组                   | 删除所有旧子节点，设置新文本内容 |
+| 文本                   | 文本                   | 直接更新文本内容                 |
+| 文本                   | 空（`null/undefined`） | 设置新文本内容                   |
+| 数组                   | 数组                   | 使用 diff 算法进行高效更新       |
+| 数组                   | 文本                   | 清除旧文本，挂载新子节点数组     |
+| 数组                   | 空（`null/undefined`） | 挂载新子节点数组                 |
+| 空（`null/undefined`） | 数组                   | 删除所有旧子节点                 |
+| 空（`null/undefined`） | 文本                   | 清空旧文本内容                   |
+| 空（`null/undefined`） | 空                     | 无需任何操作                     |
 
 ```js
 /**
@@ -411,27 +411,30 @@ const patchChildren = (n1, n2, el, anchor, parentComponent) => {
   const shapeFlag = n2.shapeFlag;
 
   // 根据子节点的不同情况进行处理
+  // 新的是文本
   if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+    // 老数组；移除老的
     if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      // 新文本，老数组；移除老的
       unmountChildren(c1, parentComponent);
     }
+    // 老的是文本或空；内容不相同替换
     if (c1 !== c2) {
-      // 新文本，老文本；内容不相同替换
       hostSetElementText(el, c2);
     }
   } else {
-    // 新非文本
+    // 老为数组
     if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+      //  新为数组
       if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        //  老数组，新数组
         // 全量diff算法 两个数组比较
         patchKeyedChildren(c1, c2, el, parentComponent);
       } else {
         // 老数组，新非数组；移除老节点
         unmountChildren(c1, parentComponent);
       }
-    } else {
+    }
+    // 老的不要数组
+    else {
       if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
         // 老文本，新为null
         hostSetElementText(el, '');
@@ -445,4 +448,58 @@ const patchChildren = (n1, n2, el, anchor, parentComponent) => {
 };
 ```
 
-## unmount 方法
+全量`diff`算法请参见[diff 算法](./diff算法.md)
+
+## 卸载相关方法
+
+### 卸载节点 unmount
+
+这个方法是卸载的入口，它会根据传入的虚拟节点的形状，调用不同的卸载方法，比如：
+
+```js
+/**
+ * 卸载虚拟节点及其子节点
+ * @param vnode 传入的虚拟节点，它是来自它挂载的容器（container）身上的_vnode属性
+ * @param parentComponent 父组件实例，用于provide和inject
+ */
+const unmount = (vnode, parentComponent) => {
+  // 获取虚拟节点的形状，对于的真实的dom元素el
+  const { shapeFlag, el } = vnode;
+  // 封装卸载方法
+  const performRemove = () => {
+    hostRemove(vnode.el);
+  };
+  // 如果节点为Fragment，则递归卸载子节点
+  if (vnode.type === Fragment) {
+    unmountChildren(vnode.children, parentComponent);
+  }
+  // 如果节点是组件
+  else if (shapeFlag & ShapeFlags.COMPONENT) {
+    unmount(vnode.component.subTree, parentComponent);
+  }
+  // 如果节点是Teleport
+  else if (shapeFlag & ShapeFlags.TELEPORT) {
+    vnode.type.remove(vnode, unmountChildren);
+  }
+  // 其他情况，直接移除节点
+  else {
+    performRemove();
+  }
+};
+```
+
+### 卸载子节点 unmountChildren
+
+```js
+/**
+ * @description 卸载子元素
+ * @param children 孩子节点
+ * @param parentComponent 父元素
+ */
+const unmountChildren = (children, parentComponent) => {
+  for (let i = 0; i < children.length; i++) {
+    let child = children[i];
+    unmount(child, parentComponent);
+  }
+};
+```
