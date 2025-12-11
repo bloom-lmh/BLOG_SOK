@@ -51,6 +51,10 @@ export default defineConfig({
             link: '/learn_frontend/react/react基础/jsx',
           },
           {
+            text: 'Git',
+            link: '/learn_frontend/git/基本概念',
+          },
+          {
             text: '工程化',
             items: [
               { text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' },
