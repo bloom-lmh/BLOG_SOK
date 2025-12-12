@@ -119,6 +119,56 @@ export default defineConfig({
           link: '/shred_life/森海塞尔momentum4',
         },
       ],
+      '/learn_frontend/git/': [
+        {
+          text: '基本概念',
+          link: '/learn_frontend/git/基本概念',
+        },
+        {
+          text: '配置管理',
+          link: '/learn_frontend/git/配置管理',
+        },
+        {
+          text: '工作区管理',
+          link: '/learn_frontend/git/工作区管理',
+        },
+        {
+          text: '暂存区管理',
+          link: '/learn_frontend/git/暂存区管理',
+        },
+        {
+          text: '版本区管理',
+          link: '/learn_frontend/git/版本区管理',
+        },
+        {
+          text: '分支管理',
+          link: '/learn_frontend/git/分支管理',
+        },
+        {
+          text: '标签管理',
+          link: '/learn_frontend/git/标签管理',
+        },
+        {
+          text: '查看信息',
+          link: '/learn_frontend/git/查看信息',
+        },
+        {
+          text: '团队协作',
+          link: '/learn_frontend/git/查看信息',
+        },
+        {
+          text: '跨团队开发',
+          link: '/learn_frontend/git/跨团队开发',
+        },
+        {
+          text: '最佳实践',
+          link: '/learn_frontend/git/最佳实践',
+        },
+        {
+          text: 'GIT原理',
+          link: '/learn_frontend/git/GIT原理',
+        },
+      ],
       '/learn_frontend/vue3.4源码': [
         {
           text: '项目架构',
