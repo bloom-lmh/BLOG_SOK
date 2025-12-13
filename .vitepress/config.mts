@@ -137,8 +137,8 @@ export default defineConfig({
           link: '/learn_frontend/git/暂存区管理',
         },
         {
-          text: '版本区管理',
-          link: '/learn_frontend/git/版本区管理',
+          text: '版本库管理',
+          link: '/learn_frontend/git/版本库管理',
         },
         {
           text: '分支管理',
@@ -154,7 +154,7 @@ export default defineConfig({
         },
         {
           text: '团队协作',
-          link: '/learn_frontend/git/查看信息',
+          link: '/learn_frontend/git/团队协作',
         },
         {
           text: '跨团队开发',
