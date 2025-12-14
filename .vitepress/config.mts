@@ -52,7 +52,7 @@ export default defineConfig({
           },
           {
             text: 'Git',
-            link: '/learn_frontend/git/基本概念',
+            link: '/learn_frontend/git/最佳实践',
           },
           {
             text: '工程化',
@@ -121,6 +121,10 @@ export default defineConfig({
       ],
       '/learn_frontend/git/': [
         {
+          text: '最佳实践',
+          link: '/learn_frontend/git/最佳实践',
+        },
+        {
           text: '基本概念',
           link: '/learn_frontend/git/基本概念',
         },
@@ -160,10 +164,7 @@ export default defineConfig({
           text: '跨团队开发',
           link: '/learn_frontend/git/跨团队开发',
         },
-        {
-          text: '最佳实践',
-          link: '/learn_frontend/git/最佳实践',
-        },
+
         {
           text: 'GIT原理',
           link: '/learn_frontend/git/GIT原理',
