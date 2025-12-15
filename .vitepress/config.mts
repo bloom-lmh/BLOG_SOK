@@ -48,24 +48,28 @@ export default defineConfig({
           },
           {
             text: 'React',
-            link: '/learn_frontend/react/react基础/jsx',
+            items: [{ text: 'React基础', link: '/learn_frontend/react/react基础/Jsx' }],
           },
           {
             text: 'Git',
-            link: '/learn_frontend/git/最佳实践',
+            items: [{ text: 'Git', link: '/learn_frontend/git/最佳实践' }],
           },
           {
-            text: '工程化',
-            items: [
-              { text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' },
-              { text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' },
-              { text: 'monorepo', link: '/learn_frontend/monorepo/monorepo工程管理' },
-              { text: 'minimist', link: '/learn_frontend/minimist/minimist' },
-            ],
+            text: '打包工具',
+            items: [{ text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' }],
+          },
+          {
+            text: '包管理器',
+            items: [{ text: 'pnpm', link: '/learn_frontend/pnpm/基本介绍/初衷' }],
+          },
+          {
+            text: '架构方案',
+            items: [{ text: 'monorepo架构', link: '/learn_frontend/monorepo/monorepo工程管理' }],
           },
           {
             text: 'Tools',
             items: [
+              { text: 'minimist', link: '/learn_frontend/minimist/minimist' },
               { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
               { text: 'msw', link: '/learn_frontend/tools/msw/模拟HTTP/起步' },
               { text: 'joi', link: '/learn_frontend/tools/joi/joi的基本使用' },
@@ -74,8 +78,8 @@ export default defineConfig({
           },
 
           {
-            text: 'Browser',
-            link: '/learn_frontend/browser/browser基础/浏览器渲染原理',
+            text: '浏览器原理',
+            items: [{ text: '浏览器渲染原理', link: '/learn_frontend/browser/browser基础/浏览器渲染原理' }],
           },
         ],
       },
