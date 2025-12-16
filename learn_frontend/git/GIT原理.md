@@ -105,7 +105,7 @@
 <img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251215114617903.png" 
      style="width: 100%; height: auto; display: block;">
 
-现在 `bugFix` 分支上的工作在 `main` 的最顶端，同时我们也得到了一个更线性的提交序列。注意，提交记录 `C3` 依然存在（树上那个半透明的节点），而 `C3` 是我们 `Rebase` 到 `main` 分支上的 `C3` 的副本。输入`git rebase main`
+输入命令`git rebase main`。现在 `bugFix` 分支上的工作在 `main` 的最顶端，同时我们也得到了一个更线性的提交序列。注意，提交记录 `C3` 依然存在（树上那个半透明的节点），而 `C3` 是我们 `Rebase` 到 `main` 分支上的 `C3` 的副本。
 
 <img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251215114828971.png" 
      style="width: 100%; height: auto; display: block;">
@@ -263,3 +263,51 @@ $ git branch -f bugFix c0
 ## 整理提交记录
 
 到现在我们已经学习了 `Git` 的基础知识，然而，接下来要讨论的这个话题是“整理提交记录” —— 开发人员有时会说“我想要把这个提交放到这里, 那个提交放到刚才那个提交的后面”, 而接下来就讲的就是它的实现方式，非常清晰、灵活，还很生动。
+
+### git cherry-pick
+
+> 一句话概述：其实就和字面意思摘樱桃一样，将多个提交节点摘下来挂载到当前的`HEAD`后
+
+如果你想将一些提交复制到当前所在的位置（`HEAD`）下面的话， `Cherry-pick` 是最直接的方式了。命令形式为: `git cherry-pick <commit-id>...`。
+
+比如这里有一个仓库, 我们想将 `side` 分支上的工作复制到 `main` 分支，你立刻想到了之前学过的 `rebase` 了吧？但是咱们还是看看 `cherry-pick` 有什么本领吧。
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216155734618.png" 
+     style="width: 100%; height: auto; display: block;">
+
+输入命令：`git cherry-pick C2 C4`
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216155734618.png" 
+     style="width: 100%; height: auto; display: block;">
+
+我们只需要提交记录 `C2` 和 `C4`，所以 `Git` 就将被它们抓过来放到当前分支下了。 就是这么简单!
+
+> 案例：把三个提交挂载到`main`后
+
+![案例](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216160410772.png)
+
+输入命令:`git cherry-pick c3 c4 c7`
+
+### 交互式 rebase
+
+当你知道你所需要的提交记录（并且还知道这些提交记录的哈希值）时, 用 `cherry-pick` 再好不过了 —— 没有比这更简单的方式了。但是如果你不清楚你想要的提交记录的哈希值时, 我们可以利用交互式的 `rebase`。交互式 `rebase` 指的是使用带参数 `--interactive` 的 `rebase` 命令, 简写为 `-i`。它会打开一个 `UI` 界面并列出将要被复制到目标分支的备选提交记录
+
+> 在实际使用时，所谓的 UI 窗口一般会在文本编辑器 —— 如 Vim —— 中打开一个文件
+
+当 `rebase UI`界面打开时, 你能做`3`件事:
+
+- 调整提交记录的顺序（通过鼠标拖放来完成）
+- 删除你不想要的提交（通过切换 pick 的状态来完成，关闭就意味着你不想要这个提交记录）
+- 合并提交。
+
+比如你需要将 `main` 分支上的 `c5` 和 `c4` 变基到 `c1` 下面:
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216164348595.png" 
+     style="width: 100%; height: auto; display: block;">
+
+输入命令：`git rebase -i HEAD~4`
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216170043822.png" 
+     style="width: 100%; height: auto; display: block;">
+
+## 本地栈式提交

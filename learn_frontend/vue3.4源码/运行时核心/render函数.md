@@ -386,13 +386,7 @@ const mountElement = (vnode, container, anchor, parentComponent) => {
 
 ### 挂载组件 mountComponent
 
-对于挂载组件来说主要三个步骤
-
-1. 创建组件实例，并记录到虚拟节点的`component`属性上
-2. 给实例属性赋值(初始化组件实例)
-3. 创建一个 effect
-
-::: code-group
+我们来看看挂载组件的源码：
 
 ```ts [挂载组件]
 /**
@@ -410,6 +404,13 @@ const mountComponent = (n2, container, anchor, parentComponent) => {
   setupRenderEffect(instance, container, anchor, parentComponent);
 };
 ```
+
+对于挂载组件来说主要三个步骤
+
+1. 创建组件实例，并记录到虚拟节点的`component`属性上
+2. 给实例属性赋值(初始化组件实例)
+
+::: code-group
 
 ```ts [1.创建组件实例]
 /**
@@ -466,36 +467,45 @@ export function setupComponent(instance) {
   const { data = () => {}, render, setup } = vnode.type;
   // setup函数本质上类似于render函数优先级要比render函数高
   if (setup) {
-    // 如果写了setup函数
+    // 如果写了setup函数比如：
+    // const VueComponent = {
+    //    setup(){...}
+    //}
+    // setup函数的上下文，会最终传给setup函数
     const setupContext = {
-      // setup的上下文 里面有attrs,slots,expose,emit
       attrs: instance.attrs,
       slots: instance.slots,
       expose: value => {
         instance.exposed = value;
       },
+      // 派发事件函数
       emit(event, ...payload) {
+        // 拼接完整的事件名
         const eventName = `on${event[0].toUpperCase() + event.slice(1)}`;
+        // 获取props中的函数，这个函数可以是外界传入也可以是组件自身定义的
         const handler = instance.vnode.props[eventName];
+        // 触发函数
         handler && handler(...payload);
       },
     };
-    setCurrentInstance(instance); // 设置当前全局实例，便于setup函数执行时获取当前实例（生命周期）
-    const setupRes = setup(instance.props, setupContext); // setup函数的返回值相当于一个render函数
+    // 设置当前全局实例，便于setup函数执行时获取当前实例（生命周期中会用到）
+    setCurrentInstance(instance);
+    // setup函数的返回值
+    const setupRes = setup(instance.props, setupContext);
     unsetCurrentInstance();
+    // 如果setup返回的是函数，那么就是render函数
     if (isFunction(setupRes)) {
-      // 如果返回的是函数，那么就是render函数
       instance.render = setupRes;
     } else {
-      // 如果返回的是对象，那么就是setupState
+      // 如果返回的是对象，那么就是setup暴露的状态setupState
       instance.setupState = proxyRefs(setupRes || {}); // 将返回的值做ref
     }
   }
-
+  // data必须是一个getter函数
   if (!isFunction(data)) {
     console.warn('data必须是函数');
   } else {
-    // data可以拿到props
+    // data中可以拿到props
     instance.data = reactive(data.call(instance.proxy));
   }
   // setup优先级要高于render
@@ -503,12 +513,13 @@ export function setupComponent(instance) {
     instance.render = render;
   }
 }
-
+// 当前实例
 export let currentInstance = null;
+// 获取当前实例
 export const getCurrentInstance = () => {
   return currentInstance;
 };
-
+// 设置当前实例
 export const setCurrentInstance = instance => {
   currentInstance = instance;
 };
@@ -629,6 +640,91 @@ const handler = {
     return true;
   },
 };
+```
+
+:::
+
+3. 创建一个 `effect`并执行
+
+::: code-group
+
+```ts [3.创建effect]
+/**
+ * @description 设置渲染effect
+ * @param instance 组件实例
+ * @param container 组件挂载的容器
+ * @param anchor 锚点
+ * @param parentComponent 父组件实例
+ */
+function setupRenderEffect(instance, container, anchor, parentComponent) {
+  // 组件更新函数
+  const componentUpdate = () => {
+    // 拿到生命周期钩子（这里后续会将，可以跳过相关的代码）
+    //const { bm, m, bu, u } = instance;
+    // 如果组件第一次挂载
+    if (!instance.isMounted) {
+      // if (bm) {
+      //   // 挂载前
+      //   invokeArrayFns(bm);
+      // }
+      // 生成组件对应的虚拟节点subTree
+      const subTree = renderComponent(instance);
+      // 挂载这个subTree
+      patch(null, subTree, container, anchor, instance);
+      // 挂载完后标记该组件已经挂载完成
+      instance.isMounted = true;
+      instance.subTree = subTree;
+      // if (m) {
+      //   // 挂载后
+      //   invokeArrayFns(m);
+      // }
+    } else {
+      // 不是第一次挂载
+      const { next } = instance;
+      if (next) {
+        // 分开两边写更新实在太变态，这里通过next来判断是否为属性或插槽更新
+        // 更新属性和插槽
+        updateComponentPreRender(instance, next);
+      }
+      // if (bu) {
+      //   invokeArrayFns(bu);
+      // }
+      // 基于状态的组件更新
+      const subTree = renderComponent(instance);
+      patch(instance.subTree, subTree, container, anchor, instance); // 上一次的subTree和此次进行更新
+      instance.subTree = subTree;
+      // if (u) {
+      //   invokeArrayFns(u);
+      // }
+    }
+  };
+  // 创建一个effect，scheduler是一个包装函数，这个函数主要用于
+  const effect = new ReactiveEffect(componentUpdate, () => queueJob(update));
+  const update = (instance.update = () => effect.run());
+  // 直接执行effect，进行组件挂载
+  update();
+}
+```
+
+```ts [3.1渲染组件方法]
+/**
+ * 渲染组件
+ * @param instance 组件实例
+ * @returns 返回一个vnode（subTree）
+ * @description 本质上就是调用组件的render函数创建虚拟节点树并返回根节点
+ */
+function renderComponent(instance) {
+  // 获取组件实例的render函数等信息
+  const { render, vnode, proxy, attrs, slots } = instance;
+  // 对于状态组件
+  if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+    // 调用渲染函数来创建组件对应的虚拟节点树，并传入proxy，这个proxy其实就是this，里面包含了组件接受的props和状态，方便在组件模板中进行使用
+    return render.call(proxy, proxy);
+  } else {
+    // 函数式组件
+    return vnode.type(attrs, { slots });
+  }
+}
 ```
 
 :::
