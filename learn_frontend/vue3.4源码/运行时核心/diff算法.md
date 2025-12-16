@@ -191,9 +191,9 @@ else if (i > e2) {
 2. 通过 `e1` 和 `e2` 指针从后往前遍历确定了右边界为 `e1=5`，`e2=5`
 3. 计算需要调整顺序的元素个数`toBePatched=4`
 4. 初始化映射表 `keyToNewIndexMap`，用于建立边界中元素`defc`在新子节点数组中的索引位置映射，比如`d->2;e->3;f->4;c->5`
-5. 建立`newIndexToOldMapIndex`，用于建立旧子节点数组中对应边界中元素在边界数组中的索引位置和在旧字节点数组中的索引位置映射，比如`3`号索引下的值位为`2`，表示新子节点数组对应的边界数组中的`c`元素在第`3`号位置，旧子节点数组对应的边界数组的`c`元素在第`2`号位置。这里加一是为了防止 `0` 索引的情况，因为没有的元素默认为`0`会导致歧义。
-6. 然后根据 `newIndexToOldMapIndex`来计算最长递增子序列，尽可能不改变连续序列
-7. 然后从后往前插入乱序的元素
+5. 建立`newIndexToOldMapIndex`，用于建立旧子节点数组中对应边界中元素在边界数组中的索引位置和在旧字节点数组中的索引位置映射，比如`3`号索引下的值为`2`，表示新子节点数组对应的边界数组中的`c`元素在第`3`号位置，旧子节点数组对应的边界数组的`c`元素在第`2`号位置。这里加一是为了防止 `0` 索引的情况，因为没有的元素默认为`0`会导致歧义。
+6. 然后根据 `newIndexToOldMapIndex`来计算最长递增子序列，这里计算出最长的递增子序列为`def`
+7. 然后从后往前插入乱序的元素，对于计算出的`def`可以不用再进行插入了，只用将`c`插入`g`后面即可
 
 ```js
 else {
@@ -252,6 +252,75 @@ for (let i = toBePatched; i > 0; i--) {
 ```
 
 ## 最长递增子序列
+
+`vue`使用了最长递增子序列来查找老节点中最长的连续序列，对于这些连续序列，不用动位置，也不用再调用插入操作，以最大限度的优化插入和删除操作。这里最长递增子序列采用了贪心算法和二分查找算法，其步骤主要为 3 步：
+
+1. 当前元素和结果集最后一位比，如果大则放入
+2. 二分查找找到比当前元素仅大一点的元素，如果存在，则替换
+3. 前驱索引替换回去
+
+```js
+// 老的数组元素索引：[c d e]   2 3 4
+// 新的数组的元素索引： [e c d h] 4 2 3 0(表示以前不存在)
+
+// 2 3 7 6 8 4 9 11 -> 求最长递增子序列个数(贪心+二分)
+
+/* 
+    2
+    2 3
+    2 3 7 先暂且认为这个序列够长
+    2 3 6
+    2 3 6 8
+    2 3 4 8 记录 4替换了6 且8之前的是6
+    2 3 4 8 9
+    2 3 4 8 9 11 
+*/
+export const getSequence = arr => {
+  const result = [0];
+  const p = result.slice(0); // 用于存放索引
+  let start;
+  let end;
+  let mid;
+  const len = arr.length; // 数组长度
+  for (let i = 0; i < len; i++) {
+    const arrI = arr[i];
+    if (arrI !== 0) {
+      // 在vue3中认为0应该是从未出现过的，需要创建的节点
+      // 拿出结果集最后一项和当前做比对
+      let resultLastIndex = result[result.length - 1];
+      if (arr[resultLastIndex] < arrI) {
+        p[i] = resultLastIndex;
+        result.push(i); // 将当前的索引放入到结果集即可
+        continue;
+      }
+    }
+    start = 0;
+    end = result.length - 1;
+    while (start < end) {
+      mid = ((start + end) / 2) | 0;
+      if (arr[result[mid]] < arrI) {
+        start = mid + 1;
+      } else {
+        end = mid;
+      }
+    }
+    if (arrI < arr[result[start]]) {
+      p[i] = result[start - 1]; // 找到那个节点的前一个
+      result[start] = i;
+    }
+    // p 为前驱节点的列表，需要根据最后一个节点做追溯
+    let l = result.length - 1;
+    let last = result[l - 1];
+    while (l-- > 0) {
+      result[l] = last;
+      last = p[last];
+    }
+    // 需要创建一个前驱节点 进行倒序追溯
+    return result;
+  }
+  return;
+};
+```
 
 ## 优化策略
 

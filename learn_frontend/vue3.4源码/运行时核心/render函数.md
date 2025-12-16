@@ -108,6 +108,8 @@ const patch = (n1, n2, container, anchor = null, parentComponent = null) => {
 };
 ```
 
+`vue`将虚拟节点划分为文本节点、元素节点、组件节点、`Fragment` 节点等四种类型，在`patch`方法中根据位运算来区分不同类型从而做不同的操作，本质上是策略模式的体现。
+
 ### 处理文本节点 processText
 
 文本节点就是孩子节点为文本内容的虚拟节点，比如:
@@ -217,7 +219,84 @@ const processElement = (n1, n2, container, anchor, parentComponent) => {
 挂载元素方法请见下面[mountElement](./render函数.md#挂载元素节点-mountelement)
 更新元素方法请见下面[patchElement](./render函数.md#更新元素节点-patchelement)
 
-### 处理组件节点
+### 处理组件节点 processComponent
+
+在`vue`中，组件是一个包含状态和渲染方法的对象，如下所示：
+
+```js
+const RenderComponent = {
+  props: {
+    address: String,
+  },
+  render() {
+    return h(Fragment, {}, [
+      h(Text, this.address),
+      /*  h('button', { onClick: () => (this.address = '西安') }, '子组件修改'), */
+    ]);
+  },
+};
+const VueComponent = {
+  props: {
+    // defineProps()
+    name: String,
+    age: Number,
+  },
+  data() {
+    return { flag: true, address: '北京' };
+  },
+  render(proxy) {
+    // this 为组件的实例
+    return h(Fragment, [
+      h(
+        'button',
+        {
+          onClick: () => (this.flag = !this.flag),
+        },
+        '点击',
+      ),
+      h(RenderComponent, { address: this.flag ? this.address : '上海' }),
+    ]);
+  },
+};
+render(
+  // 组件被挂载到一个虚拟节点的type上
+  h(VueComponent, {}),
+  app,
+);
+```
+
+其中
+
+1. `props`主要用于声明组件可以接受的属性
+2. `data`用于定义组件的状态
+3. `render`方法用于渲染组件的结构，也就是生成组件对于的`subTree`。`render`函数接受一个`proxy`的代理对象，这个代理对象包含了状态已经属性用于在组件中进行使用
+
+我们来看看源码：
+
+```js
+/**
+ * 处理状态组件
+ * @param n1 上一次的节点
+ * @param n2 此次节点
+ * @param container 挂载容器
+ * @param anchor 锚点
+ * @param parentComponent 父组件实例
+ */
+const processComponent = (n1, n2, container, anchor, parentComponent) => {
+  // 若老节点不存在，表示为首次挂载
+  if (n1 === null) {
+    mountComponent(n2, container, anchor, parentComponent);
+  } else {
+    // 这里比较props的变化，实现响应式（n1和n2的变化追踪）
+    updateComponent(n1, n2, parentComponent); // 不能使用patch，因为会死循环
+  }
+};
+```
+
+在这个处理组件中，其操作也分为：
+
+1. 首次则挂载调用`mountComponent`方法，具体请看[mountComponent](./render函数.md#挂载组件-mountcomponent)
+2. 非首次则更新调用`updateComponent`方法，具体请看[updateComponent](./render函数.md#更新组件-updatecomponent)
 
 ## 挂载相关操作
 
@@ -304,6 +383,255 @@ const mountElement = (vnode, container, anchor, parentComponent) => {
   hostInsert(el, container);
 };
 ```
+
+### 挂载组件 mountComponent
+
+对于挂载组件来说主要三个步骤
+
+1. 创建组件实例，并记录到虚拟节点的`component`属性上
+2. 给实例属性赋值(初始化组件实例)
+3. 创建一个 effect
+
+::: code-group
+
+```ts [挂载组件]
+/**
+ * 挂载组件
+ * @param n2 提供的组件vnode
+ * @param container 挂载的容器
+ * @param anchor 锚点
+ */
+const mountComponent = (n2, container, anchor, parentComponent) => {
+  // 1. 先创建组件实例（Instance） 并挂载到n2.component上
+  const instance = (n2.component = createComponentInstance(n2, parentComponent));
+  // 2. 给实例属性/插槽等赋值
+  setupComponent(instance);
+  // 3. 创建一个effect
+  setupRenderEffect(instance, container, anchor, parentComponent);
+};
+```
+
+```ts [1.创建组件实例]
+/**
+ * 创建组件实例
+ * @param vnode 组件对应的虚拟节点
+ * @returns 组件实例
+ */
+export function createComponentInstance(vnode, parent) {
+  /**
+   * 组件实例
+   * @description 属性分为两种 $attrs(非响应式的) 和 props(响应式的)，所有外部传来的属性 - propsOptions = $attrs
+   */
+  const instance = {
+    data: null, // 状态 state
+    vnode, // 组件的对应的虚拟节点
+    subTree: null, // 子树
+    isMounted: false, // 是否挂载完成
+    update: null, // 组件的更新函数
+    props: {}, // 外界传入的属性
+    attrs: {}, // 没有$，挂载在instance上的是没有$的，实际this却是有的，原因是因为用了proxy代理映射
+    slots: {}, // 插槽，没有$
+    propsOptions: vnode.type.props, // 组件声明允许接受的属性
+    proxy: null, // 用来代理props，attrs，data让用户方便的访问
+    setupState: {}, // setup返回的状态
+    exposed: null, // 暴露给外部的属性
+    parent, // 关联的父组件
+    // 所有的组件provide都一样 ，parent = {...} , child = 引用对象
+    provides: parent ? parent.provides : Object.create(null), // Object.create(null) 为了防止原型链上的属性干扰
+    ctx: {} as any, // 如果是keepalive组件，就将dom api放入到这个属性上
+  };
+  return instance;
+}
+```
+
+```ts [2.设置组件实例]
+/**
+ * @description 初始化组件
+ * @param instance 组件实例
+ */
+export function setupComponent(instance) {
+  // 解构组件对应的虚拟节点
+  const { vnode } = instance;
+
+  // -- 赋值属性 -- 这个props是外部传入的
+  initProps(instance, vnode.props);
+
+  // -- 赋值插槽 -- 其实就是 h(VueComponent,{},{})这第三个参数就是穿个组件的插槽，也就是组件的孩子节点就是插槽
+  initSlots(instance, vnode.children);
+
+  // -- 赋值代理对象 --
+  // render(proxy)里的proxy就指向instance
+  instance.proxy = new Proxy(instance, handler);
+  // 获取组件的状态、render函数和setup函数
+  const { data = () => {}, render, setup } = vnode.type;
+  // setup函数本质上类似于render函数优先级要比render函数高
+  if (setup) {
+    // 如果写了setup函数
+    const setupContext = {
+      // setup的上下文 里面有attrs,slots,expose,emit
+      attrs: instance.attrs,
+      slots: instance.slots,
+      expose: value => {
+        instance.exposed = value;
+      },
+      emit(event, ...payload) {
+        const eventName = `on${event[0].toUpperCase() + event.slice(1)}`;
+        const handler = instance.vnode.props[eventName];
+        handler && handler(...payload);
+      },
+    };
+    setCurrentInstance(instance); // 设置当前全局实例，便于setup函数执行时获取当前实例（生命周期）
+    const setupRes = setup(instance.props, setupContext); // setup函数的返回值相当于一个render函数
+    unsetCurrentInstance();
+    if (isFunction(setupRes)) {
+      // 如果返回的是函数，那么就是render函数
+      instance.render = setupRes;
+    } else {
+      // 如果返回的是对象，那么就是setupState
+      instance.setupState = proxyRefs(setupRes || {}); // 将返回的值做ref
+    }
+  }
+
+  if (!isFunction(data)) {
+    console.warn('data必须是函数');
+  } else {
+    // data可以拿到props
+    instance.data = reactive(data.call(instance.proxy));
+  }
+  // setup优先级要高于render
+  if (!instance.render) {
+    instance.render = render;
+  }
+}
+
+export let currentInstance = null;
+export const getCurrentInstance = () => {
+  return currentInstance;
+};
+
+export const setCurrentInstance = instance => {
+  currentInstance = instance;
+};
+
+export const unsetCurrentInstance = () => {
+  currentInstance = null;
+};
+```
+
+```ts [2.1设置属性]
+/**
+ * 初始化属性
+ * @param instance 创建的组件实例
+ * @param rawProps 外部传入的props
+ * @description props是外部传入的属性比如 h(VueComponent, { name: '张三', age: 18 }) { name: '张三', age: 18 } 就是 props
+ * 根据propsOptions 来区分props和$attrs，就是说外界传来的属性，组件可以声明接受哪些
+ */
+const initProps = (instance, rawProps) => {
+  // 组件声明要接受的属性放这里
+  const props = {};
+  // 其余属性放这里
+  const attrs = {};
+  // 组件声明要接受的props 也就是defineProps定义的显示声明要接受的props
+  const propsOptions = instance.propsOptions || {}; // 用户在组件中定义的
+  if (rawProps) {
+    for (let key in rawProps) {
+      const value = rawProps[key];
+      // 对于显示声明的props收集到实例的props属性中
+      if (key in propsOptions) {
+        props[key] = value;
+      } else {
+        // 非显示声明的收集到实例的attrs属性中
+        attrs[key] = value;
+      }
+    }
+  }
+  // props 不需要深度代理，因为组件内部是不能改外部传进来的属性的，这里实际使用的是shallowReactive
+  instance.props = reactive(props);
+  // 虽说$attrs是非响应式的，到那时其实在开发环境下，它是响应式的（为了方便）
+  instance.attrs = attrs;
+};
+```
+
+```ts [2.2初始化插槽]
+/**
+ * @description 初始化插槽
+ * @param instance 组件实例
+ * @param children vn子元素（组件的children就是插槽）
+ */
+const initSlots = (instance, children) => {
+  // 创建虚拟节点时第三个参数为对象表示是插槽
+  if (instance.vnode.shapeFlag & ShapeFlags.SLOTS_CHILDREN) {
+    instance.slots = children;
+  } else {
+    instance.slots = {};
+  }
+};
+```
+
+```ts [2.3代理属性]
+// $attrs 映射表
+const publicProperty = {
+  $attrs: instance => instance.attrs, // 不能写成$attrs:instance.attrs哦，这样就写死了，还是要根据传入的target返回的
+  $slots: instance => instance.slots,
+};
+// proxy 代理的handler
+const handler = {
+  /**
+   * 获取组件上的属性
+   * @param target 组件实例
+   * @param key 要获取的属性名
+   * @returns 对应属性的值
+   * @description 方便获取组件上的属性，比如 this.xxx。你有没有发现在使用vue时不管时props传入属性还是自己定义的状态都能一视同仁的在模板中直接使用，对于选项式都可以this.xxx获取，实际上就是在这里进行实现的
+   */
+  get(target, key) {
+    // 获取组件实例的状态 props和setupState
+    const { data, props, setupState } = target;
+    // 状态中有从状态中获取
+    if (data && hasOwn(data, key)) {
+      return data[key];
+    }
+    // props中有就从props中获取
+    else if (props && hasOwn(props, key)) {
+      return props[key];
+    }
+    // setupState中有就从setupState中获取
+    else if (setupState && hasOwn(setupState, key)) {
+      // setupState
+      return setupState[key];
+    }
+    // 当要访问this.$attr 或 this.$slots时，返回对应的getter
+    const getter = publicProperty[key];
+    if (getter) {
+      return getter(target);
+    }
+  },
+  /**
+   * 设置组件上的属性
+   * @param target 组件实例
+   * @param key 要设置的属性名
+   * @param value 要设置的属性值
+   */
+  set(target, key, value) {
+    const { data, props, setupState } = target;
+    // 优先设置状态
+    if (data && hasOwn(data, key)) {
+      data[key] = value;
+    }
+    // 其次设置props
+    else if (props && hasOwn(props, key)) {
+      // 一般来说props虽然是响应式的但是不推荐直接赋值，应该使用函数来触发父组件更改这个props进而影响传入的props
+      props[key] = value;
+      console.warn('props是只读');
+      return false;
+    } else if (setupState && hasOwn(setupState, key)) {
+      setupState[key] = value;
+    }
+    return true;
+  },
+};
+```
+
+:::
 
 ## 更新相关方法
 
@@ -449,6 +777,8 @@ const patchChildren = (n1, n2, el, anchor, parentComponent) => {
 ```
 
 全量`diff`算法请参见[diff 算法](./diff算法.md)
+
+### 更新组件 updateComponent
 
 ## 卸载相关方法
 
