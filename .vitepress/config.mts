@@ -84,6 +84,15 @@ export default defineConfig({
         ],
       },
       {
+        text: '后端',
+        items: [
+          {
+            text: 'node',
+            link: '/learn_backend/node/基础知识/简介与安装',
+          },
+        ],
+      },
+      {
         text: '软件架构',
         items: [
           {
@@ -117,6 +126,42 @@ export default defineConfig({
     ],
 
     sidebar: {
+      '/learn_backend/node': [
+        {
+          text: '基础知识',
+          items: [
+            {
+              text: '简介与安装',
+              link: '/learn_backend/node/基础知识/简介与安装',
+            },
+            {
+              text: '模块化开发',
+              link: '/learn_backend/node/基础知识/模块化开发',
+            },
+            {
+              text: '包管理工具',
+              link: '/learn_backend/node/基础知识/包管理工具',
+            },
+            {
+              text: '网络基础',
+              link: '/learn_backend/node/基础知识/网络基础',
+            },
+          ],
+        },
+        {
+          text: '内置模块',
+          items: [
+            {
+              text: 'event',
+              link: '/learn_backend/node/内置模块/event模块',
+            },
+            {
+              text: 'fs模块',
+              link: '/learn_backend/node/内置模块/fs模块',
+            },
+          ],
+        },
+      ],
       '/shred_life/森海塞尔momentum4': [
         {
           text: '森海塞尔momentum4',
@@ -555,6 +600,10 @@ export default defineConfig({
             {
               text: '使用fetch发送网络请求',
               link: '/learn_frontend/javascript/网络与异步编程/使用fetch发送网络请求',
+            },
+            {
+              text: '同源策略',
+              link: '/learn_frontend/javascript/网络与异步编程/同源策略',
             },
           ],
         },
