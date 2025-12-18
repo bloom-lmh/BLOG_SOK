@@ -174,6 +174,14 @@ export default defineConfig({
               text: 'fs模块',
               link: '/learn_backend/node/内置模块/fs模块',
             },
+            {
+              text: 'stream模块',
+              link: '/learn_backend/node/内置模块/stream模块',
+            },
+            {
+              text: 'path模块',
+              link: '/learn_backend/node/内置模块/path模块',
+            },
           ],
         },
       ],
