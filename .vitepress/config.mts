@@ -51,8 +51,16 @@ export default defineConfig({
             items: [{ text: 'React基础', link: '/learn_frontend/react/react基础/Jsx' }],
           },
           {
-            text: 'Git',
+            text: '团队协作',
             items: [{ text: 'Git', link: '/learn_frontend/git/最佳实践' }],
+          },
+          {
+            text: '多端开发',
+            items: [
+              { text: 'electron', link: '/learn_frontend/electron/基本概念' },
+              { text: 'uniapp', link: '/learn_frontend/electron/' },
+              { text: '微信小程序', link: '/learn_frontend/electron/' },
+            ],
           },
           {
             text: '打包工具',
@@ -67,16 +75,23 @@ export default defineConfig({
             items: [{ text: 'monorepo架构', link: '/learn_frontend/monorepo/monorepo工程管理' }],
           },
           {
-            text: 'Tools',
+            text: '单元测试',
             items: [
-              { text: 'minimist', link: '/learn_frontend/minimist/minimist' },
               { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
-              { text: 'msw', link: '/learn_frontend/tools/msw/模拟HTTP/起步' },
               { text: 'joi', link: '/learn_frontend/tools/joi/joi的基本使用' },
+            ],
+          },
+          {
+            text: '数据mock',
+            items: [
+              { text: 'msw', link: '/learn_frontend/tools/msw/模拟HTTP/起步' },
               { text: 'faker', link: '/learn_frontend/tools/faker/起步' },
             ],
           },
-
+          {
+            text: '命令行交互',
+            items: [{ text: 'minimist', link: '/learn_frontend/minimist/minimist' }],
+          },
           {
             text: '浏览器原理',
             items: [{ text: '浏览器渲染原理', link: '/learn_frontend/browser/browser基础/浏览器渲染原理' }],
