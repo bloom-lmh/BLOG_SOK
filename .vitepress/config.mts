@@ -191,6 +191,24 @@ export default defineConfig({
           link: '/shred_life/森海塞尔momentum4',
         },
       ],
+      '/learn_frontend/electron/': [
+        {
+          text: '基本概念',
+          link: '/learn_frontend/electron/基本概念',
+        },
+        {
+          text: '预加载脚本',
+          link: '/learn_frontend/electron/预加载脚本',
+        },
+        {
+          text: '打包分发程序',
+          link: '/learn_frontend/electron/打包分发程序',
+        },
+        {
+          text: '发布和更新',
+          link: '/learn_frontend/electron/发布和更新',
+        },
+      ],
       '/learn_frontend/git/': [
         {
           text: '最佳实践',
