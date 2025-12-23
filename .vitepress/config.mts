@@ -182,6 +182,10 @@ export default defineConfig({
               text: 'path模块',
               link: '/learn_backend/node/内置模块/path模块',
             },
+            {
+              text: 'http模块',
+              link: '/learn_backend/node/内置模块/http模块',
+            },
           ],
         },
       ],
@@ -325,6 +329,42 @@ export default defineConfig({
             {
               text: 'diff算法',
               link: '/learn_frontend/vue3.4源码/运行时核心/diff算法',
+            },
+            {
+              text: '插槽实现',
+              link: '/learn_frontend/vue3.4源码/运行时核心/插槽实现',
+            },
+            {
+              text: 'emit事件派发',
+              link: '/learn_frontend/vue3.4源码/运行时核心/emit事件派发',
+            },
+            {
+              text: 'teleport实现',
+              link: '/learn_frontend/vue3.4源码/运行时核心/teleport实现',
+            },
+            {
+              text: '依赖注入实现',
+              link: '/learn_frontend/vue3.4源码/运行时核心/依赖注入实现',
+            },
+            {
+              text: '生命周期原理',
+              link: '/learn_frontend/vue3.4源码/运行时核心/生命周期原理',
+            },
+            {
+              text: '模板引用ref',
+              link: '/learn_frontend/vue3.4源码/运行时核心/模板引用ref',
+            },
+            {
+              text: '内置组件',
+              link: '/learn_frontend/vue3.4源码/运行时核心/内置组件',
+            },
+            {
+              text: '编译优化',
+              link: '/learn_frontend/vue3.4源码/运行时核心/编译优化',
+            },
+            {
+              text: '靶向更新',
+              link: '/learn_frontend/vue3.4源码/运行时核心/靶向更新',
             },
           ],
         },

@@ -149,7 +149,13 @@ const processText = (n1, n2, container) => {
 
 ### 处理 Fragment 节点 processFragment
 
-`Fragment`本质上就是一个文档片段，对于节点类型为`Fragment`的虚拟节点，不会创建真实的`dom`节点，而是将其子节点渲染到`container`容器中。
+`Fragment`本质上就是一个文档片段，对于节点类型为`Fragment`的虚拟节点，不会创建真实的`dom`节点，而是将其子节点渲染到`container`容器中，比如：
+
+```js
+h(Fragment, {}, [h(Text, {}, 'hello'), ' world']);
+```
+
+处理`Fragment`节点的逻辑如下：
 
 ```js
 /**
@@ -408,9 +414,6 @@ const mountComponent = (n2, container, anchor, parentComponent) => {
 对于挂载组件来说主要三个步骤
 
 1. 创建组件实例，并记录到虚拟节点的`component`属性上
-2. 给实例属性赋值(初始化组件实例)
-
-::: code-group
 
 ```ts [1.创建组件实例]
 /**
@@ -444,6 +447,10 @@ export function createComponentInstance(vnode, parent) {
   return instance;
 }
 ```
+
+2. 给实例属性赋值(初始化组件实例)
+
+::: code-group
 
 ```ts [2.设置组件实例]
 /**
@@ -644,8 +651,11 @@ const handler = {
 
 :::
 
-3. 创建一个 `effect`并执行
+3. 创建一个 `effect`并执行：
+   - 如果实例没有挂载则挂载，首次挂载的时候会进行依赖收集
+   - 如果实例已经挂载则更新组件，并触发再次收集
 
+这里主要注意任务队列`queueJob`的设计，`queueJob`是任务队列
 ::: code-group
 
 ```ts [3.创建effect]
@@ -689,9 +699,10 @@ function setupRenderEffect(instance, container, anchor, parentComponent) {
       // if (bu) {
       //   invokeArrayFns(bu);
       // }
-      // 基于状态的组件更新
+      // 更新操作就是再重新创建一个新的虚拟DOM树
       const subTree = renderComponent(instance);
-      patch(instance.subTree, subTree, container, anchor, instance); // 上一次的subTree和此次进行更新
+      // 旧树和新树做比对更新
+      patch(instance.subTree, subTree, container, anchor, instance);
       instance.subTree = subTree;
       // if (u) {
       //   invokeArrayFns(u);
@@ -727,7 +738,48 @@ function renderComponent(instance) {
 }
 ```
 
+```ts [3.2queueJob任务队列]
+// 任务队列
+const queue = [];
+// 锁
+let isFlushing = false;
+// 使用promise解决微任务队列的执行顺序
+const resolvePromise = Promise.resolve();
+
+// 目前有很多东西都没考虑，比如父子组件更新的顺序等等
+export const queueJob = job => {
+  // 确保任务队列中相同任务只有一个
+  if (!queue.includes(job)) {
+    queue.push(job);
+  }
+  // 上锁，任务是临界资源，当有任务执行的时候其它任务必须等待
+  if (!isFlushing) {
+    isFlushing = true;
+    // 将任务放入微任务队列中，在下一个事件循环中执行
+    resolvePromise.then(() => {
+      isFlushing = false;
+      // 拿到拷贝的任务
+      const copy = queue.slice(0);
+      // 将队列清空
+      queue.length = 0;
+      // 执行队列中的操作
+      copy.forEach(job => job());
+      // 清空拷贝
+      copy.length = 0;
+    });
+  }
+};
+```
+
 :::
+
+`queueJob` 主要做了三个工作：
+
+1. 去重：确保相同任务不会重复加入队列；
+2. 防重入：通过 `isFlushing` 标志避免在 `flush` 过程中重复调度微任务；
+3. 异步批处理：利用 `Promise.resolve().then()` 将任务执行延迟到当前宏任务结束后的微任务阶段，实现高效的批量更新。
+
+这样可以保证，虽然一个组件中触发了多次状态变更，但组件只更新了一次，且使用的是最终状态值。这样就保证了组件的异步的批量的更新
 
 ## 更新相关方法
 
@@ -875,6 +927,83 @@ const patchChildren = (n1, n2, el, anchor, parentComponent) => {
 全量`diff`算法请参见[diff 算法](./diff算法.md)
 
 ### 更新组件 updateComponent
+
+当组件不是首次挂载时，更新操作由以下两种情况触发：
+
+1. 外部驱动：父组件重新渲染，导致传入的 `props` 或 `children`（插槽）发生变更；
+2. 内部驱动：组件自身的响应式状态（如 `data、ref、reactive` 等）发生变化，触发其 `render effect` 的重新执行。
+
+我们来看一下源码：
+
+::: code-group
+
+```js [更新组件]
+/**
+ * 更新组件(props或者插槽)
+ * @param n1 上一次节点
+ * @param n2 本次节点
+ */
+const updateComponent = (n1, n2, parentComponent) => {
+  // 复用组件的实例; 再次声明，组件的复用是component，元素的复用是el
+  const instance = (n2.component = n1.component);
+  // 判断是否需要进行更新，因为只有父组件传递的props或有插槽才会更新，否则不需要进行更新节省性能
+  if (shouldComponentUpdate(n1, n2)) {
+    // 如果调用update有next属性，说明是属性或插槽更新
+    instance.next = n2;
+    // 调用更新方法，主动的触发effect.run()
+    instance.update();
+  }
+};
+```
+
+```js [判断组件是否需要更新]
+/**
+ * 判断组件是否需要更新
+ * @param n1 上一次节点
+ * @param n2 本次节点
+ * @returns 返回是否需要更新的Boolean值
+ * @description 只有组件的
+ */
+const shouldComponentUpdate = (n1, n2) => {
+  // 组件的props和children（插槽）
+  const { props: preProps, children: prevChildren } = n1;
+  const { props: newProps, children: nextChildren } = n2;
+  // 如果有插槽，直接走更新渲染即可
+  if (prevChildren || nextChildren) return true;
+  // 如果属性一样，不需要更新
+  if (preProps === newProps) return false;
+  // 如果属性不一样，需要更新
+  return hasPropsChange(preProps, newProps || {});
+};
+```
+
+```js [判断是否有属性变化]
+/**
+ * props是否有变化
+ * @param preProps 上一个节点的props
+ * @param newProps 本次节点的props
+ * @returns 返回Boolean值，是否有属性变化
+ * @description
+ */
+const hasPropsChange = (preProps, newProps) => {
+  // 这里prop其实是 名：类型 键值对
+  let nKeys = Object.keys(newProps);
+  // 如果属性个数不一样，说明有变化
+  if (nKeys.length !== Object.keys(preProps).length) {
+    return true;
+  }
+  // 长度一样，对比值是否一样
+  for (let i = 0; i < nKeys.length; i++) {
+    let key = nKeys[i];
+    if (newProps[key] !== preProps[key]) {
+      return true;
+    }
+  }
+  return false;
+};
+```
+
+:::
 
 ## 卸载相关方法
 
