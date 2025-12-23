@@ -51,13 +51,13 @@ export default defineConfig({
             items: [{ text: 'React基础', link: '/learn_frontend/react/react基础/Jsx' }],
           },
           {
-            text: '团队协作',
+            text: '版本库管理',
             items: [{ text: 'Git', link: '/learn_frontend/git/最佳实践' }],
           },
           {
             text: '多端开发',
             items: [
-              { text: 'electron', link: '/learn_frontend/electron/基本概念' },
+              { text: 'electron', link: '/learn_frontend/electron/快速上手/基本概念' },
               { text: 'uniapp', link: '/learn_frontend/electron/' },
               { text: '微信小程序', link: '/learn_frontend/electron/' },
             ],
@@ -197,20 +197,34 @@ export default defineConfig({
       ],
       '/learn_frontend/electron/': [
         {
-          text: '基本概念',
-          link: '/learn_frontend/electron/基本概念',
+          text: '快速上手',
+          items: [
+            {
+              text: '基本概念',
+              link: '/learn_frontend/electron/快速上手/基本概念',
+            },
+            {
+              text: '预加载脚本',
+              link: '/learn_frontend/electron/快速上手/预加载脚本',
+            },
+            {
+              text: '打包分发程序',
+              link: '/learn_frontend/electron/快速上手/打包分发程序',
+            },
+            {
+              text: '发布和更新',
+              link: '/learn_frontend/electron/快速上手/发布和更新',
+            },
+          ],
         },
         {
-          text: '预加载脚本',
-          link: '/learn_frontend/electron/预加载脚本',
-        },
-        {
-          text: '打包分发程序',
-          link: '/learn_frontend/electron/打包分发程序',
-        },
-        {
-          text: '发布和更新',
-          link: '/learn_frontend/electron/发布和更新',
+          text: '核心概念',
+          items: [
+            {
+              text: '流程模型',
+              link: '/learn_frontend/electron/核心概念/流程模型',
+            },
+          ],
         },
       ],
       '/learn_frontend/git/': [
@@ -219,36 +233,16 @@ export default defineConfig({
           link: '/learn_frontend/git/最佳实践',
         },
         {
-          text: '基本概念',
-          link: '/learn_frontend/git/基本概念',
+          text: '常用命令',
+          link: '/learn_frontend/git/常用命令',
         },
         {
           text: '配置管理',
           link: '/learn_frontend/git/配置管理',
         },
         {
-          text: '工作区管理',
-          link: '/learn_frontend/git/工作区管理',
-        },
-        {
-          text: '暂存区管理',
-          link: '/learn_frontend/git/暂存区管理',
-        },
-        {
-          text: '版本库管理',
-          link: '/learn_frontend/git/版本库管理',
-        },
-        {
-          text: '分支管理',
-          link: '/learn_frontend/git/分支管理',
-        },
-        {
-          text: '标签管理',
-          link: '/learn_frontend/git/标签管理',
-        },
-        {
-          text: '查看信息',
-          link: '/learn_frontend/git/查看信息',
+          text: '提交规范',
+          link: '/learn_frontend/git/提交规范',
         },
         {
           text: '团队协作',
@@ -258,7 +252,6 @@ export default defineConfig({
           text: '跨团队开发',
           link: '/learn_frontend/git/跨团队开发',
         },
-
         {
           text: 'GIT原理',
           link: '/learn_frontend/git/GIT原理',
@@ -1409,7 +1402,12 @@ export default defineConfig({
         {
           text: '控制样式',
           collapsed: true,
-          items: [],
+          items: [
+            {
+              text: 'Class与Style绑定',
+              link: '/learn_frontend/vue3/控制样式/Class与Style绑定',
+            },
+          ],
         },
         {
           text: '组件',

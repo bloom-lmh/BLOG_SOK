@@ -2,6 +2,15 @@
 
 [学习网站](https://learngitbranching.js.org/?locale=zh_CN)
 
+## 一些心得总结
+
+本质上来说玩`git`就是在玩指针，分支指针维护着分支中的提交记录，而`HEAD`指针则相当于工作指针，指向当前分支的最新提交记录，一般来说`HEAD`指针指向分支指针，但也可分离，常用的操作指针的命令如下：
+
+- `git commit` → 移动当前分支指针（HEAD 间接跟随）
+- `git checkout <branch>` → 让 HEAD 指向该分支（切换上下文）
+- `git checkout <commit>` → 让 HEAD 直接指向该 commit（分离状态）
+- `git branch -f <name> <target>` → 手动移动分支指针
+
 ## 文件追踪
 
 只要一个文件曾经被提交过（即存在于当前 `HEAD` 提交中），它就会被`Git`所追踪，并监控其变化
@@ -311,3 +320,21 @@ $ git branch -f bugFix c0
      style="width: 100%; height: auto; display: block;">
 
 ## 本地栈式提交
+
+### 如何优雅的进行分支合并
+
+来看一个在开发中经常会遇到的情况：我正在解决某个特别棘手的 Bug，为了便于调试而在代码中添加了一些调试命令并向控制台打印了一些信息。这些调试和打印语句都在它们各自的提交记录里。最后我终于找到了造成这个 Bug 的根本原因，之后我们需要把 bugFix 分支里的工作合并回 main 分支了。你可以选择通过 fast-forward 快速合并到 main 分支上，比如如下所示：
+
+![原始分支图](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251223204004407.png)
+
+输入命令直接进行合并：`git checkout main` && `git merge bugFix`进行快速合并，如下所示：
+
+![直接合并的效果](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251223204242255.png)
+
+你会发现这样的话 main 分支就会包含我这些调试语句了，实际上更好的方式应该是使用以下两种方式来进行：
+
+1. 输入`git rebase -i HEAD~3` && `git branch -f main HEAD`，最终的提交分支树为
+
+![](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251223210002868.png)
+
+2. 或输入`git checkout main` && `git cherry-pick c4`也能达到同样的效果
