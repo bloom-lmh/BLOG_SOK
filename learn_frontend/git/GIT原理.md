@@ -319,7 +319,7 @@ $ git branch -f bugFix c0
 <img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251216170043822.png" 
      style="width: 100%; height: auto; display: block;">
 
-## 本地栈式提交
+## 提交技巧
 
 ### 如何优雅的进行分支合并
 
@@ -338,3 +338,49 @@ $ git branch -f bugFix c0
 ![](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251223210002868.png)
 
 2. 或输入`git checkout main` && `git cherry-pick c4`也能达到同样的效果
+
+### 如何优雅的修改上一次提交
+
+接下来这种情况也是很常见的：你之前在 newImage 分支上进行了一次提交，然后又基于它创建了 caption 分支，然后又提交了一次。此时你想对某个以前的提交记录进行一些小小的调整。比如设计师想修改一下 newImage 中图片的分辨率，尽管那个提交记录并不是最新的了。
+
+![](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251224100812954.png)
+
+我们可以通过下面的方法来克服困难：
+
+1. 先用 `git rebase -i HEAD~2` 将提交重新排序，把我们想要修改的提交记录挪到最前
+2. 然后用 `git commit --amend` 来进行一些小修改
+3. 接着再用 `git rebase -i HEAD~2` 来将他们调回原来的顺序
+4. 最后使用`git branch -f main`我们把 main 移到修改的最前端（用你自己喜欢的方法），就大功告成啦！
+
+::: tip `git commit --amend`命令
+`git commit --amend`命令我需要解释一下它的用途：
+
+1. 修正提交信息（最常用）：你刚提交完发现写错了提交信息：
+
+```js
+# 修改提交信息（不改变代码）
+git commit --amend -m "修复拼写错误：update user profile → updateUserProfile"
+```
+
+2. 补充遗漏的文件：你刚提交完发现漏了一些文件
+
+```js
+git add forgotten-file.js       # 先暂存遗漏的文件
+# --no-edit 表示保持原提交信息不变。
+git commit --amend --no-edit    # 把它合并进上一次提交，且不修改提交信息
+```
+
+3. 修改已提交的代码：你发现刚提交的代码有个小 bug，想直接“覆盖”那次提交
+
+```js
+# 修改文件
+vim src/utils.js
+
+# 暂存更改
+git add src/utils.js
+
+# 合并进上一次提交
+git commit --amend --no-edit
+```
+
+:::

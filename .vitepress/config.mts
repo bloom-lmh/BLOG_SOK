@@ -324,12 +324,8 @@ export default defineConfig({
               link: '/learn_frontend/vue3.4源码/运行时核心/diff算法',
             },
             {
-              text: '插槽实现',
-              link: '/learn_frontend/vue3.4源码/运行时核心/插槽实现',
-            },
-            {
-              text: 'emit事件派发',
-              link: '/learn_frontend/vue3.4源码/运行时核心/emit事件派发',
+              text: 'setup函数',
+              link: '/learn_frontend/vue3.4源码/运行时核心/setup函数',
             },
             {
               text: 'teleport实现',
