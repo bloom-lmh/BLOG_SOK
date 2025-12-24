@@ -25,6 +25,7 @@ const vnode = {
    * 1. 文本节点
    * 2. Fragment 节点
    * 3. 元素节点
+   * 4. 如果是组件则为组件对象
    */
   type,
   /**
@@ -65,17 +66,35 @@ const vnode = {
 
 ### type 字段
 
-在 vue3 中，`type`有三种类型：
+在 vue3 中，`type`有四种类型：
 
 1. 文本节点：`Text`
 2. 文档片段：`Fragment`
 3. 元素节点：用标签字符串表示比如`div`
+4. 组件节点：组件对象会赋给`type`属性
 
 其中，`Text`和`Fragment`都是`Symbol`类型的标志：
 
 ```js
 export const Text = Symbol('Text');
 export const Fragment = Symbol('Fragment');
+```
+
+而组件节点类型是一个对象(这里不用去深究后续会讲到)，比如:
+
+```js
+{
+  type: {
+    const RenderComponent = {
+      props: {
+        address: String,
+      },
+      render() {
+        return h(Fragment, {}, [h(Text, this.address)]);
+      },
+    };
+  }
+}
 ```
 
 ### shapeFlag 字段

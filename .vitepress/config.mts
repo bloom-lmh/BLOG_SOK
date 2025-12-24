@@ -327,10 +327,7 @@ export default defineConfig({
               text: 'setup函数',
               link: '/learn_frontend/vue3.4源码/运行时核心/setup函数',
             },
-            {
-              text: 'teleport实现',
-              link: '/learn_frontend/vue3.4源码/运行时核心/teleport实现',
-            },
+
             {
               text: '依赖注入实现',
               link: '/learn_frontend/vue3.4源码/运行时核心/依赖注入实现',
@@ -346,6 +343,10 @@ export default defineConfig({
             {
               text: '内置组件',
               link: '/learn_frontend/vue3.4源码/运行时核心/内置组件',
+            },
+            {
+              text: '异步组件',
+              link: '/learn_frontend/vue3.4源码/运行时核心/异步组件',
             },
             {
               text: '编译优化',

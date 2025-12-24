@@ -230,6 +230,7 @@ const processElement = (n1, n2, container, anchor, parentComponent) => {
 在`vue`中，组件是一个包含状态和渲染方法的对象，如下所示：
 
 ```js
+// 组件
 const RenderComponent = {
   props: {
     address: String,
@@ -241,6 +242,7 @@ const RenderComponent = {
     ]);
   },
 };
+// 组件
 const VueComponent = {
   props: {
     // defineProps()
@@ -303,6 +305,10 @@ const processComponent = (n1, n2, container, anchor, parentComponent) => {
 
 1. 首次则挂载调用`mountComponent`方法，具体请看[mountComponent](./render函数.md#挂载组件-mountcomponent)
 2. 非首次则更新调用`updateComponent`方法，具体请看[updateComponent](./render函数.md#更新组件-updatecomponent)
+
+### 处理内置组件 Teleport
+
+这个暂时不用深究，因为它本质上就是一个组件，只是它的渲染逻辑是自己实现的和普通组件不同，详情请参见[内置组件](./内置组件.md#teleport-组件)
 
 ## 挂载相关操作
 

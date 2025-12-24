@@ -246,7 +246,7 @@ const handler = {
 
 就这么简单，下面演示的是具名插槽、默认插槽和作用域插槽的实际使用：
 
-```js
+```js {4-10,24-28}
 // 子组件
 const RenderComponent = {
   // 通过setup上下文对象接受slots，这个slots是父组件传来的插槽内容
@@ -285,3 +285,47 @@ render(
 ```
 
 ## emit 事件派发机制
+
+在组件通信中我们可以使用`emit`函数来派发事件，触发父组件的事件响应函数。在`setup`函数中，我们可以通过`ctx.emit`来派发事件，它接受两个参数：
+
+1. 事件名称
+2. 要传递的参数
+
+比如下面：
+
+```js {10,26}
+// 子组件
+const SonComponent = {
+  setup(props, { emit }) {
+    return () => {
+      return h(
+        'button',
+        {
+          onClick: () => {
+            // 触发父组件的onMyEvent事件响应函数
+            emit('myEvent', 100);
+          },
+        },
+        'click me',
+      );
+    };
+  },
+};
+// 父组件
+const ParentComponent = {
+  setup(props, { emit, attrs, expose, slots }) {
+    const show = () => {
+      alert('show');
+    };
+    // 为子组件上绑定了onMyEvent事件的响应函数
+    return proxy => {
+      return h(SonComponent, { onMyEvent: show });
+    };
+  },
+};
+render(
+  // 组件被挂载到一个虚拟节点的type上
+  h(ParentComponent),
+  app,
+);
+```
