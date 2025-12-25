@@ -1375,12 +1375,22 @@ export default defineConfig({
               text: '应用实例',
               link: '/learn_frontend/vue3/起步/应用实例',
             },
+            {
+              text: '模板语法',
+              link: '/learn_frontend/vue3/起步/模板语法',
+            },
           ],
         },
+
         {
-          text: '模板语法',
+          text: '操作DOM',
           collapsed: true,
-          items: [],
+          items: [
+            {
+              text: '模板引用',
+              link: '/learn_frontend/vue3/操作DOM/模板引用',
+            },
+          ],
         },
         {
           text: '指令',
