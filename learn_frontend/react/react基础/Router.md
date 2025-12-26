@@ -72,8 +72,7 @@ root.render(<RouterProvider router={router}></RouterProvider>);
 
 声明式导航是指通过在模版中通过 `<Link/> ` 组件描述出要跳转到哪里去，比如后台管理系统的左侧菜单通常使用这种方式进行
 
-语法说明：通过给组件的 to 属性指定要跳转到路由 path，组件会被渲染为浏览器支持的 a 链接，如果需要传参直接通过
-字符串拼接的方式拼接参数即可
+语法说明：通过给组件的 `to` 属性指定要跳转到路由 `path`，组件会被渲染为浏览器支持的 `a` 链接，如果需要传参直接通过字符串拼接的方式拼接参数即可
 
 ```js {7}
 import { Link } from 'react-router-dom';
@@ -91,10 +90,9 @@ export default Login;
 
 ### 编程式导航
 
-编程式导航是指通过 `useNavigate` 钩子得到导航方法，然后通过调用方法以命令式的形式进行路由跳转，比如想在
-登录请求完毕之后跳转就可以选择这种方式，更加灵活
+编程式导航是指通过 `useNavigate` 钩子得到导航方法，然后通过调用方法以命令式的形式进行路由跳转，比如想在登录请求完毕之后跳转就可以选择这种方式，更加灵活
 
-语法说明：通过调用 navigate 方法传入地址 path 实现跳转
+语法说明：通过调用 `navigate` 方法传入地址 `path` 实现跳转
 
 ```js {4,8}
 import { useNavigate } from 'react-router-dom';
@@ -389,17 +387,13 @@ function MyComponent() {
 
 ### location 对象包含的属性
 
-useLocation 返回的 location 对象包含以下属性：
+`useLocation` 返回的 `location` 对象包含以下属性：
 
-1. ​pathname​ - 当前 URL 的路径部分
-   例如："/products/123"
-2. ​search​ - URL 的查询字符串部分（以 ? 开头）
-   例如："?sort=price&page=2"
-3. ​hash​ - URL 的 hash 部分（以 # 开头）
-   例如："#section-2"
-4. ​state​ - 与该位置关联的状态对象（通过 navigate 或 Link 传递）
-   例如：{ fromDashboard: true }
-5. ​key​ - 唯一标识该位置的字符串（React Router 内部使用）
+1. `​pathname`​ - 当前 URL 的路径部分：例如：`/products/123`
+2. `​search`​ - URL 的查询字符串部分（以 ? 开头）：例如：`?sort=price&page=2`
+3. `​hash`​ - URL 的 hash 部分（以 # 开头）：例如：`#section-2`
+4. `​state`​ - 与该位置关联的状态对象（通过 `navigate` 或 `Link` 传递）：例如：`{ fromDashboard: true }`
+5. `​key`​ - 唯一标识该位置的字符串（`React Router` 内部使用）
 
 ### 常见的使用场景
 
@@ -445,6 +439,6 @@ console.log(state?.from); // 输出: 'home'
 
 ### 注意事项
 
-1. useLocation 只能在 Router 组件内部使用
-2. 当路由变化时，useLocation 会返回新的 location 对象，触发组件重新渲染
-3. 对于查询参数解析，React Router v6 推荐使用 useSearchParams 而不是手动解析 search 字符串
+1. `useLocation` 只能在 Router 组件内部使用
+2. 当路由变化时，`useLocation` 会返回新的 `location` 对象，触发组件重新渲染
+3. 对于查询参数解析，`React Router v6` 推荐使用 `useSearchParams` 而不是手动解析 `search` 字符串

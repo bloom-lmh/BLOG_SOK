@@ -1575,7 +1575,7 @@ export default defineConfig({
             },
             {
               text: '类组件',
-              link: '/learn_frontend/react/react基础/优化方案',
+              link: '/learn_frontend/react/react基础/类组件',
             },
             { text: 'Router', link: '/learn_frontend/react/react基础/Router' },
             { text: 'Redux', link: '/learn_frontend/react/react基础/Redux' },
