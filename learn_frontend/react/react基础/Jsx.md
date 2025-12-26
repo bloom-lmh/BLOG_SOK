@@ -158,8 +158,7 @@ function App() {
 
 ### 什么是 useState
 
-useState 是一个 React Hook（函数），它允许我们向组件添加一个状态变量, 从而控制影响组件的渲染结果
-
+`useState` 是一个 React Hook（函数），它允许我们向组件添加一个状态变量, 从而控制影响组件的渲染结果
 ::: tip
 状态变量就是被代理了的变量，useState 有点像 Vue 的 ref 函数和 reactive 的作用。
 </br>
@@ -168,7 +167,7 @@ useState 是一个 React Hook（函数），它允许我们向组件添加一个
 
 ### 修改状态的规则
 
-注意直接修改 count 变量不会触发试图的更新，必须使用 setCount 来修改 count 才会触发试图更新
+注意直接修改 `count` 变量不会触发试图的更新，必须使用 `setCount` 来修改 `count` 才会触发试图更新
 
 ### 基本使用
 
@@ -262,8 +261,7 @@ function App() {
 
 ### 使用 classnames 包
 
-使用 classnames 包可以实现更加优雅的样式控制
-`npm install classnames`
+使用 classnames 包可以实现更加优雅的样式控制：`npm install classnames`
 
 ```js{7-9}
 import classNames from "classnames";

@@ -349,6 +349,10 @@ export default defineConfig({
               link: '/learn_frontend/vue3.4源码/运行时核心/异步组件',
             },
             {
+              text: '指令实现',
+              link: '/learn_frontend/vue3.4源码/运行时核心/指令实现',
+            },
+            {
               text: '编译优化',
               link: '/learn_frontend/vue3.4源码/运行时核心/编译优化',
             },
