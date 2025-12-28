@@ -75,6 +75,10 @@ export default defineConfig({
             items: [{ text: 'monorepo架构', link: '/learn_frontend/monorepo/monorepo工程管理' }],
           },
           {
+            text: '开发规范',
+            items: [{ text: 'BEM 命名规则', link: '/learn_frontend/bem/bem规范' }],
+          },
+          {
             text: '单元测试',
             items: [
               { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
