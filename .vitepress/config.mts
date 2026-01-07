@@ -190,6 +190,19 @@ export default defineConfig({
               text: 'http模块',
               link: '/learn_backend/node/内置模块/http模块',
             },
+            {
+              text: 'url模块',
+              link: '/learn_backend/node/内置模块/url模块',
+            },
+          ],
+        },
+        {
+          text: '框架学习',
+          items: [
+            {
+              text: 'express框架',
+              link: '/learn_backend/node/框架学习/express框架',
+            },
           ],
         },
       ],
