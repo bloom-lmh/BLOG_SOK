@@ -57,7 +57,7 @@ export default defineConfig({
           {
             text: '多端开发',
             items: [
-              { text: 'electron', link: '/learn_frontend/electron/快速上手/基本概念' },
+              { text: 'electron', link: '/learn_frontend/electron/基本概念' },
               { text: 'uniapp', link: '/learn_frontend/electron/' },
               { text: '微信小程序', link: '/learn_frontend/electron/' },
             ],
@@ -214,34 +214,45 @@ export default defineConfig({
       ],
       '/learn_frontend/electron/': [
         {
-          text: '快速上手',
-          items: [
-            {
-              text: '基本概念',
-              link: '/learn_frontend/electron/快速上手/基本概念',
-            },
-            {
-              text: '预加载脚本',
-              link: '/learn_frontend/electron/快速上手/预加载脚本',
-            },
-            {
-              text: '打包分发程序',
-              link: '/learn_frontend/electron/快速上手/打包分发程序',
-            },
-            {
-              text: '发布和更新',
-              link: '/learn_frontend/electron/快速上手/发布和更新',
-            },
-          ],
+          text: '基本概念',
+          link: '/learn_frontend/electron/基本概念',
         },
         {
-          text: '核心概念',
-          items: [
-            {
-              text: '流程模型',
-              link: '/learn_frontend/electron/核心概念/流程模型',
-            },
-          ],
+          text: '进程模型',
+          link: '/learn_frontend/electron/进程模型',
+        },
+
+        {
+          text: '预加载脚本',
+          link: '/learn_frontend/electron/预加载脚本',
+        },
+        {
+          text: '上下文隔离机制',
+          link: '/learn_frontend/electron/上下文隔离机制',
+        },
+        {
+          text: '进程通信',
+          link: '/learn_frontend/electron/进程通信',
+        },
+        {
+          text: '进程沙盒化',
+          link: '/learn_frontend/electron/进程沙盒化',
+        },
+        {
+          text: 'MessagePorts',
+          link: '/learn_frontend/electron/MessagePorts',
+        },
+        {
+          text: '使用案例',
+          link: '/learn_frontend/electron/使用案例',
+        },
+        {
+          text: '打包分发程序',
+          link: '/learn_frontend/electron/打包分发程序',
+        },
+        {
+          text: '发布和更新',
+          link: '/learn_frontend/electron/发布和更新',
         },
       ],
       '/learn_frontend/git/': [
