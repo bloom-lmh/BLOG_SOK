@@ -194,6 +194,10 @@ export default defineConfig({
               text: 'url模块',
               link: '/learn_backend/node/内置模块/url模块',
             },
+            {
+              text: 'crypto模块',
+              link: '/learn_backend/node/内置模块/crypto模块',
+            },
           ],
         },
         {
