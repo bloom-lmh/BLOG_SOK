@@ -207,6 +207,27 @@ export default defineConfig({
               text: 'express框架',
               link: '/learn_backend/node/框架学习/express框架',
             },
+            {
+              text: 'ejs模板引擎',
+              link: '/learn_backend/node/框架学习/ejs模版引擎',
+            },
+          ],
+        },
+        {
+          text: '开发实践',
+          items: [
+            {
+              text: '会话控制',
+              link: '/learn_backend/node/开发实践/会话控制',
+            },
+            {
+              text: '业务分层',
+              link: '/learn_backend/node/开发实践/业务分层',
+            },
+            {
+              text: 'RESTFUL',
+              link: '/learn_backend/node/开发实践/RESTFUL',
+            },
           ],
         },
       ],

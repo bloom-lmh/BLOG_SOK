@@ -1,0 +1,28 @@
+{
+  "accounts": [
+    {
+      "id": "eBNlOwo3x",
+      "title": "吃饭",
+      "time": "2024-01-06",
+      "type": "-1",
+      "account": "200",
+      "remark": ""
+    },
+    {
+      "id": "ZDzx1RLQg",
+      "title": "买相机",
+      "time": "2024-01-06",
+      "type": "-1",
+      "account": "2000",
+      "remark": "挺贵的"
+    },
+    {
+      "id": "_qeZWpabN",
+      "title": "发工资",
+      "time": "2024-01-05",
+      "type": "1",
+      "account": "8000",
+      "remark": "发的挺多"
+    }
+  ]
+}
