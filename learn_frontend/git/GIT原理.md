@@ -10,6 +10,7 @@
 - `git checkout <branch>` → 让 HEAD 指向该分支（切换上下文）
 - `git checkout <commit>` → 让 HEAD 直接指向该 commit（分离状态）
 - `git branch -f <name> <target>` → 手动移动分支指针
+- `git rebase -i <commit>` → 将当前分子到某个提交的节点变基到某个提交下
 
 ## 文件追踪
 
@@ -344,6 +345,11 @@ $ git branch -f bugFix c0
 接下来这种情况也是很常见的：你之前在 newImage 分支上进行了一次提交，然后又基于它创建了 caption 分支，然后又提交了一次。此时你想对某个以前的提交记录进行一些小小的调整。比如设计师想修改一下 newImage 中图片的分辨率，尽管那个提交记录并不是最新的了。
 
 ![](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251224100812954.png)
+最终结果为：
+
+![](https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20260112164728401.png)
+
+#### 使用 rebase
 
 我们可以通过下面的方法来克服困难：
 
@@ -384,3 +390,10 @@ git commit --amend --no-edit
 ```
 
 :::
+
+#### 使用 cherry-pick
+
+1. `git checkout main`：将`HEAD`指针切换到`main`分支
+2. `git cherry-pick c2`：将`c2`摘下来接到 `HEAD` 指针后，并移动 `HEAD` 指针到`c2`下
+3. `git commit --amend`：修改`c2`，并合并修改
+4. `git cherry-pick c3`：将`c3`摘下来

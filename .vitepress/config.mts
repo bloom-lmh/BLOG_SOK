@@ -57,7 +57,7 @@ export default defineConfig({
           {
             text: '多端开发',
             items: [
-              { text: 'electron', link: '/learn_frontend/electron/基本概念' },
+              { text: 'electron', link: '/learn_frontend/electron/核心概念/起步.md' },
               { text: 'uniapp', link: '/learn_frontend/electron/' },
               { text: '微信小程序', link: '/learn_frontend/electron/' },
             ],
@@ -198,6 +198,22 @@ export default defineConfig({
               text: 'crypto模块',
               link: '/learn_backend/node/内置模块/crypto模块',
             },
+            {
+              text: 'buffer模块',
+              link: '/learn_backend/node/内置模块/buffer模块',
+            },
+            {
+              text: 'zlib模块',
+              link: '/learn_backend/node/内置模块/zlib模块',
+            },
+            {
+              text: 'https模块',
+              link: '/learn_backend/node/内置模块/https模块',
+            },
+            {
+              text: 'websockt模块',
+              link: '/learn_backend/node/内置模块/websockt模块',
+            },
           ],
         },
         {
@@ -230,6 +246,28 @@ export default defineConfig({
             },
           ],
         },
+        {
+          text: '数据库操作',
+          items: [
+            {
+              text: '使用mongodb',
+              link: '/learn_backend/node/数据库操作/使用mongodb',
+            },
+          ],
+        },
+        {
+          text: '小案例',
+          items: [
+            {
+              text: '文件上传',
+              link: '/learn_backend/node/小案例/文件上传',
+            },
+            {
+              text: '记账本',
+              link: '/learn_backend/node/小案例/记账本',
+            },
+          ],
+        },
       ],
       '/shred_life/森海塞尔momentum4': [
         {
@@ -239,45 +277,51 @@ export default defineConfig({
       ],
       '/learn_frontend/electron/': [
         {
-          text: '基本概念',
-          link: '/learn_frontend/electron/基本概念',
-        },
-        {
-          text: '进程模型',
-          link: '/learn_frontend/electron/进程模型',
-        },
+          text: '核心概念',
+          items: [
+            {
+              text: '起步',
+              link: '/learn_frontend/electron/核心概念/起步.md',
+            },
+            {
+              text: '进程模型',
+              link: '/learn_frontend/electron/核心概念/进程模型',
+            },
 
-        {
-          text: '预加载脚本',
-          link: '/learn_frontend/electron/预加载脚本',
+            {
+              text: '预加载脚本',
+              link: '/learn_frontend/electron/核心概念/预加载脚本',
+            },
+            {
+              text: '上下文隔离机制',
+              link: '/learn_frontend/electron/核心概念/上下文隔离机制',
+            },
+            {
+              text: '进程通信',
+              link: '/learn_frontend/electron/核心概念/进程通信',
+            },
+            {
+              text: '进程沙盒化',
+              link: '/learn_frontend/electron/核心概念/进程沙盒化',
+            },
+            {
+              text: 'MessagePorts',
+              link: '/learn_frontend/electron/核心概念/MessagePorts',
+            },
+
+            {
+              text: '打包分发程序',
+              link: '/learn_frontend/electron/核心概念/打包分发程序',
+            },
+            {
+              text: '发布和更新',
+              link: '/learn_frontend/electron/核心概念/发布和更新',
+            },
+          ],
         },
         {
-          text: '上下文隔离机制',
-          link: '/learn_frontend/electron/上下文隔离机制',
-        },
-        {
-          text: '进程通信',
-          link: '/learn_frontend/electron/进程通信',
-        },
-        {
-          text: '进程沙盒化',
-          link: '/learn_frontend/electron/进程沙盒化',
-        },
-        {
-          text: 'MessagePorts',
-          link: '/learn_frontend/electron/MessagePorts',
-        },
-        {
-          text: '使用案例',
-          link: '/learn_frontend/electron/使用案例',
-        },
-        {
-          text: '打包分发程序',
-          link: '/learn_frontend/electron/打包分发程序',
-        },
-        {
-          text: '发布和更新',
-          link: '/learn_frontend/electron/发布和更新',
+          text: '案例',
+          items: [],
         },
       ],
       '/learn_frontend/git/': [
