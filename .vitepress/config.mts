@@ -227,6 +227,10 @@ export default defineConfig({
               text: 'ejs模板引擎',
               link: '/learn_backend/node/框架学习/ejs模版引擎',
             },
+            {
+              text: 'socket.io框架',
+              link: '/learn_backend/node/框架学习/socketio框架',
+            },
           ],
         },
         {
@@ -250,8 +254,16 @@ export default defineConfig({
           text: '数据库操作',
           items: [
             {
-              text: '使用mongodb',
-              link: '/learn_backend/node/数据库操作/使用mongodb',
+              text: '操作mongodb',
+              link: '/learn_backend/node/数据库操作/操作mongodb',
+            },
+            {
+              text: '操作mysql',
+              link: '/learn_backend/node/数据库操作/操作mysql',
+            },
+            {
+              text: '操作redis',
+              link: '/learn_backend/node/数据库操作/操作redis',
             },
           ],
         },
