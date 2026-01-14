@@ -48,11 +48,19 @@ export default defineConfig({
           },
           {
             text: 'React',
-            items: [{ text: 'React基础', link: '/learn_frontend/react/react基础/Jsx' }],
+            items: [
+              { text: 'React基础', link: '/learn_frontend/react/react基础/Jsx' },
+              { text: 'React源码', link: '/learn_frontend/react/react源码/' },
+            ],
           },
           {
             text: '版本库管理',
-            items: [{ text: 'Git', link: '/learn_frontend/git/最佳实践' }],
+            items: [
+              { text: 'Git', link: '/learn_frontend/git/最佳实践' },
+              { text: 'husky', link: '/learn_frontend/git/最佳实践' },
+              { text: 'lint-staged', link: '/learn_frontend/git/最佳实践' },
+              { text: 'commitizen', link: '/learn_frontend/git/最佳实践' },
+            ],
           },
           {
             text: '多端开发',
@@ -64,7 +72,11 @@ export default defineConfig({
           },
           {
             text: '打包工具',
-            items: [{ text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' }],
+            items: [
+              { text: 'rollup', link: '/learn_frontend/rollup/起步/基本概念' },
+              { text: 'webpack', link: '/learn_frontend/webpack/起步/基本概念' },
+              { text: 'vite', link: '/learn_frontend/vite/起步/基本概念' },
+            ],
           },
           {
             text: '包管理器',
@@ -80,16 +92,20 @@ export default defineConfig({
           },
           {
             text: '单元测试',
+            items: [{ text: 'jest', link: '/learn_frontend/jest/起步/基本介绍' }],
+          },
+          {
+            text: '小工具',
             items: [
-              { text: 'jest', link: '/learn_frontend/tools/jest/起步/基本介绍' },
-              { text: 'joi', link: '/learn_frontend/tools/joi/joi的基本使用' },
+              { text: '视频播放器dplayer', link: '/learn_frontend/tools/视频播放器dplayer' },
+              { text: '图片查看器v-viewer', link: '/learn_frontend/tools/图片查看器v-viewer' },
             ],
           },
           {
             text: '数据mock',
             items: [
-              { text: 'msw', link: '/learn_frontend/tools/msw/模拟HTTP/起步' },
-              { text: 'faker', link: '/learn_frontend/tools/faker/起步' },
+              { text: 'msw', link: '/learn_frontend/msw/模拟HTTP/起步' },
+              { text: 'faker', link: '/learn_frontend/faker/起步' },
             ],
           },
           {
@@ -265,6 +281,10 @@ export default defineConfig({
               text: '操作redis',
               link: '/learn_backend/node/数据库操作/操作redis',
             },
+            {
+              text: '操作sqlite',
+              link: '/learn_backend/node/数据库操作/操作sqlite',
+            },
           ],
         },
         {
@@ -278,6 +298,20 @@ export default defineConfig({
               text: '记账本',
               link: '/learn_backend/node/小案例/记账本',
             },
+          ],
+        },
+        {
+          text: '小工具',
+          items: [
+            {
+              text: '文件增强工具fs-extra',
+              link: '/learn_backend/node/小工具/文件增强工具fs-extra',
+            },
+            {
+              text: '多媒体处理fluent-ffmpeg',
+              link: '/learn_backend/node/小工具/多媒体处理fluent-ffmpeg',
+            },
+            { text: '数据类型检查joi', link: '/learn_frontend/joi/joi的基本使用' },
           ],
         },
       ],
@@ -334,6 +368,19 @@ export default defineConfig({
         {
           text: '案例',
           items: [],
+        },
+        {
+          text: '小工具',
+          items: [
+            {
+              text: '通信和窗口管理工具electron-toolkit',
+              link: '/learn_frontend/electron/小工具/通信和窗口管理工具electron-toolkit',
+            },
+            {
+              text: '持久化存储用户设置electron-store',
+              link: '/learn_frontend/electron/小工具/持久化存储用户设置electron-store',
+            },
+          ],
         },
       ],
       '/learn_frontend/git/': [
@@ -1191,7 +1238,7 @@ export default defineConfig({
           ],
         },
       ],
-      'learn_frontend/tools/': [
+      '/learn_frontend/jest/': [
         {
           text: 'jest测试工具',
           collapsed: true,
@@ -1249,69 +1296,61 @@ export default defineConfig({
             },
           ],
         },
+      ],
+      '/learn_frontend/msw/': [
         {
-          text: 'joi测试工具',
-          collapsed: true,
-          items: [
-            {
-              text: '基本使用',
-              link: '/learn_frontend/tools/joi/joi的基本使用',
-            },
-          ],
-        },
-        {
-          text: 'msw模拟请求工具',
-          collapsed: true,
-          items: [
-            {
-              text: 'HTTP模拟',
-              items: [
-                {
-                  text: '起步',
-                  link: '/learn_frontend/tools/msw/模拟HTTP/起步',
-                },
-                {
-                  text: '断言谓词',
-                  link: '/learn_frontend/tools/msw/模拟HTTP/断言谓词',
-                },
-                {
-                  text: '响应解析器',
-                  link: '/learn_frontend/tools/msw/模拟HTTP/响应解析器',
-                },
-              ],
-            },
-            {
-              text: 'WS模拟',
-              collapsed: true,
-              items: [],
-            },
-          ],
-        },
-        {
-          text: 'faker请求数据模拟工具',
-          collapsed: true,
+          text: 'HTTP模拟',
           items: [
             {
               text: '起步',
-              link: '/learn_frontend/tools/faker/起步',
+              link: '/learn_frontend/tools/msw/模拟HTTP/起步',
             },
             {
-              text: '本地化',
-              link: '/learn_frontend/tools/faker/本地化',
+              text: '断言谓词',
+              link: '/learn_frontend/tools/msw/模拟HTTP/断言谓词',
             },
             {
-              text: '随机器',
-              link: '/learn_frontend/tools/faker/随机器',
-            },
-            {
-              text: '唯一值',
-              link: '/learn_frontend/tools/faker/唯一值',
-            },
-            {
-              text: '常用API',
-              link: '/learn_frontend/tools/faker/常用API',
+              text: '响应解析器',
+              link: '/learn_frontend/tools/msw/模拟HTTP/响应解析器',
             },
           ],
+        },
+        {
+          text: 'WS模拟',
+          collapsed: true,
+          items: [],
+        },
+      ],
+      'learn_frontend/faker/': [
+        {
+          text: '起步',
+          link: '/learn_frontend/faker/起步',
+        },
+        {
+          text: '本地化',
+          link: '/learn_frontend/faker/本地化',
+        },
+        {
+          text: '随机器',
+          link: '/learn_frontend/faker/随机器',
+        },
+        {
+          text: '唯一值',
+          link: '/learn_frontend/faker/唯一值',
+        },
+        {
+          text: '常用API',
+          link: '/learn_frontend/faker/常用API',
+        },
+      ],
+      'learn_frontend/tools/': [
+        {
+          text: '日期时间处理库moment',
+          link: '/learn_frontend/tools/日期时间处理库moment',
+        },
+        {
+          text: 'md5加密库js-md5',
+          link: '/learn_frontend/tools/md5加密库js-md5',
         },
       ],
       'learn_frontend/rollup/': [
@@ -1629,6 +1668,16 @@ export default defineConfig({
           text: '插件',
           collapsed: true,
           items: [],
+        },
+        {
+          text: '小工具',
+          collapsed: true,
+          items: [
+            {
+              text: '右键菜单vue3-context-menu',
+              link: '/learn_frontend/vue3/小工具/右键菜单vue3-context-menu',
+            },
+          ],
         },
       ],
       '/learn_frontend/scss/': [
