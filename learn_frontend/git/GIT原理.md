@@ -125,7 +125,7 @@
 <img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20251215115219487.png" 
      style="width: 100%; height: auto; display: block;">
 
-## 提交树上移动
+## 提交树上移动 HEAD 指针
 
 在接触 `Git` 更高级功能之前，我们有必要先学习在你项目的提交树上前后移动的几种方法。一旦熟悉了如何在 `Git` 提交树上移动，你驾驭其它命令的能力也将水涨船高！
 
@@ -300,6 +300,8 @@ $ git branch -f bugFix c0
 
 ### 交互式 rebase
 
+> 一句话概述：交互式变基节点
+
 当你知道你所需要的提交记录（并且还知道这些提交记录的哈希值）时, 用 `cherry-pick` 再好不过了 —— 没有比这更简单的方式了。但是如果你不清楚你想要的提交记录的哈希值时, 我们可以利用交互式的 `rebase`。交互式 `rebase` 指的是使用带参数 `--interactive` 的 `rebase` 命令, 简写为 `-i`。它会打开一个 `UI` 界面并列出将要被复制到目标分支的备选提交记录
 
 > 在实际使用时，所谓的 UI 窗口一般会在文本编辑器 —— 如 Vim —— 中打开一个文件
@@ -323,6 +325,8 @@ $ git branch -f bugFix c0
 ## 提交技巧
 
 ### 如何优雅的进行分支合并
+
+> 一句话概述：多用 `rebase` 而不是 `merge`，`rebase`可以让提交树更加的干净
 
 来看一个在开发中经常会遇到的情况：我正在解决某个特别棘手的 Bug，为了便于调试而在代码中添加了一些调试命令并向控制台打印了一些信息。这些调试和打印语句都在它们各自的提交记录里。最后我终于找到了造成这个 Bug 的根本原因，之后我们需要把 bugFix 分支里的工作合并回 main 分支了。你可以选择通过 fast-forward 快速合并到 main 分支上，比如如下所示：
 
@@ -397,3 +401,56 @@ git commit --amend --no-edit
 2. `git cherry-pick c2`：将`c2`摘下来接到 `HEAD` 指针后，并移动 `HEAD` 指针到`c2`下
 3. `git commit --amend`：修改`c2`，并合并修改
 4. `git cherry-pick c3`：将`c3`摘下来
+
+## tag 标签操作
+
+tag 标签主要用于标记一些重要的提交节点，比如软件发布新的大版本，或者是修正一些重要的 Bug 或是增加了某些新特性。它们并不会随着新的提交而移动。你也不能切换到某个标签上面进行修改提交，它就像是提交树上的一个锚点，标识了某个特定的位置。
+
+### 锚点提交记录
+
+比如对于下面的提交树。
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20260115153539745.png" 
+     style="width: 100%; height: auto; display: block;">
+
+我们先建立一个标签，指向提交记录 C1，表示这是我们 1.0 版本。输入`git tag v1 C1`
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20260115153723034.png" 
+     style="width: 100%; height: auto; display: block;">
+
+很容易对吧：我们将这个标签命名为 v1，并且明确地让它指向提交记录 C1，如果你不指定提交记录，Git 会用 HEAD 所指向的位置的提交记录作为默认值。
+
+下面来看一个案例要，我们要在 C1 和 C2 上打上标签并且分离 HEAD
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20260115160344313.png" 
+     style="width: 100%; height: auto; display: block;">
+
+命令如下：
+
+1. `git tag c2 v1`：为 c2 标签打上 v1 标签
+2. `git tag c1 v0`：为 c1 标签打上 v0 标签
+3. `git checkout C1`：切换 HEAD 到 C1
+
+### 描述最近的锚点
+
+> 一句话概述：Git Describe 能帮你在提交历史中移动了多次以后找到方向。
+
+由于标签在代码库中起着“锚点”的作用，Git 还为此专门设计了一个命令用来描述离你最近的锚点（也就是标签），它就是 `git describe`！
+
+`git describe` 的语法是：`git describe <ref>`,`<ref>` 可以是任何能被 Git 识别成提交记录的引用，如果你没有指定的话，Git 会使用你目前所在的位置（HEAD）。
+
+它输出的结果是这样的：`<tag>-<numCommits>-g<hash>`
+
+1. `tag` 表示的是离 `ref` 最近的标签
+2. `numCommits` 是表示这个 `ref` 与 `tag` 相差有多少个提交记录
+3. `hash` 表示的是你所给定的 `ref` 所表示的提交记录哈希值的前几位
+
+当 `ref` 提交记录上有某个标签时，则只输出标签名称
+
+比如下面的案例：
+
+<img src="https://image-bucket-1307756649.cos.ap-chengdu.myqcloud.com/image/20260115163024244.png" 
+     style="width: 100%; height: auto; display: block;">
+
+1. `git describe main` 会输出：`v1-2-gC2`
+2. `git describe side` 会输出：`v2-1-gC4`

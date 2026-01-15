@@ -88,7 +88,10 @@ export default defineConfig({
           },
           {
             text: '开发规范',
-            items: [{ text: 'BEM 命名规则', link: '/learn_frontend/bem/bem规范' }],
+            items: [
+              { text: 'BEM 命名规则', link: '/learn_frontend/norms/bem规范' },
+              { text: 'prettier', link: '/learn_frontend/norms/prettier' },
+            ],
           },
           {
             text: '单元测试',
