@@ -230,6 +230,10 @@ export default defineConfig({
               link: '/learn_backend/node/内置模块/https模块',
             },
             {
+              text: 'os模块',
+              link: '/learn_backend/node/内置模块//os模块',
+            },
+            {
               text: 'websockt模块',
               link: '/learn_backend/node/内置模块/websockt模块',
             },
