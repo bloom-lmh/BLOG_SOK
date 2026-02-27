@@ -21,16 +21,16 @@
 
 ```js
 // 导入文件系统模块
-const fs = require('fs');
+const fs = require("fs");
 
 // 将 『三人行，必有我师焉。』 写入到当前文件夹下的『座右铭.txt』文件中
-fs.writeFile('./poem.txt', '三人行必有我师焉', err => {
-  // 如果写入失败，则回调函数调用时，会传入错误对象，如果写入成功，会传入 null
-  if (err) {
-    console.log(err);
-    return;
-  }
-  console.log('写入成功');
+fs.writeFile("./poem.txt", "三人行必有我师焉", (err) => {
+    // 如果写入失败，则回调函数调用时，会传入错误对象，如果写入成功，会传入 null
+    if (err) {
+        console.log(err);
+        return;
+    }
+    console.log("写入成功");
 });
 ```
 
@@ -39,9 +39,9 @@ fs.writeFile('./poem.txt', '三人行必有我师焉', err => {
 ```js
 // 同步写入
 try {
-  fs.writeFileSync('./poem2.txt', '三人行必有我师焉');
+    fs.writeFileSync("./poem2.txt", "三人行必有我师焉");
 } catch (e) {
-  console.log(e);
+    console.log(e);
 }
 ```
 
@@ -49,12 +49,12 @@ try {
 
 ```js
 // 异步步追加写入
-fs.appendFile('./poem.txt', '择其善者而从之', err => {
-  if (err) {
-    console.log(err);
-    return;
-  }
-  console.log('文件追加成功');
+fs.appendFile("./poem.txt", "择其善者而从之", (err) => {
+    if (err) {
+        console.log(err);
+        return;
+    }
+    console.log("文件追加成功");
 });
 ```
 
@@ -62,22 +62,22 @@ fs.appendFile('./poem.txt', '择其善者而从之', err => {
 
 ```js
 try {
-  //同步追加写入
-  fs.appendFileSync('./poem2.txt', '择其善者而从之');
+    //同步追加写入
+    fs.appendFileSync("./poem2.txt", "择其善者而从之");
 } catch (e) {
-  console.log(e);
+    console.log(e);
 }
 ```
 
 ### 流式写入
 
-流式写入适合大文件写入或频繁写入的场景，具体参见[stream 模块]('./stream模块.md')
+流式写入适合大文件写入或频繁写入的场景，具体参见stream 模块
 
 ```js
 // 流式写入
-const ws = fs.createWriteStream('./poem3.txt');
-ws.write('小小环球有几个苍蝇碰壁');
-ws.write('嗡嗡叫');
+const ws = fs.createWriteStream("./poem3.txt");
+ws.write("小小环球有几个苍蝇碰壁");
+ws.write("嗡嗡叫");
 ```
 
 ### 写入文件的场景
@@ -104,12 +104,12 @@ ws.write('嗡嗡叫');
 
 ```js
 // 异步读取文件
-fs.readFile('./poem.txt', 'utf-8', (err, data) => {
-  if (err) {
-    console.log(err);
-    return;
-  }
-  console.log(data);
+fs.readFile("./poem.txt", "utf-8", (err, data) => {
+    if (err) {
+        console.log(err);
+        return;
+    }
+    console.log(data);
 });
 ```
 
@@ -117,33 +117,33 @@ fs.readFile('./poem.txt', 'utf-8', (err, data) => {
 
 ```js
 try {
-  // 同步读取
-  let data = fs.readFileSync('./poem.txt');
-  console.log(data.toString());
+    // 同步读取
+    let data = fs.readFileSync("./poem.txt");
+    console.log(data.toString());
 } catch (e) {
-  console.log(e);
+    console.log(e);
 }
 ```
 
 ### 流式读取
 
-流式读取是一块一块的读，每次读取 65536 个字节，也就是 64KB，每读一块会调用一次回调函数，具体参见[stream 模块]('./stream模块.md')
+流式读取是一块一块的读，每次读取 65536 个字节，也就是 64KB，每读一块会调用一次回调函数，具体参见stream 模块
 
 ```js
 // 导入文件系统模块
-const fs = require('fs');
+const fs = require("fs");
 // 导入进程管理模块
-const process = require('process');
+const process = require("process");
 // 方式一  创建流式读取文件对象
-let rs = fs.createReadStream('./poem.txt');
+let rs = fs.createReadStream("./poem.txt");
 // 创建流式写入文件读写
-let ws = fs.createWriteStream('./poemCopy.txt');
+let ws = fs.createWriteStream("./poemCopy.txt");
 // 写入文件
-rs.on('data', chunk => {
-  ws.write(chunk);
+rs.on("data", (chunk) => {
+    ws.write(chunk);
 });
-rs.on('end', () => {
-  console.log(process.memoryUsage().rss);
+rs.on("end", () => {
+    console.log(process.memoryUsage().rss);
 });
 // 方式二 直接交给管道
 rs.pipe(ws);
@@ -160,19 +160,19 @@ rs.pipe(ws);
 
 ```js
 // 导入文件系统模块
-const fs = require('fs');
+const fs = require("fs");
 
 // 实现文件复制
 // 创建流式读取文件对象
-let rs = fs.createReadStream('./poem.txt');
+let rs = fs.createReadStream("./poem.txt");
 // 创建流式写入文件读写
-let ws = fs.createWriteStream('./poemCopy.txt');
+let ws = fs.createWriteStream("./poemCopy.txt");
 // 写入文件
-rs.on('data', chunk => {
-  ws.write(chunk);
+rs.on("data", (chunk) => {
+    ws.write(chunk);
 });
-rs.on('end', () => {
-  console.log('文件复制完毕');
+rs.on("end", () => {
+    console.log("文件复制完毕");
 });
 ```
 
@@ -187,12 +187,12 @@ rs.on('end', () => {
 
 ```js
 // 文件异步移动和重重命名
-fs.rename('./poemCopy2', './poem4.txt', err => {
-  if (err) {
-    console.log(err);
-    return;
-  }
-  console.log('文件移动和重命名成功');
+fs.rename("./poemCopy2", "./poem4.txt", (err) => {
+    if (err) {
+        console.log(err);
+        return;
+    }
+    console.log("文件移动和重命名成功");
 });
 ```
 
@@ -200,10 +200,10 @@ fs.rename('./poemCopy2', './poem4.txt', err => {
 
 ```js
 try {
-  // 文件同步移动和重命名
-  fs.renameSync('./poemCopy2.txt', './poem5.txt');
+    // 文件同步移动和重命名
+    fs.renameSync("./poemCopy2.txt", "./poem5.txt");
 } catch (error) {
-  console.log(error);
+    console.log(error);
 }
 ```
 
