@@ -115,7 +115,7 @@ export default defineConfig({
                             },
                             {
                                 text: "webpack",
-                                link: "/learn_frontend/webpack/起步/基本概念",
+                                link: "/learn_frontend/webpack/webpack.md",
                             },
                             {
                                 text: "vite",
@@ -241,13 +241,8 @@ export default defineConfig({
                 ],
             },
             {
-                text: "考公考编",
-                items: [
-                    {
-                        text: "行测",
-                        link: "/learn_kg/行测/基础阶段/资料分析",
-                    },
-                ],
+                text: "机器学习",
+                items: [],
             },
             {
                 text: "算法",
@@ -1493,6 +1488,7 @@ export default defineConfig({
                     link: "/learn_frontend/tools/md5加密库js-md5",
                 },
             ],
+
             "learn_frontend/rollup/": [
                 {
                     text: "起步",
