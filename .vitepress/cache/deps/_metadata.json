@@ -1,49 +1,49 @@
 {
-  "hash": "c59998e6",
-  "configHash": "948c4c79",
+  "hash": "e132153f",
+  "configHash": "b1a98e47",
   "lockfileHash": "661e16bf",
-  "browserHash": "d65b23a5",
+  "browserHash": "68754a38",
   "optimized": {
     "vue": {
       "src": "../../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
       "file": "vue.js",
-      "fileHash": "01c58eec",
+      "fileHash": "a381391f",
       "needsInterop": false
     },
     "vitepress > @vue/devtools-api": {
       "src": "../../../node_modules/@vue/devtools-api/dist/index.js",
       "file": "vitepress___@vue_devtools-api.js",
-      "fileHash": "d55e5009",
+      "fileHash": "bab694e1",
       "needsInterop": false
     },
     "vitepress > @vueuse/core": {
-      "src": "../../../node_modules/@vueuse/core/index.mjs",
+      "src": "../../../node_modules/vitepress/node_modules/@vueuse/core/index.mjs",
       "file": "vitepress___@vueuse_core.js",
-      "fileHash": "1135ac72",
+      "fileHash": "30ad1c38",
       "needsInterop": false
     },
     "vitepress > @vueuse/integrations/useFocusTrap": {
       "src": "../../../node_modules/@vueuse/integrations/useFocusTrap.mjs",
       "file": "vitepress___@vueuse_integrations_useFocusTrap.js",
-      "fileHash": "713267c5",
+      "fileHash": "ec0e9649",
       "needsInterop": false
     },
     "vitepress > mark.js/src/vanilla.js": {
       "src": "../../../node_modules/mark.js/src/vanilla.js",
       "file": "vitepress___mark__js_src_vanilla__js.js",
-      "fileHash": "55f156d2",
+      "fileHash": "83d9ed60",
       "needsInterop": false
     },
     "vitepress > minisearch": {
       "src": "../../../node_modules/minisearch/dist/es/index.js",
       "file": "vitepress___minisearch.js",
-      "fileHash": "21d866b1",
+      "fileHash": "bd1226df",
       "needsInterop": false
     }
   },
   "chunks": {
-    "chunk-6F5JWMBQ": {
-      "file": "chunk-6F5JWMBQ.js"
+    "chunk-OOJJVIYU": {
+      "file": "chunk-OOJJVIYU.js"
     },
     "chunk-VJWGEPT5": {
       "file": "chunk-VJWGEPT5.js"

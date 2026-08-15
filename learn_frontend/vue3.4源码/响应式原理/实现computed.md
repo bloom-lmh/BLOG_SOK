@@ -1,3 +1,7 @@
+---
+order: 57
+---
+
 # 实现 computed
 
 `computed`能够实现对属性的计算，当依赖的属性变化时，它会重新计算。`computed`需要传入一个`getter`函数或者是一个`{ get, set }`对象。然后返回一个`ComputedRefImpl`对象,实现如下：

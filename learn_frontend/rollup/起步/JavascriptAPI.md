@@ -1,3 +1,7 @@
+---
+order: 228
+---
+
 # Javascript API
 
 `Rollup` 提供了一个可在 `Node.js` 中使用的 `JavaScript API`。你很少需要使用它，并且可能应该尽可能使用命令行 `API`，除非你要扩展 `Rollup` 本身或将其用于一些深奥的事情，例如以编程方式生成打包包。

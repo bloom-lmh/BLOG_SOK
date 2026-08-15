@@ -1,3 +1,7 @@
+---
+order: 50
+---
+
 # GIT 原理
 
 [学习网站](https://learngitbranching.js.org/?locale=zh_CN)

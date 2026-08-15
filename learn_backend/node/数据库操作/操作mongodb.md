@@ -1,3 +1,7 @@
+---
+order: 23
+---
+
 # node 中使用 mongodb
 
 ## 环境准备

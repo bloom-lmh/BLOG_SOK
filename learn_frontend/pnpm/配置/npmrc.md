@@ -1,3 +1,7 @@
+---
+order: 250
+---
+
 # npmrc
 
 `.npmrc` 是一个配置文件，用于存储 **npm（Node Package Manager）** 和 **pnpm（Performant npm）** 的配置选项。它可以定义项目或用户的包管理行为，例如：

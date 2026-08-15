@@ -1,3 +1,7 @@
+---
+order: 148
+---
+
 # 深入理解 `history` 与 `location` 的关系及相互影响
 
 [[toc]]

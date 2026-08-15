@@ -62,10 +62,6 @@ export default defineConfig({
                                 text: "React基础",
                                 link: "/learn_frontend/react/react基础/Jsx",
                             },
-                            {
-                                text: "React源码",
-                                link: "/learn_frontend/react/react源码/",
-                            },
                         ],
                     },
                     {
@@ -96,14 +92,6 @@ export default defineConfig({
                                 text: "electron",
                                 link: "/learn_frontend/electron/核心概念/起步.md",
                             },
-                            {
-                                text: "uniapp",
-                                link: "/learn_frontend/electron/",
-                            },
-                            {
-                                text: "微信小程序",
-                                link: "/learn_frontend/electron/",
-                            },
                         ],
                     },
                     {
@@ -115,11 +103,7 @@ export default defineConfig({
                             },
                             {
                                 text: "webpack",
-                                link: "/learn_frontend/webpack/webpack.md",
-                            },
-                            {
-                                text: "vite",
-                                link: "/learn_frontend/vite/起步/基本概念",
+                                link: "/learn_frontend/webpack/webpack",
                             },
                         ],
                     },
@@ -241,8 +225,13 @@ export default defineConfig({
                 ],
             },
             {
-                text: "机器学习",
-                items: [],
+                text: "AI",
+                items: [
+                    {
+                        text: "claude code",
+                        link: "/learn_ai/claude code/基本介绍.md",
+                    },
+                ],
             },
             {
                 text: "算法",
@@ -252,6 +241,16 @@ export default defineConfig({
         ],
 
         sidebar: {
+            "/learn_ai/claude code": [
+                {
+                    text: "基本介绍",
+                    link: "/learn_ai/claude code/基本介绍",
+                },
+                {
+                    text: "工作原理",
+                    link: "/learn_ai/claude code/工作原理",
+                },
+            ],
             "/learn_backend/node": [
                 {
                     text: "基础知识",
@@ -314,12 +313,8 @@ export default defineConfig({
                             link: "/learn_backend/node/内置模块/zlib模块",
                         },
                         {
-                            text: "https模块",
-                            link: "/learn_backend/node/内置模块/https模块",
-                        },
-                        {
                             text: "os模块",
-                            link: "/learn_backend/node/内置模块//os模块",
+                            link: "/learn_backend/node/内置模块/os模块",
                         },
                         {
                             text: "websockt模块",
@@ -376,10 +371,6 @@ export default defineConfig({
                             text: "操作redis",
                             link: "/learn_backend/node/数据库操作/操作redis",
                         },
-                        {
-                            text: "操作sqlite",
-                            link: "/learn_backend/node/数据库操作/操作sqlite",
-                        },
                     ],
                 },
                 {
@@ -399,16 +390,8 @@ export default defineConfig({
                     text: "小工具",
                     items: [
                         {
-                            text: "文件增强工具fs-extra",
-                            link: "/learn_backend/node/小工具/文件增强工具fs-extra",
-                        },
-                        {
-                            text: "多媒体处理fluent-ffmpeg",
-                            link: "/learn_backend/node/小工具/多媒体处理fluent-ffmpeg",
-                        },
-                        {
-                            text: "数据类型检查joi",
-                            link: "/learn_frontend/joi/joi的基本使用",
+                            text: "参数校验库joi",
+                            link: "/learn_backend/node/小工具/参数校验库joi",
                         },
                     ],
                 },
@@ -472,11 +455,11 @@ export default defineConfig({
                     items: [
                         {
                             text: "通信和窗口管理工具electron-toolkit",
-                            link: "/learn_frontend/electron/小工具/通信和窗口管理工具electron-toolkit",
+                            link: "/learn_frontend/electron/工具/electron-toolkit",
                         },
                         {
                             text: "持久化存储用户设置electron-store",
-                            link: "/learn_frontend/electron/小工具/持久化存储用户设置electron-store",
+                            link: "/learn_frontend/electron/工具/electron-store",
                         },
                     ],
                 },
@@ -794,11 +777,11 @@ export default defineConfig({
                     items: [
                         {
                             text: "视差滚动",
-                            link: "/learn_frontend/css/面试题/视差滚动",
+                            link: "/learn_frontend/css/小案例/视差滚动",
                         },
                         {
                             text: "画一个三角形",
-                            link: "/learn_frontend/css/面试题/画一个三角形",
+                            link: "/learn_frontend/css/小案例/画一个三角形",
                         },
                     ],
                 },
@@ -971,7 +954,7 @@ export default defineConfig({
                         },
                         {
                             text: "异步迭代器和生成器",
-                            link: "/learn_frontend/javascript/迭代器生成器/异步迭代器和生成器",
+                            link: "/learn_frontend/javascript/迭代器生成器/异步迭代器与生成器",
                         },
                     ],
                 },
@@ -1201,7 +1184,7 @@ export default defineConfig({
                         },
                         {
                             text: "实现拖拽",
-                            link: "/learn_frontend/javascript/小案例/实现拖拽",
+                            link: "/learn_frontend/javascript/小案例/(待完成)实现拖拽",
                         },
                         {
                             text: "懒加载的实现方案",
@@ -1381,15 +1364,15 @@ export default defineConfig({
                             items: [
                                 {
                                     text: "基本介绍",
-                                    link: "/learn_frontend/tools/jest/起步/基本介绍",
+                                    link: "/learn_frontend/jest/起步/基本介绍",
                                 },
                                 {
                                     text: "命令参数",
-                                    link: "/learn_frontend/tools/jest/起步/命令参数",
+                                    link: "/learn_frontend/jest/起步/命令参数",
                                 },
                                 {
                                     text: "配置",
-                                    link: "/learn_frontend/tools/jest/起步/配置",
+                                    link: "/learn_frontend/jest/起步/配置",
                                 },
                             ],
                         },
@@ -1399,23 +1382,23 @@ export default defineConfig({
                             items: [
                                 {
                                     text: "常用匹配器",
-                                    link: "/learn_frontend/tools/jest/核心概念/常用匹配器",
+                                    link: "/learn_frontend/jest/核心概念/常用匹配器",
                                 },
                                 {
                                     text: "匹配器概览",
-                                    link: "/learn_frontend/tools/jest/核心概念/匹配器概览",
+                                    link: "/learn_frontend/jest/核心概念/匹配器概览",
                                 },
                                 {
                                     text: "异步代码测试",
-                                    link: "/learn_frontend/tools/jest/核心概念/异步代码测试",
+                                    link: "/learn_frontend/jest/核心概念/异步代码测试",
                                 },
                                 {
                                     text: "钩子函数",
-                                    link: "/learn_frontend/tools/jest/核心概念/钩子函数",
+                                    link: "/learn_frontend/jest/核心概念/钩子函数",
                                 },
                                 {
                                     text: "Mock函数",
-                                    link: "/learn_frontend/tools/jest/核心概念/mock函数",
+                                    link: "/learn_frontend/jest/核心概念/mock函数",
                                 },
                             ],
                         },
@@ -1425,7 +1408,7 @@ export default defineConfig({
                             items: [
                                 {
                                     text: "最佳实践",
-                                    link: "/learn_frontend/tools/jest/实践案例/最佳实践",
+                                    link: "/learn_frontend/jest/实践案例/最佳实践",
                                 },
                             ],
                         },
@@ -1438,15 +1421,15 @@ export default defineConfig({
                     items: [
                         {
                             text: "起步",
-                            link: "/learn_frontend/tools/msw/模拟HTTP/起步",
+                            link: "/learn_frontend/msw/模拟HTTP/起步",
                         },
                         {
                             text: "断言谓词",
-                            link: "/learn_frontend/tools/msw/模拟HTTP/断言谓词",
+                            link: "/learn_frontend/msw/模拟HTTP/断言谓词",
                         },
                         {
                             text: "响应解析器",
-                            link: "/learn_frontend/tools/msw/模拟HTTP/响应解析器",
+                            link: "/learn_frontend/msw/模拟HTTP/响应解析器",
                         },
                     ],
                 },
@@ -1456,7 +1439,7 @@ export default defineConfig({
                     items: [],
                 },
             ],
-            "learn_frontend/faker/": [
+            "/learn_frontend/faker/": [
                 {
                     text: "起步",
                     link: "/learn_frontend/faker/起步",
@@ -1478,18 +1461,7 @@ export default defineConfig({
                     link: "/learn_frontend/faker/常用API",
                 },
             ],
-            "learn_frontend/tools/": [
-                {
-                    text: "日期时间处理库moment",
-                    link: "/learn_frontend/tools/日期时间处理库moment",
-                },
-                {
-                    text: "md5加密库js-md5",
-                    link: "/learn_frontend/tools/md5加密库js-md5",
-                },
-            ],
-
-            "learn_frontend/rollup/": [
+            "/learn_frontend/rollup/": [
                 {
                     text: "起步",
                     items: [
@@ -1538,11 +1510,11 @@ export default defineConfig({
                         },
                         {
                             text: "监视配置选项",
-                            link: "/learn_frontend/rollup/配置/监视配置选项.md",
+                            link: "/learn_frontend/rollup/配置/监视配置选项",
                         },
                         {
                             text: "其它配置选项",
-                            link: "/learn_frontend/rollup/配置/其它配置选项.md",
+                            link: "/learn_frontend/rollup/配置/其它配置选项",
                         },
                         {
                             text: "包配置",
@@ -1624,7 +1596,7 @@ export default defineConfig({
                         },
                         {
                             text: "package.json",
-                            link: "/learn_frontend/pnpm/配置/package详解.md ",
+                            link: "/learn_frontend/pnpm/配置/package详解",
                         },
                         {
                             text: "pnpm配置文件",
@@ -1914,16 +1886,6 @@ export default defineConfig({
                     collapsed: true,
                     items: [],
                 },
-                {
-                    text: "小工具",
-                    collapsed: true,
-                    items: [
-                        {
-                            text: "右键菜单vue3-context-menu",
-                            link: "/learn_frontend/vue3/小工具/右键菜单vue3-context-menu",
-                        },
-                    ],
-                },
             ],
             "/learn_frontend/scss/": [
                 {
@@ -2031,36 +1993,7 @@ export default defineConfig({
                         },
                     ],
                 },
-                {
-                    text: "react源码",
-                    collapsed: true,
-                    items: [
-                        {
-                            text: "创建ReactElement",
-                            link: "/learn_frontend/react/react源码-18.1.0/创建ReactElement",
-                        },
-                        {
-                            text: "Fiber与Fiber链表树",
-                            link: "/learn_frontend/react/react源码-18.1.0/Fiber与Fiber链表树",
-                        },
-                        {
-                            text: "Fiber中的模式",
-                            link: "/learn_frontend/react/react源码-18.1.0/Fiber中的模式",
-                        },
-                        {
-                            text: "Fiber中的Lane",
-                            link: "/learn_frontend/react/react源码-18.1.0/Fiber中的Lane",
-                        },
-                        {
-                            text: "Render函数与元素的挂载和解析",
-                            link: "/learn_frontend/react/react源码-18.1.0/Render函数与元素的挂载和解析",
-                        },
-                        {
-                            text: "updateContainer深度优先搜索构建Fiber树",
-                            link: "/learn_frontend/react/react源码-18.1.0/updateContainer深度优先搜索构建Fiber树",
-                        },
-                    ],
-                },
+
             ],
             "/learn_frontend/browser/": [
                 {
@@ -2373,10 +2306,6 @@ export default defineConfig({
                     collapsed: true,
                     items: [
                         {
-                            text: "基本概念",
-                            link: "/learn_408/计算机网络/应用层/基本概念",
-                        },
-                        {
                             text: "DNS解析与优化",
                             link: "/learn_408/计算机网络/应用层/DNS解析与优化",
                         },
@@ -2406,7 +2335,7 @@ export default defineConfig({
                         },
                         {
                             text: "GET和POST请求的区别",
-                            link: "/learn_408/计算机网络/面试题/GET和POST请求的区别",
+                            link: "/learn_408/计算机网络/应用层/GET和POST请求的区别",
                         },
                     ],
                 },

@@ -1,3 +1,7 @@
+---
+order: 12
+---
+
 # buffer 模块
 
 ## 什么是 Buffer 对象

@@ -1,3 +1,7 @@
+---
+order: 204
+---
+
 # tsconfig 配置讲解
 
 [[toc]]
