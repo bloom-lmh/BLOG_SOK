@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# VitePress 临时编译产物
+.vitepress/*.timestamp-*.mjs

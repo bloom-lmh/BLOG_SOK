@@ -200,7 +200,36 @@ export default defineConfig({
                         text: "node",
                         link: "/learn_backend/node/基础知识/简介与安装",
                     },
+                    {
+                        text: "Java",
+                        link: "/learn_backend/java/基础/Maven",
+                    },
+                    {
+                        text: "Python",
+                        link: "/learn_backend/python/Python基础",
+                    },
                 ],
+            },
+            {
+                text: "数据库",
+                items: [
+                    {
+                        text: "MySQL",
+                        link: "/learn_database/MySQL",
+                    },
+                    {
+                        text: "Redis",
+                        link: "/learn_database/Redis",
+                    },
+                    {
+                        text: "分库分表",
+                        link: "/learn_database/分库分表",
+                    },
+                ],
+            },
+            {
+                text: "运维",
+                link: "/learn_maintenance/Docker",
             },
             {
                 text: "软件架构",
@@ -231,6 +260,10 @@ export default defineConfig({
                         text: "claude code",
                         link: "/learn_ai/claude code/基本介绍.md",
                     },
+                    {
+                        text: "AI Agent",
+                        link: "/learn_ai/agent/LLM基础",
+                    },
                 ],
             },
             {
@@ -238,9 +271,121 @@ export default defineConfig({
                 link: "/learn_algorithm/数组.md",
             },
             { text: "分享生活", link: "/shred_life/森海塞尔momentum4" },
+            {
+                text: "项目实战",
+                items: [
+                    {
+                        text: "路线总览",
+                        link: "/learn_project/00-路线总览",
+                    },
+                    {
+                        text: "课程商城 (Java)",
+                        link: "/learn_project/course-mall/Day01-项目搭建",
+                    },
+                ],
+            },
         ],
 
         sidebar: {
+            "/learn_backend/java/": [
+                {
+                    text: "Java核心",
+                    items: [
+                        { text: "Java集合", link: "/learn_backend/java/Java核心/Java集合" },
+                        { text: "JVM", link: "/learn_backend/java/Java核心/JVM" },
+                        { text: "并发编程", link: "/learn_backend/java/Java核心/并发编程" },
+                    ],
+                },
+                {
+                    text: "基础",
+                    items: [
+                        { text: "Maven", link: "/learn_backend/java/基础/Maven" },
+                        { text: "Spring", link: "/learn_backend/java/基础/Spring" },
+                        { text: "Spring MVC", link: "/learn_backend/java/基础/Spring MVC" },
+                        { text: "MyBatis", link: "/learn_backend/java/基础/MyBatis" },
+                        { text: "Spring Boot", link: "/learn_backend/java/基础/Spring Boot" },
+                        { text: "MyBatis-Plus", link: "/learn_backend/java/基础/MyBatis-Plus" },
+                        { text: "Spring Security", link: "/learn_backend/java/基础/Spring Security" },
+                    ],
+                },
+                {
+                    text: "微服务",
+                    items: [
+                        { text: "Spring Cloud", link: "/learn_backend/java/微服务/Spring Cloud" },
+                        { text: "Nacos", link: "/learn_backend/java/微服务/Nacos" },
+                        { text: "OpenFeign", link: "/learn_backend/java/微服务/OpenFeign" },
+                        { text: "Gateway", link: "/learn_backend/java/微服务/Gateway" },
+                        { text: "Sentinel", link: "/learn_backend/java/微服务/Sentinel" },
+                        { text: "Seata", link: "/learn_backend/java/微服务/Seata" },
+                        { text: "RocketMQ", link: "/learn_backend/java/微服务/RocketMQ" },
+                        { text: "Nginx", link: "/learn_backend/java/微服务/Nginx" },
+                        { text: "Elasticsearch", link: "/learn_backend/java/微服务/Elasticsearch" },
+                        { text: "分布式基础", link: "/learn_backend/java/微服务/分布式基础" },
+                    ],
+                },
+            ],
+            "/learn_backend/python/": [
+                { text: "Python基础", link: "/learn_backend/python/Python基础" },
+                { text: "FastAPI", link: "/learn_backend/python/FastAPI" },
+            ],
+            "/learn_database/": [
+                { text: "MySQL", link: "/learn_database/MySQL" },
+                { text: "Redis", link: "/learn_database/Redis" },
+                { text: "分库分表", link: "/learn_database/分库分表" },
+            ],
+            "/learn_maintenance/": [
+                { text: "Docker", link: "/learn_maintenance/Docker" },
+            ],
+            "/learn_project/": [
+                { text: "路线总览", link: "/learn_project/00-路线总览" },
+                {
+                    text: "课程商城 (Java)",
+                    collapsed: true,
+                    items: [
+                        { text: "Day01 项目搭建", link: "/learn_project/course-mall/Day01-项目搭建" },
+                        { text: "Day02 数据库设计", link: "/learn_project/course-mall/Day02-数据库设计" },
+                        { text: "Day03 用户服务", link: "/learn_project/course-mall/Day03-用户服务" },
+                        { text: "Day04 登录鉴权", link: "/learn_project/course-mall/Day04-登录鉴权" },
+                        { text: "Day05 验证码", link: "/learn_project/course-mall/Day05-验证码" },
+                        { text: "Day06 课程服务", link: "/learn_project/course-mall/Day06-课程服务" },
+                        { text: "Day07 讲师分类", link: "/learn_project/course-mall/Day07-讲师分类" },
+                        { text: "Day08 课程缓存", link: "/learn_project/course-mall/Day08-课程缓存" },
+                        { text: "Day09 文件上传", link: "/learn_project/course-mall/Day09-文件上传" },
+                        { text: "Day10 订单服务", link: "/learn_project/course-mall/Day10-订单服务" },
+                        { text: "Day11 库存服务", link: "/learn_project/course-mall/Day11-库存服务" },
+                        { text: "Day12 支付对接", link: "/learn_project/course-mall/Day12-支付对接" },
+                        { text: "Day13 服务拆分", link: "/learn_project/course-mall/Day13-服务拆分" },
+                        { text: "Day14 配置中心", link: "/learn_project/course-mall/Day14-配置中心" },
+                        { text: "Day15 远程调用", link: "/learn_project/course-mall/Day15-远程调用" },
+                        { text: "Day16 网关", link: "/learn_project/course-mall/Day16-网关" },
+                        { text: "Day17 熔断限流", link: "/learn_project/course-mall/Day17-熔断限流" },
+                        { text: "Day18 治理收尾", link: "/learn_project/course-mall/Day18-治理收尾" },
+                        { text: "Day19 秒杀上", link: "/learn_project/course-mall/Day19-秒杀上" },
+                        { text: "Day20 秒杀下", link: "/learn_project/course-mall/Day20-秒杀下" },
+                        { text: "Day21 MQ上", link: "/learn_project/course-mall/Day21-MQ上" },
+                        { text: "Day22 MQ下", link: "/learn_project/course-mall/Day22-MQ下" },
+                        { text: "Day23 分布式事务", link: "/learn_project/course-mall/Day23-分布式事务" },
+                        { text: "Day24 分库分表", link: "/learn_project/course-mall/Day24-分库分表" },
+                        { text: "Day25 搜索上", link: "/learn_project/course-mall/Day25-搜索上" },
+                        { text: "Day26 搜索下", link: "/learn_project/course-mall/Day26-搜索下" },
+                        { text: "Day27 容器化", link: "/learn_project/course-mall/Day27-容器化" },
+                        { text: "Day28 反向代理", link: "/learn_project/course-mall/Day28-反向代理" },
+                        { text: "Day29 压测优化", link: "/learn_project/course-mall/Day29-压测优化" },
+                        { text: "Day30 复盘", link: "/learn_project/course-mall/Day30-复盘" },
+                    ],
+                },
+            ],
+            "/learn_ai/agent/": [
+                { text: "LLM基础", link: "/learn_ai/agent/LLM基础" },
+                { text: "Function Calling", link: "/learn_ai/agent/Function Calling" },
+                { text: "RAG", link: "/learn_ai/agent/RAG" },
+                { text: "向量数据库", link: "/learn_ai/agent/向量数据库" },
+                { text: "LangChain", link: "/learn_ai/agent/LangChain" },
+                { text: "LangGraph", link: "/learn_ai/agent/LangGraph" },
+                { text: "MCP", link: "/learn_ai/agent/MCP" },
+                { text: "Agent编排", link: "/learn_ai/agent/Agent编排" },
+                { text: "流式输出", link: "/learn_ai/agent/流式输出" },
+            ],
             "/learn_ai/claude code": [
                 {
                     text: "基本介绍",
