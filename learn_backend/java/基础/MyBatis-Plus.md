@@ -950,7 +950,7 @@ MP 的多租户插件在 SQL 执行前解析 AST 语法树，找到需要隔离�
 
 数据库里存的 JSON 字符串，想映射成 Java 的 `List` / 对象；或者 Java 的枚举想存成 `int` 或 `String`。默认映射搞不定时，就需要自定义 `TypeHandler` 在「Java 类型 <-> JDBC 类型」之间做转换。
 
-#### 6.2 示例：List<String> 与 JSON 互转
+#### 6.2 示例：`List<String>` 与 JSON 互转
 
 ```java
 @MappedTypes(List.class)

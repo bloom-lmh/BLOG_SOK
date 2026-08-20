@@ -748,9 +748,9 @@ List<User> listByName(@Param("name") String name);
 | 关系 | 标签 | 说明 | 典型例子 |
 | --- | --- | --- | --- |
 | 一对一 | `<association>` | 一个订单对应一个用户 | Order → User |
-| 一对多 | `<collection>` | 一个用户对应多个订单 | User → List<Order> |
+| 一对多 | `<collection>` | 一个用户对应多个订单 | User → `List<Order>` |
 | 多对一 | `<association>` | 反过来看就是多对一 | Order → User |
-| 多对多 | `<collection>` + 中间表 | 学生和课程 | Student → List<Course> |
+| 多对多 | `<collection>` + 中间表 | 学生和课程 | Student → `List<Course>` |
 
 #### 2.1 一对一（association，嵌套结果）
 

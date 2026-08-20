@@ -85,15 +85,8 @@ target/
 ```
 
 ::: tip 💡 面试题：`dependencyManagement` 和 `dependencies` 有什么区别？
-**一句话**：`dependencyManagement` 只声明版本、不引入依赖；`dependencies` 才真正把依赖拉进工程。所以子模块引用 `mall-common` 时不用写版本号，版本统一由父工程管。详见 [Maven](/learn_backend/java/基础/Maven)。
+**一句话**：`dependencyManagement` 声明项目需要的依赖及其版本、不实际引入依赖；`dependencies` 才真正把依赖拉进工程。所以子模块引用 `mall-common` 时不用写版本号，版本统一由父工程管。详见 [Maven](/learn_backend/java/基础/Maven)。
 :::
-
-::: tip
-
-- 组织 (Group)：`com.taobao` → 代表淘宝公司
-- 工件 (Artifact)：`order‑system` → 淘宝里面的订单系统项目
-- 包名 (Package)：`com.taobao.ordersystem` → java 代码存放的根包
-  :::
 
 ### 步骤 2：公共模块 `mall-common`
 

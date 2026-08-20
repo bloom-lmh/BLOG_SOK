@@ -1,6 +1,6 @@
 # Maven
 
-> 一句话定位：Maven 是 Java 项目的事实标准**构建工具 + 依赖管理工具**，用一份 `pom.xml` 解决「依赖从哪下载、项目怎么编译打包、生命周期如何自动化」三大问题，让你不用手动拷 jar 包、不用手写编译脚本，一套「约定优于配置」规范统一了所有 Java 项目的构建方式。
+> 一句话定位：Maven 是 Java 项目的事实标准**构建工具 + 依赖管理工具**，在 `pom.xml` 解决「依赖从哪下载、项目怎么编译打包、生命周期如何自动化」三大问题，让你不用手动拷 jar 包、不用手写编译脚本，一套「约定优于配置」规范统一了所有 Java 项目的构建方式。
 
 ## 基础篇
 
@@ -8,13 +8,13 @@
 
 在没有 Maven 的年代，Java 项目开发会遇到三大痛点，Maven 就是冲着它们来的：
 
-| 痛点 | 手动做法 | Maven 的做法 |
-|------|---------|-------------|
-| 依赖管理 | 手动下载 jar 拷进 `lib/` 目录，版本冲突全靠肉眼 | 在 `pom.xml` 声明坐标，自动从仓库下载，还能传递依赖、自动调解冲突 |
-| 构建流程 | 每个项目自己写 `build.sh` / `ant` 脚本，各写各的 | 统一的生命周期：`clean → compile → test → package → install` |
-| 目录规范 | 每个人目录结构不一样，接手项目要猜 | 约定优于配置，`src/main/java` 放代码、`src/test/java` 放测试 |
+| 痛点     | 手动做法                                         | Maven 的做法                                                      |
+| -------- | ------------------------------------------------ | ----------------------------------------------------------------- |
+| 依赖管理 | 手动下载 jar 拷进 `lib/` 目录，版本冲突全靠肉眼  | 在 `pom.xml` 声明坐标，自动从仓库下载，还能传递依赖、自动调解冲突 |
+| 构建流程 | 每个项目自己写 `build.sh` / `ant` 脚本，各写各的 | 统一的生命周期：`clean → compile → test → package → install`      |
+| 目录规范 | 每个人目录结构不一样，接手项目要猜               | 约定优于配置，`src/main/java` 放代码、`src/test/java` 放测试      |
 
-**Maven 的本质**可以一句话概括：它把「散落各处的构建知识」固化成了「一套约定 + 一个声明式配置 + 一套插件生态」。你只需要在 `pom.xml` 里声明「我要什么」，Maven 负责「怎么拿到、怎么构建」。
+> **Maven 的本质**可以一句话概括：构建工具+依赖管理工具。你只需要在 `pom.xml` 里声明「我要什么」，Maven 负责「怎么拿到、怎么构建」。
 
 ::: tip 💡 面试题：Maven 和 Gradle 的区别？
 Maven 用 XML 配置、约定优于配置、生态最成熟；Gradle 用 Groovy/Kotlin 脚本、构建更快（增量构建 + 构建缓存）、更灵活，但学习成本更高。一句话结论：老项目和新项目主流仍是 Maven，大型/复杂构建才考虑 Gradle。
@@ -50,13 +50,13 @@ Maven 靠 **坐标** 唯一定位一个构件（jar 包），三个要素缺一�
 
 除了 GAV 三要素，坐标其实还有两个**可选要素**：
 
-| 要素 | 是否必填 | 含义 | 示例 |
-|------|:-------:|------|------|
-| `groupId` | 必填 | 组织/公司域名倒写 | `com.alibaba` |
-| `artifactId` | 必填 | 项目/模块名 | `fastjson` |
-| `version` | 必填 | 版本号 | `1.2.83` |
-| `packaging` | 可选，默认 `jar` | 打包类型：`jar`/`war`/`pom`/`ear` | `war` |
-| `classifier` | 可选 | 同版本下的附加构件（源码包、javadoc 包） | `sources` |
+| 要素         |     是否必填     | 含义                                     | 示例          |
+| ------------ | :--------------: | ---------------------------------------- | ------------- |
+| `groupId`    |       必填       | 组织/公司域名倒写                        | `com.alibaba` |
+| `artifactId` |       必填       | 项目/模块名                              | `fastjson`    |
+| `version`    |       必填       | 版本号                                   | `1.2.83`      |
+| `packaging`  | 可选，默认 `jar` | 打包类型：`jar`/`war`/`pom`/`ear`        | `war`         |
+| `classifier` |       可选       | 同版本下的附加构件（源码包、javadoc 包） | `sources`     |
 
 ### 3. 仓库体系（三类仓库）
 
@@ -98,14 +98,14 @@ SNAPSHOT 是开发中的不稳定版本，每次构建都会去仓库拉最新�
 
 `<scope>` 决定依赖在什么阶段可见、是否会传递，最常用的几个：
 
-| scope | 编译期 | 测试期 | 运行期 | 是否传递 | 典型例子 |
-|-------|:-----:|:-----:|:-----:|:-------:|---------|
-| `compile`（默认） | ✅ | ✅ | ✅ | ✅ | spring-context、common-lang |
-| `provided` | ✅ | ✅ | ❌ | ❌ | servlet-api、lombok |
-| `runtime` | ❌ | ✅ | ✅ | ✅ | mysql-connector-java |
-| `test` | ❌ | ✅ | ❌ | ❌ | junit |
-| `system` | ✅ | ✅ | ✅ | ❌ | 本地 jar，需配 systemPath（不推荐） |
-| `import` | 特殊 | — | — | — | 只能用于 dependencyManagement 中引入 BOM |
+| scope             | 编译期 | 测试期 | 运行期 | 是否传递 | 典型例子                                 |
+| ----------------- | :----: | :----: | :----: | :------: | ---------------------------------------- |
+| `compile`（默认） |   ✅   |   ✅   |   ✅   |    ✅    | spring-context、common-lang              |
+| `provided`        |   ✅   |   ✅   |   ❌   |    ❌    | servlet-api、lombok                      |
+| `runtime`         |   ❌   |   ✅   |   ✅   |    ✅    | mysql-connector-java                     |
+| `test`            |   ❌   |   ✅   |   ❌   |    ❌    | junit                                    |
+| `system`          |   ✅   |   ✅   |   ✅   |    ❌    | 本地 jar，需配 systemPath（不推荐）      |
+| `import`          |  特殊  |   —    |   —    |    —     | 只能用于 dependencyManagement 中引入 BOM |
 
 ```xml
 <dependency>
@@ -166,6 +166,36 @@ A
 
 ::: tip 💡 面试题：遇到依赖冲突怎么排查和解决？
 用 `mvn dependency:tree` 看依赖树定位冲突版本，再用 `<exclusion>` 排除或直接锁定版本。一句话原因：Maven 靠最短路径/先声明规则自动选版，但这些规则未必选出你想要的版本，必须手动干预。
+:::
+
+**依赖隔离的另一个开关：`<optional>`**
+
+`<optional>true</optional>` 解决的是另一个问题——**不是版本冲突，而是「我不想把这个依赖传给我的依赖方」**。默认依赖是传递的：A 依赖 B，B 依赖 C，那 C 也会进入 A 的依赖树。给 C 标 `optional` 后，C 仍能被 B 自己用，但**不会再顺着传递链流到 A**。
+
+```xml
+<!-- mall-common 里的 lombok：自己编译要用（@Data 展开成 getter/setter），
+     但 lombok 是「编译期工具」，编译完就没用了，不该传染给依赖我的模块 -->
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <optional>true</optional>
+</dependency>
+```
+
+为什么 lombok 要标 optional：lombok 只在**编译期**工作（注解处理器把 `@Data` 展开成真实方法写入字节码），**运行期不需要**。标 optional 后，依赖 mall-common 的模块不会「被动沾光」拿到 lombok，需要就自己显式声明——这就是「依赖最小化 / 依赖隔离」。
+
+`<optional>` 和两个容易混的概念对照：
+
+| 标签                        | 控制什么                     | 一句话                                    |
+| --------------------------- | ---------------------------- | ----------------------------------------- |
+| `<optional>true</optional>` | **要不要传给下游依赖方**     | 「我编译要用，但不传染给我的依赖方」      |
+| `<scope>provided</scope>`   | **在哪个阶段存在**           | 「编译/测试要，运行期由环境提供，别打包」 |
+| `<exclusion>`               | **排除别人传进来的某个依赖** | 「我不要你给我带的这个库」                |
+
+方向不同：`optional` 是「我不往外传」，`exclusion` 是「我拒绝别人传进来的」，`provided` 是「运行时环境会给我」。
+
+::: tip 💡 面试题：`<optional>` 和 `<scope>provided</scope>` 有什么区别？
+**一句话**：两者都能让依赖「不进最终产物、不传给下游」，但语义不同——`provided` 强调「**运行环境已经提供了**（如 Tomcat 提供 servlet-api）」，`optional` 强调「**这个依赖是编译期工具，不该传递**（如 lombok）」。实际项目里 lombok 两种写法都常见，但讲清楚语义区别是加分项。
 :::
 
 ### 6. 约定优于配置：标准目录结构
@@ -272,25 +302,25 @@ validate → initialize → generate-sources → process-sources → generate-re
 compile → test → package → install → deploy
 ```
 
-| 命令 | 作用 | 执行到的 phase |
-|------|------|:-------------:|
-| `mvn clean` | 清理 target | clean 生命周期的 clean |
-| `mvn compile` | 编译 `src/main/java` 到 `target/classes` | compile |
-| `mvn test` | 编译 + 跑单元测试 | test（会先执行 compile） |
-| `mvn package` | 编译 + 测试 + 打成 jar/war 包 | package |
-| `mvn install` | 打包 + 安装到本地仓库（供本机其他项目引用） | install |
-| `mvn deploy` | 打包 + 发布到私服（供其他机器引用） | deploy |
+| 命令          | 作用                                        |      执行到的 phase      |
+| ------------- | ------------------------------------------- | :----------------------: |
+| `mvn clean`   | 清理 target                                 |  clean 生命周期的 clean  |
+| `mvn compile` | 编译 `src/main/java` 到 `target/classes`    |         compile          |
+| `mvn test`    | 编译 + 跑单元测试                           | test（会先执行 compile） |
+| `mvn package` | 编译 + 测试 + 打成 jar/war 包               |         package          |
+| `mvn install` | 打包 + 安装到本地仓库（供本机其他项目引用） |         install          |
+| `mvn deploy`  | 打包 + 发布到私服（供其他机器引用）         |          deploy          |
 
 **phase 本身不做实际工作，真正干活的是插件（plugin）的 goal**。每个 phase 会绑定若干个 goal，执行到该 phase 时触发这些 goal。核心绑定关系如下：
 
-| phase | 绑定的插件 goal（default 打包类型） |
-|-------|------------------------------------|
-| `compile` | `maven-compiler-plugin:compile` |
-| `test-compile` | `maven-compiler-plugin:testCompile` |
-| `test` | `maven-surefire-plugin:test` |
-| `package` | `maven-jar-plugin:jar`（或 war/spring-boot 打包） |
-| `install` | `maven-install-plugin:install` |
-| `deploy` | `maven-deploy-plugin:deploy` |
+| phase          | 绑定的插件 goal（default 打包类型）               |
+| -------------- | ------------------------------------------------- |
+| `compile`      | `maven-compiler-plugin:compile`                   |
+| `test-compile` | `maven-compiler-plugin:testCompile`               |
+| `test`         | `maven-surefire-plugin:test`                      |
+| `package`      | `maven-jar-plugin:jar`（或 war/spring-boot 打包） |
+| `install`      | `maven-install-plugin:install`                    |
+| `deploy`       | `maven-deploy-plugin:deploy`                      |
 
 > 理解关键：**phase 是「动作的编排顺序」，goal 是「真正执行的原子操作」**。你可以用 `mvn 插件:goal` 直接跑某个 goal（如 `mvn dependency:tree` 就是直接调 `maven-dependency-plugin` 的 `tree` goal，不经过任何 phase）。
 
@@ -316,17 +346,17 @@ compile → test → package → install → deploy
 
 插件是 Maven 能力的来源，除了默认绑定的，这些是最常用的：
 
-| 插件 | 常用 goal | 场景 |
-|------|----------|------|
-| `maven-compiler-plugin` | `compile` / `testCompile` | 编译源码，配置 JDK 版本 |
-| `maven-surefire-plugin` | `test` | 运行单元测试 |
-| `maven-jar-plugin` | `jar` | 打普通 jar 包 |
-| `maven-war-plugin` | `war` | 打 war 包 |
-| `spring-boot-maven-plugin` | `repackage` | Spring Boot 打可执行 fat jar |
-| `maven-install-plugin` | `install` | 安装到本地仓库 |
-| `maven-deploy-plugin` | `deploy` | 发布到私服 |
-| `maven-dependency-plugin` | `tree` / `copy-dependencies` | 看依赖树、拷贝依赖 |
-| `maven-resources-plugin` | `resources` | 拷贝 resources 到 classpath |
+| 插件                       | 常用 goal                    | 场景                         |
+| -------------------------- | ---------------------------- | ---------------------------- |
+| `maven-compiler-plugin`    | `compile` / `testCompile`    | 编译源码，配置 JDK 版本      |
+| `maven-surefire-plugin`    | `test`                       | 运行单元测试                 |
+| `maven-jar-plugin`         | `jar`                        | 打普通 jar 包                |
+| `maven-war-plugin`         | `war`                        | 打 war 包                    |
+| `spring-boot-maven-plugin` | `repackage`                  | Spring Boot 打可执行 fat jar |
+| `maven-install-plugin`     | `install`                    | 安装到本地仓库               |
+| `maven-deploy-plugin`      | `deploy`                     | 发布到私服                   |
+| `maven-dependency-plugin`  | `tree` / `copy-dependencies` | 看依赖树、拷贝依赖           |
+| `maven-resources-plugin`   | `resources`                  | 拷贝 resources 到 classpath  |
 
 Spring Boot 项目打包可执行 jar 的关键（`repackage` 把依赖也塞进 jar，生成「fat jar」）：
 
@@ -465,29 +495,29 @@ BOM（Bill of Materials，物料清单）就是「一堆依赖版本的清单」
 
 ### 12. 常用命令速查
 
-| 命令 | 作用 |
-|------|------|
-| `mvn clean` | 清理 target 目录 |
-| `mvn compile` | 编译源码 |
-| `mvn test` | 运行单元测试 |
-| `mvn package` | 打包（jar/war），会先编译+测试 |
-| `mvn package -DskipTests` | 打包但跳过测试（`skipTests` 跳过执行，仍编译测试代码） |
-| `mvn install` | 打包并安装到本地仓库 |
-| `mvn install -Dmaven.test.skip=true` | 安装到本地仓库，且连测试代码都不编译 |
-| `mvn deploy` | 打包并发布到私服 |
-| `mvn dependency:tree` | 打印依赖树，排查冲突 |
-| `mvn dependency:tree -Dincludes=com.alibaba` | 只看某个 groupId 的依赖树 |
-| `mvn -pl mall-user -am package` | 只构建指定模块（`-am` 连带它依赖的模块） |
-| `mvn -pl mall-user -amd package` | 只构建指定模块（`-amd` 连带依赖它的模块） |
-| `mvn -DskipTests -T 4 package` | 4 线程并行构建（多模块加速） |
-| `mvn clean install -Dmaven.test.skip=true -U` | 强制更新快照依赖（`-U`）并跳过测试 |
+| 命令                                          | 作用                                                   |
+| --------------------------------------------- | ------------------------------------------------------ |
+| `mvn clean`                                   | 清理 target 目录                                       |
+| `mvn compile`                                 | 编译源码                                               |
+| `mvn test`                                    | 运行单元测试                                           |
+| `mvn package`                                 | 打包（jar/war），会先编译+测试                         |
+| `mvn package -DskipTests`                     | 打包但跳过测试（`skipTests` 跳过执行，仍编译测试代码） |
+| `mvn install`                                 | 打包并安装到本地仓库                                   |
+| `mvn install -Dmaven.test.skip=true`          | 安装到本地仓库，且连测试代码都不编译                   |
+| `mvn deploy`                                  | 打包并发布到私服                                       |
+| `mvn dependency:tree`                         | 打印依赖树，排查冲突                                   |
+| `mvn dependency:tree -Dincludes=com.alibaba`  | 只看某个 groupId 的依赖树                              |
+| `mvn -pl mall-user -am package`               | 只构建指定模块（`-am` 连带它依赖的模块）               |
+| `mvn -pl mall-user -amd package`              | 只构建指定模块（`-amd` 连带依赖它的模块）              |
+| `mvn -DskipTests -T 4 package`                | 4 线程并行构建（多模块加速）                           |
+| `mvn clean install -Dmaven.test.skip=true -U` | 强制更新快照依赖（`-U`）并跳过测试                     |
 
 `-DskipTests` 和 `-Dmaven.test.skip=true` 的区别：
 
-| 参数 | 是否编译测试代码 | 是否运行测试 |
-|------|:-------------:|:----------:|
-| `-DskipTests` | ✅ 编译 | ❌ 不运行 |
-| `-Dmaven.test.skip=true` | ❌ 不编译 | ❌ 不运行 |
+| 参数                     | 是否编译测试代码 | 是否运行测试 |
+| ------------------------ | :--------------: | :----------: |
+| `-DskipTests`            |     ✅ 编译      |  ❌ 不运行   |
+| `-Dmaven.test.skip=true` |    ❌ 不编译     |  ❌ 不运行   |
 
 ### 13. settings.xml 与全局配置
 
