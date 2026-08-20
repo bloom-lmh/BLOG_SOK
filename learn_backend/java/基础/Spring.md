@@ -737,6 +737,77 @@ public interface MethodInterceptor extends Interceptor {
 在 Bean 生命周期的「初始化后」阶段，由 `AbstractAutoProxyCreator`（一个 `BeanPostProcessor`）在 `postProcessAfterInitialization` 里创建。一句话原因：代理要包裹「已经填好依赖、初始化完成」的原始对象，所以必须等初始化完成；创建出的代理对象会替换容器里的原始 Bean，之后你从容器拿到的就是代理对象。
 :::
 
+**AOP 的几个进阶点（面试高频）**：
+
+**① 通知链 = 职责链模式**：前面说「多个通知串成拦截器链」，这个链的本质就是**职责链模式**——每个 `MethodInterceptor` 执行完自己的逻辑后，调用 `invocation.proceed()` 把控制权传给下一个：
+
+```
+MethodInterceptor1 ──proceed()──► MethodInterceptor2 ──proceed()──► 目标方法
+      │ 前置逻辑                        │ 后置逻辑
+      ◄────────────────────────────────┘ 逐层返回
+```
+
+::: tip 💡 面试题：AOP 的拦截器链是什么设计模式？
+职责链模式——每个 `MethodInterceptor` 执行完自己的逻辑后调用 `proceed()` 传给下一个，直到执行目标方法再逐层返回，和 Servlet Filter 链、Spring Security 过滤链是同一模式。整体看「给 Bean 套代理」是代理模式，但链内部是职责链。
+:::
+
+**② 五种通知的执行顺序**（一个切面同时配多种通知时）：
+
+```
+正常：@Around前 → @Before → 目标方法 → @Around后 → @After → @AfterReturning
+异常：@Around前 → @Before → 目标方法(抛异常) → @After → @AfterThrowing
+```
+
+`@After` 相当于 finally，无论正常还是异常都执行。
+
+**③ 自调用失效（AOP 的经典局限）**：
+
+```java
+@Service
+public class UserService {
+    public void outer() {
+        inner();   // ❌ 自调用：AOP 失效，事务/日志都不会生效
+    }
+    @Transactional
+    public void inner() { ... }
+}
+```
+
+原因：`outer()` 里 `this.inner()` 是直接调**原始对象**自己，没经过代理对象，AOP 拦不到。解法：把方法拆到另一个 Bean，或注入自己走代理调用。
+
+::: tip 💡 面试题：为什么 `@Transactional` 自调用会失效？
+Spring AOP 是运行期动态代理，事务靠代理拦截才开启；自调用（`this.inner()`）走的是原始对象而非代理对象，绕过了代理，所以事务注解不生效。
+:::
+
+**④ 织入时机与 Spring AOP vs AspectJ**：
+
+| 织入时机 | 实现 | 说明 |
+|---|---|---|
+| 编译期织入 | AspectJ 编译器（ajc） | 编译时改字节码，最快，无需代理 |
+| 类加载期织入 | AspectJ LTW | 类加载时改字节码 |
+| 运行期织入 | Spring AOP | 运行时动态代理，最常用 |
+
+| | Spring AOP | AspectJ |
+|---|---|---|
+| 实现 | 运行期动态代理 | 编译期/类加载期改字节码 |
+| 能切的范围 | 只切**方法** | 字段、构造器、任意代码 |
+| 性能 | 有代理开销 | 无代理开销 |
+| 应用 | 90% 场景够用 | 极致性能 / 切非方法时 |
+
+**⑤ 全局异常处理就是 AOP 的应用**：Day01 的 `GlobalExceptionHandler` 就是 AOP 落地：
+
+```java
+@RestControllerAdvice   // 特殊切面：拦截「异常」这个横切关注点
+public class GlobalExceptionHandler {
+    @ExceptionHandler(BizException.class)   // 切点 = 抛 BizException
+    public Result<Void> handleBiz(BizException e) { ... }
+    @ExceptionHandler(Exception.class)       // 切点 = 抛其他异常
+    public Result<Void> handleOther(Exception e) { ... }
+}
+```
+
+注意：`@ExceptionHandler` 是「按异常类型**匹配一个**」handler，不是链式传递——异常来了按继承关系找最精确的那个执行（和 Filter 链的逐个传递不同）。
+
 ### 十九、事务的底层原理：AOP + 事务管理器 + ThreadLocal
 
 声明式事务的本质是「**AOP 切面 + 事务管理器**」，完整链路：
