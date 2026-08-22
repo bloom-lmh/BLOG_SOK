@@ -43,12 +43,12 @@ Spring Boot 的目标就是：**把这三大痛点全部默认化**，让开发�
 
 Spring Boot 不是一个全新的框架，而是**基于 Spring 的快速开发脚手架**（Pivotal 团队 2014 年发布），它遵循四个核心设计理念：
 
-| 核心理念 | 含义 | 对应解决的问题 |
-| --- | --- | --- |
-| **约定优于配置**（Convention over Configuration） | 大量默认约定，没写配置就用默认值 | 配置地狱 |
-| **自动配置**（Auto Configuration） | 根据 classpath 里的依赖自动装配 Bean | 配置地狱 |
-| **起步依赖**（Starter） | 一个依赖聚合一组功能所需的全部 jar | 依赖地狱 |
-| **内嵌容器**（Embedded Server） | 把 Tomcat 打进 jar，`java -jar` 直接跑 | 部署麻烦 |
+| 核心理念                                          | 含义                                   | 对应解决的问题 |
+| ------------------------------------------------- | -------------------------------------- | -------------- |
+| **约定优于配置**（Convention over Configuration） | 大量默认约定，没写配置就用默认值       | 配置地狱       |
+| **自动配置**（Auto Configuration）                | 根据 classpath 里的依赖自动装配 Bean   | 配置地狱       |
+| **起步依赖**（Starter）                           | 一个依赖聚合一组功能所需的全部 jar     | 依赖地狱       |
+| **内嵌容器**（Embedded Server）                   | 把 Tomcat 打进 jar，`java -jar` 直接跑 | 部署麻烦       |
 
 #### 1.3 小结
 
@@ -106,22 +106,22 @@ spring-boot-starter-parent (3.2.0)
 
 #### 2.3 常用 Starter 速查
 
-| Starter | 作用 | 引入的关键依赖 |
-| --- | --- | --- |
-| `spring-boot-starter-web` | Web 开发 | `spring-webmvc` + 内嵌 Tomcat + Jackson |
-| `spring-boot-starter-webflux` | 响应式 Web | `spring-webflux` + Netty |
-| `spring-boot-starter-test` | 测试 | JUnit5 + Mockito + AssertJ + spring-test |
-| `spring-boot-starter-data-jpa` | ORM 框架 JPA | Hibernate + spring-data-jpa |
-| `spring-boot-starter-data-redis` | 集成 Redis | spring-data-redis + Lettuce |
-| `spring-boot-starter-jdbc` | JDBC + 连接池 | spring-jdbc + HikariCP |
-| `spring-boot-starter-security` | 集成 [Spring Security](./Spring%20Security) | spring-security-* |
-| `spring-boot-starter-validation` | 参数校验（`@Valid`） | hibernate-validator |
-| `spring-boot-starter-aop` | 切面编程 | spring-aop + aspectjweaver |
-| `spring-boot-starter-amqp` | 集成 RabbitMQ | spring-rabbit |
-| `spring-boot-starter-mail` | 发送邮件 | spring-mail + jakarta.mail |
-| `spring-boot-starter-actuator` | 监控与健康检查 | micrometer + actuator |
-| `spring-boot-starter-cache` | 缓存抽象 | spring-context-support |
-| `spring-boot-starter-thymeleaf` | 模板引擎 | thymeleaf |
+| Starter                          | 作用                                        | 引入的关键依赖                           |
+| -------------------------------- | ------------------------------------------- | ---------------------------------------- |
+| `spring-boot-starter-web`        | Web 开发                                    | `spring-webmvc` + 内嵌 Tomcat + Jackson  |
+| `spring-boot-starter-webflux`    | 响应式 Web                                  | `spring-webflux` + Netty                 |
+| `spring-boot-starter-test`       | 测试                                        | JUnit5 + Mockito + AssertJ + spring-test |
+| `spring-boot-starter-data-jpa`   | ORM 框架 JPA                                | Hibernate + spring-data-jpa              |
+| `spring-boot-starter-data-redis` | 集成 Redis                                  | spring-data-redis + Lettuce              |
+| `spring-boot-starter-jdbc`       | JDBC + 连接池                               | spring-jdbc + HikariCP                   |
+| `spring-boot-starter-security`   | 集成 [Spring Security](./Spring%20Security) | spring-security-\*                       |
+| `spring-boot-starter-validation` | 参数校验（`@Valid`）                        | hibernate-validator                      |
+| `spring-boot-starter-aop`        | 切面编程                                    | spring-aop + aspectjweaver               |
+| `spring-boot-starter-amqp`       | 集成 RabbitMQ                               | spring-rabbit                            |
+| `spring-boot-starter-mail`       | 发送邮件                                    | spring-mail + jakarta.mail               |
+| `spring-boot-starter-actuator`   | 监控与健康检查                              | micrometer + actuator                    |
+| `spring-boot-starter-cache`      | 缓存抽象                                    | spring-context-support                   |
+| `spring-boot-starter-thymeleaf`  | 模板引擎                                    | thymeleaf                                |
 
 #### 2.4 自定义 Starter 命名规范
 
@@ -251,32 +251,155 @@ public class UserController {
 
 #### 4.2 YAML 语法要点
 
+##### 基本规则
+
 ```yaml
 # 1. key: value，冒号后必须有空格
-# 2. 用缩进表示层级，不能用 Tab，只能用空格
+# 2. 用缩进表示层级，缩进必须一致（通常 2 空格），不能用 Tab
 # 3. 大小写敏感
+# 4. # 开头是注释
+# 5. --- 分隔多文档，... 表示文档结束
+```
+
+##### 数据类型
+
+YAML 自动推断类型，但有时候需要引号避免歧义：
+
+```yaml
+# 字符串（不需要引号，但含特殊字符时必须加）
+name: hello
+name: "hello world"              # 双引号：支持转义符 \n \t
+name: 'hello\nworld'             # 单引号：\n 原样输出，不转义
+
+# 数字（直接写，自动识别类型）
+count: 42
+price: 19.99
+
+# 布尔（注意：yes/no/on/off 在 YAML 里也是布尔值！）
+enabled: true
+enabled: false
+# ⚠️ 坑：enabled: yes  会被解析为 true，不是字符串 "yes"
+
+# null（~ 或 null 或空值）
+value: ~
+value: null
+value:                         # 什么都不写也是 null
+
+# 日期时间（ISO 8601 格式自动识别）
+createTime: 2026-08-01
+createTime: 2026-08-01T10:30:00+08:00
+```
+
+##### 对象（嵌套结构）
+
+```yaml
+# 写法一：缩进（推荐）
 server:
-  port: 8080        # 修改端口，默认就是 8080
+  port: 8080
+  servlet:
+    context-path: /api
+
+# 写法二：行内（等价，但可读性差）
+server: {port: 8080, servlet: {context-path: /api}}
+```
+
+##### 数组 / List
+
+```yaml
+# 写法一：块序列（推荐，每个元素一行）
+servers:
+  - 127.0.0.1
+  - 192.168.1.1
+  - 10.0.0.1
+
+# 写法二：行内（适合短数组）
+servers: [127.0.0.1, 192.168.1.1, 10.0.0.1]
+
+# 对象数组（每个 - 代表一个元素，缩进代表元素内部结构）
+users:
+  - name: 张三
+    age: 25
+    roles:                   # 内嵌数组
+      - admin
+      - user
+  - name: 李四
+    age: 30
+    roles:
+      - user
+```
+
+##### Map / 键值对
+
+```yaml
+# 写法一：缩进
+config:
+  timeout: 30
+  retry: 3
+  mode: strict
+
+# 写法二：行内
+config: {timeout: 30, retry: 3, mode: strict}
+```
+
+##### 多行字符串
+
+```yaml
+# | 保留换行（literal style）
+# 适合脚本、SQL、配置文本
+script: |
+  SELECT * FROM user
+  WHERE status = 1
+  ORDER BY create_time DESC;
+
+# > 折叠换行为空格（folded style）
+# 适合长段落文字
+description: >
+  这是一个很长的描述文字，
+  换行会被折叠成空格，
+  段落之间空行才保留换行。
+
+# 结尾控制符：
+# |+ 保留末尾换行   |- 去掉末尾换行
+# >+ 保留末尾换行   >- 去掉末尾换行
+```
+
+##### 锚点与引用（复用配置片段）
+
+```yaml
+# & 定义锚点，* 引用锚点，<< 合并
+# 适合多个数据源只是库名不同时复用配置
+default-ds: &defaultDs # &defaultDs 定义一个锚点（别名）
+  username: root
+  password: '123456'
+  driver-class-name: com.mysql.cj.jdbc.Driver
 
 spring:
-  application:
-    name: demo-app
-  datasource:       # 数据源配置，自动注入 HikariCP 连接池
-    url: jdbc:mysql://localhost:3306/demo?useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: "123456"
-    driver-class-name: com.mysql.cj.jdbc.Driver
+  datasource:
+    url: jdbc:mysql://localhost:3306/db1
+    <<: *defaultDs # << 导入锚点内容，* 引用
+    # 等价于把 username/password/driver-class-name 都粘过来
+```
 
-# 数组写法一（行内）
-my:
-  tags: [java, spring, boot]
+##### 常见坑
 
-# 数组写法二（块序列）
-my:
-  tags:
-    - java
-    - spring
-    - boot
+```yaml
+# ⚠️ 坑1：冒号后没空格，YAML 当字符串处理
+# key:value  → 这是一个普通字符串，不是 key-value 对！
+
+# ⚠️ 坑2：Tab 缩进报错
+# 缩进只能用空格，不能用 Tab 键
+
+# ⚠️ 坑3：yes/no/on/off 被解析为布尔值
+# country: no  → 解析为 false，不是字符串 "no"
+# 正确写法：country: "no"
+
+# ⚠️ 坑4：0 开头的数字被当八进制
+# 旧版 YAML 规范：port: 0123  → 解析为 83（八进制转十进制）
+# YAML 1.2 已修复，但保险起见：port: "0123"
+
+# ⚠️ 坑5：密码含特殊字符，必须加引号
+# password: abc@123  → @ 可能引起歧义
+# password: "abc@123"
 ```
 
 #### 4.3 配置占位符
@@ -305,9 +428,9 @@ app:
 
 #### 5.1 两种方式对比
 
-| 方式 | 适用场景 | 特点 |
-| --- | --- | --- |
-| `@Value("${x.y}")` | 单个属性 | 简单直接，但每个字段都要写一次，无法绑定复杂结构，不支持松散绑定 |
+| 方式                                     | 适用场景     | 特点                                                                   |
+| ---------------------------------------- | ------------ | ---------------------------------------------------------------------- |
+| `@Value("${x.y}")`                       | 单个属性     | 简单直接，但每个字段都要写一次，无法绑定复杂结构，不支持松散绑定       |
 | `@ConfigurationProperties(prefix = "x")` | 一组相关配置 | 按前缀批量绑定，支持 `List`/`Map`/嵌套对象，支持松散绑定 + JSR303 校验 |
 
 #### 5.2 @ConfigurationProperties 完整示例
@@ -349,46 +472,207 @@ myapp:
     - 127.0.0.1
     - 192.168.1.1
   config:
-    timeout: "30"
-    retry: "3"
+    timeout: '30'
+    retry: '3'
   security:
     username: admin
-    password: "123456"
+    password: '123456'
 ```
 
 #### 5.3 松散绑定（Relaxed Binding）
 
 `@ConfigurationProperties` 的一大优势是**松散绑定**：配置文件的写法可以很随意，Spring 会自动归一化匹配。
 
-| 配置写法 | 是否匹配属性 `maxTimeout` |
-| --- | --- |
-| `myapp.max-timeout`（kebab-case，推荐） | ✅ |
-| `myapp.max_timeout`（snake-case） | ✅ |
-| `myapp.maxTimeout`（camelCase） | ✅ |
-| `myapp.MAX_TIMEOUT`（大写） | ✅ |
+| 配置写法                                | 是否匹配属性 `maxTimeout` |
+| --------------------------------------- | ------------------------- |
+| `myapp.max-timeout`（kebab-case，推荐） | ✅                        |
+| `myapp.max_timeout`（snake-case）       | ✅                        |
+| `myapp.maxTimeout`（camelCase）         | ✅                        |
+| `myapp.MAX_TIMEOUT`（大写）             | ✅                        |
 
 > `@Value` 不支持这种松散绑定，必须精确写 `@Value("${myapp.max-timeout}")`。
 
 #### 5.4 @ConfigurationProperties 的三种注册方式
 
-```java
-// 方式一：@Component 直接交给 Spring 管理（最常用）
+`@ConfigurationProperties` 本身只是一个「标记」——它告诉 Spring：**这个类要绑定配置文件里指定前缀的属性**。但谁来把这个类注册成 Bean？有三种方式，各自适用不同场景。
+
+::: code-group
+
+```java [方式一]
+// 一个注解搞定：@ConfigurationProperties 负责绑定配置，
+// @Component 负责把当前类注册为 Bean，两步合一
 @Component
 @ConfigurationProperties(prefix = "myapp")
-public class MyAppProperties { }
+public class MyAppProperties {
+    private String name;
+    private List<String> servers;
+    private Map<String, String> config;
+    private Security security = new Security();
 
-// 方式二：在配置类上 @EnableConfigurationProperties 启用（无需 @Component）
-@Configuration
-@EnableConfigurationProperties(MyAppProperties.class)
-public class AppConfig { }
+    // getter/setter 必须保留（Spring 通过 setter 注入值）
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public List<String> getServers() { return servers; }
+    public void setServers(List<String> servers) { this.servers = servers; }
+    // ... 其余省略
 
-// 方式三：@ConfigurationPropertiesScan 扫描指定包
-@ConfigurationPropertiesScan("com.example.demo.config")
-@Configuration
-public class AppConfig { }
+    public static class Security {
+        private String username;
+        private String password;
+        // getter/setter 省略
+    }
+}
 ```
 
-#### 5.5 小结
+```java [方式二]
+// 配置类集中管理，属性类本身不 @Component
+@ConfigurationProperties(prefix = "myapp")
+public class MyAppProperties {
+    private String name;
+    private String url;
+    // getter/setter 省略
+}
+
+// 在配置类上用 @EnableConfigurationProperties 显式注册
+@Configuration
+@EnableConfigurationProperties(MyAppProperties.class)
+public class AppConfig {
+    // 这样 MyAppProperties 就被注册成 Bean 了
+    // 不需要在 MyAppProperties 上加 @Component
+
+    @Bean
+    public SomeBean someBean(MyAppProperties props) {
+        // ↑ @Bean 方法的参数会自动注入容器中已有的 Bean
+        // Spring 看到参数类型 MyAppProperties → 去容器里找该类型的实例 → 找到就注入
+        // 所以不需要手动 new 也不用 @Autowired，参数直接可用
+        return new SomeBean(props.getName());
+    }
+}
+```
+
+```java [方式三]
+// 配置类 + 扫描包路径，批量注册
+@ConfigurationProperties(prefix = "myapp")
+public class MyAppProperties {
+    private String name;
+    private String url;
+    // getter/setter 省略
+}
+
+@ConfigurationProperties(prefix = "third")
+public class ThirdApiProperties {
+    private String appKey;
+    private String appSecret;
+    // getter/setter 省略
+}
+
+// 扫描指定包下的所有 @ConfigurationProperties 类（无需 @Component）
+@Configuration
+@ConfigurationPropertiesScan("com.example.demo.config")
+public class AppConfig {
+    // 包下所有 @ConfigurationProperties 类自动注册为 Bean
+}
+```
+
+:::
+
+三种方式对比：
+
+| 方式                                        | 优点                                                                                                                         | 缺点                                                                                            | 适用场景                                                                     |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **方式一 `@Component`**                     | 最简洁，一个注解搞定                                                                                                         | ① 依赖隐式扫描，误改包路径可能丢失 ② 初始化顺序不可控，其他 Bean 可能注入到还没绑好值的属性对象 | 项目内部简单配置                                                             |
+| **方式二 `@EnableConfigurationProperties`** | ① 显式注册，不依赖扫描，一眼看清哪些配置类生效 ② 保证属性绑定**先于** `@Bean` 方法执行，不会出现"还没绑好就被注入"的时序问题 | 多一个注解引用的步骤                                                                            | Spring Boot 官方源码写法（如 `RedisAutoConfiguration`），自定义 Starter 必用 |
+| **方式三 `@ConfigurationPropertiesScan`**   | 批量注册，不用逐个写                                                                                                         | 需要额外配置扫描路径，仍然是隐式扫描                                                            | 有大量配置类需要统一管理时                                                   |
+
+**方式二为什么更安全？**
+
+核心区别：方式一靠 `@ComponentScan` 扫描注册，**谁扫到谁就是 Bean**——换个包路径、改个类名可能就丢了，而且初始化顺序不确定。方式二在 `@EnableConfigurationProperties` 注解里**显式引用类名**，同时保证属性绑定在 `@Bean` 方法之前完成——Spring 把这当成"配置类依赖的属性类"，优先初始化。
+
+**实际项目怎么选？**
+
+- **自己项目里的配置** → 方式① `@Component`，最省事
+- **写自定义 Starter / 第三方库** → 方式② `@EnableConfigurationProperties`，属性类不注册，留给调用方决定是否启用
+- **Spring Boot 源码怎么做的？** → 方式②，`RedisAutoConfiguration` 上 `@EnableConfigurationProperties(RedisProperties.class)`，`RedisProperties` 本身没有 `@Component`
+
+#### 5.5 @ConfigurationProperties 与 JSR-303 校验的相互作用
+
+为什么 `@ConfigurationProperties` 上的 `@NotNull` / `@Min` 能生效？这不是自动的，背后是一个明确的机制。
+
+**关键：`@Validated` + `ConfigurationPropertiesBindingPostProcessor`**
+
+```java
+@Component
+@ConfigurationProperties(prefix = "myapp")
+@Validated                          // ← 激活 JSR-303 校验的开关
+public class MyAppProperties {
+
+    @NotNull(message = "名字不能为空")  // ← JSR-303 注解
+    private String name;
+
+    @Min(1)
+    @Max(100)
+    private Integer count;
+
+    @NotNull
+    private Security security = new Security();
+
+    // getter/setter 省略...
+    public static class Security {
+        @NotBlank
+        private String username;
+        @NotBlank
+        private String password;
+        // getter/setter 省略...
+    }
+}
+```
+
+**机制流程（三步）：**
+
+```
+application.yml 配置值
+    ↓ 【第一步】@ConfigurationProperties 通过 setter 把值绑到字段上
+属性绑定完成
+    ↓ 【第二步】ConfigurationPropertiesBindingPostProcessor（BeanPostProcessor）
+    │         在 afterPropertiesSet() 阶段拦截
+    ↓ 【第三步】检测到 @Validated → 调用 JSR-303 验证器（LocalValidatorFactoryBean）
+    │         校验 @NotNull/@Min/@Max 等约束
+    ↓         不通过 → 抛 ConfigurationPropertiesValidationException，启动失败
+```
+
+**为什么要 @Validated 而不是 @Valid？**
+
+- `@Valid` 是 JSR-303 标准注解，用于**方法参数/返回值**的校验触发（如 `@Valid @RequestBody`）
+- `@Validated` 是 Spring 对 `@Valid` 的增强，额外支持**类级别**校验触发 + 分组校验
+- `ConfigurationPropertiesBindingPostProcessor` 检测的是 `Validated` 接口（`@Validated` 会让类实现此接口），而不是 `@Valid`
+
+**源码简化：**
+
+```java
+// ConfigurationPropertiesBindingPostProcessor 核心逻辑（简化版）
+@Override
+public Object postProcessAfterInitialization(Object bean, String beanName) {
+    if (bean instanceof Validated) {            // ← @Validated 让类实现 Validated 接口
+        Validator validator = this.validator;    // ← 获取 JSR-303 验证器
+        Set<ConstraintViolation<Object>> violations = validator.validate(bean);
+        if (!violations.isEmpty()) {
+            throw new ConfigurationPropertiesValidationException(violations);
+            // ← 校验不通过，启动阶段直接报错，不会让配置错误的应用上线
+        }
+    }
+    return bean;
+}
+```
+
+**为什么设计成启动失败而不是运行时抛异常？**
+
+配置错误属于**致命错误**——数据库密码配错了，运行起来再报错也没意义。Spring Boot 的原则是「fail-fast」：启动时发现配置不合法，直接启动失败，让运维人员立刻发现，而不是等到运行时才暴露。
+
+**小结：**
+
+`@ConfigurationProperties` 负责绑值，`@Validated` 负责开关，`ConfigurationPropertiesBindingPostProcessor` 负责串联——三者在 **Bean 初始化后阶段**完成「绑定 → 校验」的流水线，确保配置在应用启动时就验证完毕。
+
+#### 5.6 小结
 
 `@Value` 适合零散单值，`@ConfigurationProperties` 适合成组配置（推荐后者做可复用配置模块），配合松散绑定和校验是 Spring Boot 配置绑定的标准姿势。
 
@@ -398,23 +682,23 @@ public class AppConfig { }
 
 #### 6.1 组件注解（分层）
 
-| 注解 | 作用 | 等价关系 |
-| --- | --- | --- |
-| `@Component` | 通用组件 | 基础 |
-| `@Service` | 业务层 | `@Component` 的语义化别名 |
-| `@Repository` | 数据访问层 | `@Component` + 异常翻译 |
-| `@Controller` | 控制层（返回视图） | `@Component` 的语义化别名 |
-| `@RestController` | 控制层（返回 JSON） | `@Controller` + `@ResponseBody` |
-| `@Configuration` | 配置类 | `@Component`，但会被 CGLIB 增强保证单例 |
+| 注解              | 作用                | 等价关系                                |
+| ----------------- | ------------------- | --------------------------------------- |
+| `@Component`      | 通用组件            | 基础                                    |
+| `@Service`        | 业务层              | `@Component` 的语义化别名               |
+| `@Repository`     | 数据访问层          | `@Component` + 异常翻译                 |
+| `@Controller`     | 控制层（返回视图）  | `@Component` 的语义化别名               |
+| `@RestController` | 控制层（返回 JSON） | `@Controller` + `@ResponseBody`         |
+| `@Configuration`  | 配置类              | `@Component`，但会被 CGLIB 增强保证单例 |
 
 #### 6.2 依赖注入注解
 
-| 注解 | 作用 | 说明 |
-| --- | --- | --- |
-| `@Autowired` | 按类型注入 | 默认必填，`required=false` 可空 |
-| `@Resource` | 按名称再按类型注入 | JDK 原生，Spring 兼容 |
-| `@Qualifier` | 配合 `@Autowired` 按名称限定 | 多个同类型 Bean 时消歧 |
-| `@Value` | 注入配置/字面量 | `@Value("${x}")` / `@Value("#{1+1}")` |
+| 注解         | 作用                         | 说明                                  |
+| ------------ | ---------------------------- | ------------------------------------- |
+| `@Autowired` | 按类型注入                   | 默认必填，`required=false` 可空       |
+| `@Resource`  | 按名称再按类型注入           | JDK 原生，Spring 兼容                 |
+| `@Qualifier` | 配合 `@Autowired` 按名称限定 | 多个同类型 Bean 时消歧                |
+| `@Value`     | 注入配置/字面量              | `@Value("${x}")` / `@Value("#{1+1}")` |
 
 #### 6.3 请求映射注解
 
@@ -428,14 +712,14 @@ public class AppConfig { }
 
 #### 6.4 参数绑定注解
 
-| 注解 | 作用 | 示例 |
-| --- | --- | --- |
-| `@PathVariable` | 取路径参数 | `/user/{id}` → `@PathVariable Long id` |
-| `@RequestParam` | 取查询参数 | `?name=x` → `@RequestParam String name` |
-| `@RequestBody` | 取请求体 JSON | 反序列化为对象 |
-| `@RequestHeader` | 取请求头 | `@RequestHeader("token") String token` |
-| `@CookieValue` | 取 Cookie | `@CookieValue("JSESSIONID") String sid` |
-| `@ModelAttribute` | 表单/对象绑定 | 传统表单提交 |
+| 注解              | 作用          | 示例                                    |
+| ----------------- | ------------- | --------------------------------------- |
+| `@PathVariable`   | 取路径参数    | `/user/{id}` → `@PathVariable Long id`  |
+| `@RequestParam`   | 取查询参数    | `?name=x` → `@RequestParam String name` |
+| `@RequestBody`    | 取请求体 JSON | 反序列化为对象                          |
+| `@RequestHeader`  | 取请求头      | `@RequestHeader("token") String token`  |
+| `@CookieValue`    | 取 Cookie     | `@CookieValue("JSESSIONID") String sid` |
+| `@ModelAttribute` | 表单/对象绑定 | 传统表单提交                            |
 
 ```java
 @GetMapping("/search")
@@ -461,46 +745,70 @@ Spring Boot 的注解体系本质是 Spring 的注解，Spring Boot 只是「组
 
 #### 7.2 完整示例
 
-```yaml
-# application.yml —— 公共配置（所有环境共享）
+::: code-group
+
+```yaml [application.yml]
+# 公共配置（所有环境共享）
 spring:
   application:
     name: demo-app
   profiles:
-    active: dev          # 指定激活哪个环境，通常由启动参数 -Dspring.profiles.active=prod 覆盖
+    active: dev # 指定激活哪个环境，通常由启动参数覆盖
 
 server:
   port: 8080
 ```
 
-```yaml
-# application-dev.yml —— 开发环境（本地库）
+```yaml [application-dev.yml]
+# 开发环境（本地库，密码写死没关系）
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/demo_dev
     username: root
-    password: "root"
+    password: 'root'
 server:
   port: 8080
 ```
 
-```yaml
-# application-test.yml —— 测试环境
+```yaml [application-test.yml]
+# 测试环境
 spring:
   datasource:
     url: jdbc:mysql://test-db:3306/demo_test
 ```
 
-```yaml
-# application-prod.yml —— 生产环境（线上库，账号密码走配置中心/环境变量）
+```yaml [application-prod.yml]
+# 生产环境——账号密码不写死，从环境变量/配置中心读取
 spring:
   datasource:
     url: jdbc:mysql://prod-db:3306/demo
-    username: ${DB_USERNAME}   # 生产密码不写死，从环境变量/配置中心读取
-    password: ${DB_PASSWORD}
+    username: ${DB_USERNAME} # ← 运行时取环境变量 DB_USERNAME
+    password: ${DB_PASSWORD} # ← 运行时取环境变量 DB_PASSWORD
 server:
   port: 8080
 ```
+
+:::
+
+##### 关于 `${DB_USERNAME}` 的解释
+
+这是 **配置占位符**（Placeholder），不是 YAML 语法，而是 Spring Boot 的 `Environment` 在解析配置时做的变量替换：
+
+```
+${DB_USERNAME}
+   ↓ Spring 解析时，按以下顺序查找（找到第一个就停）
+   ├─ ① 命令行参数：--DB_USERNAME=xxx
+   ├─ ② 环境变量：DB_USERNAME=xxx（Windows set / Linux export）
+   ├─ ③ application.yml 里其他配置项
+   ├─ ④ JVM 系统属性：-DDB_USERNAME=xxx
+   └─ ⑤ 默认值：${DB_USERNAME:root} 冒号后是默认值
+```
+
+**为什么生产要这么写？**
+
+- 密码写在代码里 = 硬编码，git 提交后所有人都能看到，泄露风险大
+- 环境变量在操作系统层面，只有部署人员能设置，代码仓库里不存密码
+- 更专业的做法是配合配置中心（Nacos Config / Spring Cloud Config），由配置中心统一管理，运行时动态注入
 
 #### 7.3 三种激活方式
 
@@ -515,7 +823,132 @@ java -jar demo.jar --spring.profiles.active=prod
 # SPRING_PROFILES_ACTIVE=prod
 ```
 
-#### 7.4 指定 profile 的 Bean
+#### 7.4 激活多个 Profile
+
+```bash
+# 同时激活 dev 和 swagger 两个 profile
+java -jar demo.jar --spring.profiles.active=dev,swagger
+```
+
+```yaml
+# 配置文件里也可以写多个
+spring:
+  profiles:
+    active: dev, swagger
+```
+
+#### 7.5 Profile 的覆盖规则
+
+```
+application.yml（公共配置，优先级最低）
+    ↓ 被覆盖
+application-dev.yml（环境专属，覆盖公共配置）
+    ↓ 被覆盖
+命令行参数 --spring.profiles.active=prod（优先级最高）
+```
+
+**具体哪个配置最终生效：**
+
+```
+# application.yml 公共
+server:
+  port: 8080        # ← 公共
+
+# application-dev.yml 开发
+server:
+  port: 8081        # ← 覆盖公共，dev 环境最终端口 8081
+
+# application-prod.yml 生产
+server:
+  port: 8080        # ← 覆盖公共，prod 环境最终端口 8080
+```
+
+#### 7.6 多文档 YAML（一个文件写多个 Profile）
+
+Spring Boot 支持在一个 `application.yml` 里用 `---` 分隔，定义多个环境的配置，适合小项目：
+
+```yaml
+# 公共配置
+spring:
+  application:
+    name: demo-app
+
+server:
+  port: 8080
+
+---
+# 开发环境
+spring:
+  config:
+    activate:
+      on-profile: dev # 注意：Spring Boot 2.4+ 用这个，不是 spring.profiles
+server:
+  port: 8081
+
+---
+# 生产环境
+spring:
+  config:
+    activate:
+      on-profile: prod
+server:
+  port: 8080
+  shutdown: graceful
+```
+
+> **注意：** Spring Boot 2.4 以后，多文档 YAML 里的 profile 声明从 `spring.profiles` 改成了 `spring.config.activate.on-profile`，旧写法 `spring.profiles: dev` 在 2.4+ 会警告。
+
+#### 7.7 Profile 分组（Spring Boot 2.4+）
+
+可以把多个 profile 归为一组，激活一个组就激活一组 profile：
+
+```yaml
+# application.yml
+spring:
+  profiles:
+    group:
+      # 组名: 要激活的 profile 列表
+      dev: dev, dev-db, dev-redis, dev-log # 激活 dev 组 = 同时激活 4 个
+      test: test, test-db, test-redis
+      prod: prod, prod-db, prod-redis, prod-log
+```
+
+```bash
+# 激活 dev 组，自动激活 dev + dev-db + dev-redis + dev-log
+java -jar demo.jar --spring.profiles.active=dev
+```
+
+#### 7.8 包含其他 Profile（spring.profiles.include）
+
+```yaml
+# application-dev.yml
+spring:
+  profiles:
+    include: dev-db, dev-redis # 激活 dev 时，自动额外激活 dev-db 和 dev-redis
+
+
+# 等价于手动激活 dev, dev-db, dev-redis
+```
+
+#### 7.9 @Profile 注解
+
+```java
+@Component
+@Profile("dev")   // 这个 Bean 只在 dev 环境创建
+public class DevOnlyService {
+    public void init() {
+        System.out.println("开发环境初始化...");
+    }
+}
+
+@Component
+@Profile("!dev")  // 非 dev 环境（! 表示取反）
+public class ProdOnlyService {
+    public void init() {
+        System.out.println("非开发环境初始化...");
+    }
+}
+```
 
 ```java
 @Configuration
@@ -535,13 +968,77 @@ public class DataSourceConfig {
 }
 ```
 
-#### 7.5 小结
+#### 7.10 Profile 条件表达式
+
+```java
+@Component
+@Profile("dev | test")        // dev 或 test 环境生效
+public class DevOrTestService { }
+
+@Component
+@Profile("dev & swagger")     // dev 且 swagger 同时激活才生效
+public class DevWithSwaggerService { }
+
+@Component
+@Profile("!prod")             // 非 prod 环境生效
+public class NonProdService { }
+```
+
+#### 7.11 Profile 与日志配合
+
+```yaml
+# application-dev.yml
+logging:
+  level:
+    com.example: DEBUG
+  pattern:
+    console: '%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{50}) - %msg%n'  # 彩色
+
+# application-prod.yml
+logging:
+  level:
+    com.example: WARN
+    org.springframework: WARN
+  file:
+    name: /var/log/app/app.log
+  pattern:
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+```
+
+```xml
+<!-- logback-spring.xml 里也支持分环境 -->
+<springProfile name="dev">
+    <logger name="com.example" level="DEBUG"/>
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</springProfile>
+
+<springProfile name="prod">
+    <logger name="com.example" level="WARN"/>
+    <root level="WARN">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+</springProfile>
+```
+
+#### 7.12 小结
+
+| 功能                      | 说明                          | 适用场景         |
+| ------------------------- | ----------------------------- | ---------------- |
+| `application-{env}.yml`   | 按文件分离                    | 常规项目，推荐   |
+| 多文档 YAML `---`         | 一个文件多个环境              | 小项目，配置简单 |
+| Profile 分组              | 一组 profile 批量激活         | 微服务多组件     |
+| `@Profile`                | 按环境创建 Bean               | 环境特有的 Bean  |
+| `spring.profiles.include` | 激活时自动包含                | 解耦公共子配置   |
+| `spring.profiles.group`   | 2.4+ 新特性，推荐替代 include | 分组管理         |
 
 Profile 是「环境隔离」的官方方案，配合「外部化配置」在生产环境做到**配置与代码彻底分离**，是 DevOps 实践的基础。
 
 ---
 
-### 8. 日志配置
+### 8. 日志配置（完整版）
 
 #### 8.1 默认日志框架
 
@@ -565,48 +1062,400 @@ public class HelloController {
 }
 ```
 
-#### 8.2 logback-spring.xml 完整配置
+#### 8.2 日志级别（从低到高）
+
+| 级别    | 数值 | 说明                     | 生产建议                  |
+| ------- | ---- | ------------------------ | ------------------------- |
+| `TRACE` | 0    | 最细粒度，跟踪每一步执行 | ❌ 关闭，只在本地调试     |
+| `DEBUG` | 1    | 调试信息，开发阶段看     | ❌ 关闭，量太大           |
+| `INFO`  | 2    | 关键业务节点信息         | ✅ 开启，确认系统运行正常 |
+| `WARN`  | 3    | 潜在问题，但不影响服务   | ✅ 开启，需要关注         |
+| `ERROR` | 4    | 错误、异常，需要处理     | ✅ 必须开启               |
+
+**级别过滤规则：** 设置了 `INFO` 级别，只会打印 `INFO` / `WARN` / `ERROR`，`DEBUG` 和 `TRACE` 被过滤掉。在真实的开发场景中会与Profile进行配合。不同环境日志打印级别不同
+
+#### 8.3 application.yml 配置日志（推荐方式）
+
+Spring Boot 支持直接在 `application.yml` 里配置日志，**不需要写 logback-spring.xml** 就能满足大部分场景：
+
+```yaml
+# application.yml 日志配置全解
+logging:
+  level:
+    root: INFO # 全局日志级别
+    com.example: DEBUG # 指定包级别（覆盖全局）
+    com.example.mapper: TRACE # MyBatis SQL 日志，打印完整 SQL
+    org.springframework.web: WARN # 屏蔽 Spring 框架的 INFO 日志
+
+  # 日志分组：把多个包/类归为一组，统一设置级别
+  # 格式：组名: 包名1, 包名2, 包名3
+  group:
+    mybatis: com.example.mapper, com.example.dao
+    web: org.springframework.web, org.springframework.web.servlet
+
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+
+  file:
+    name: logs/app.log # 日志文件路径
+    max-size: 100MB # 每个文件最大 100MB
+    max-history: 30 # 保留 30 天
+    total-size-cap: 2GB # 总日志大小上限
+```
+
+**日志分组**（`logging.group`）具体怎么用：
+
+```yaml
+# 第一步：定义分组——把多个包名收进一个组
+# 格式：group.组名: 包名1, 包名2, 包名3
+logging:
+  group:
+    # 自定义分组
+    mybatis: com.example.mapper, com.example.dao, org.mybatis.spring
+    web: org.springframework.web, org.springframework.web.servlet
+    third-party: org.springframework, org.hibernate, org.apache, com.netflix
+
+  # 第二步：用组名设级别，一行控制整个组
+  level:
+    root: INFO # 全局默认 INFO
+    mybatis: TRACE # 整个 mybatis 组（3 个包）全部 TRACE，看完整 SQL
+    web: WARN # 整个 web 组，只报 WARN 以上
+    third-party: WARN # 所有第三方库，只报 WARN 以上
+    com.example: DEBUG # 自己代码 DEBUG
+
+
+# 等价于手动写了这么多行：
+# logging.level.com.example.mapper: TRACE
+# logging.level.com.example.dao: TRACE
+# logging.level.org.mybatis.spring: TRACE
+# logging.level.org.springframework.web: WARN
+# logging.level.org.springframework.web.servlet: WARN
+# logging.level.org.springframework: WARN
+# logging.level.org.hibernate: WARN
+# logging.level.org.apache: WARN
+# logging.level.com.netflix: WARN
+```
+
+**Spring Boot 内置的预定义分组（可以直接用）：**
+
+| 分组名 | 包含的包                                                                                                                                                                                                | 默认级别 |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `web`  | `org.springframework.core.codec, org.springframework.http, org.springframework.web, org.springframework.boot.actuate.endpoint.web, org.springframework.boot.web.servlet.ServletContextInitializerBeans` | INFO     |
+| `sql`  | `org.springframework.jdbc, org.hibernate, org.jooq, org.mybatis.spring`                                                                                                                                 | INFO     |
+
+所以你可以直接写：
+
+```yaml
+logging:
+  level:
+    sql: TRACE # 查看所有 SQL 日志（包括 MyBatis + Hibernate 的 SQL）
+    web: WARN # 屏蔽 Spring Web 的 INFO 日志，只看 WARN 以上
+```
+
+#### 8.4 日志占位符详解（% 开头的符号）
+
+`%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n` 这个 pattern 里每个符号的含义：
+
+| 占位符        | 含义                          | 示例输出                              |
+| ------------- | ----------------------------- | ------------------------------------- |
+| `%d{pattern}` | 日期时间，`{}` 里写格式       | `2026-08-22 14:30:15.123`             |
+| `%thread`     | 当前线程名                    | `http-nio-8080-exec-1`                |
+| `%-5level`    | 日志级别，左对齐占5位         | `INFO ` / `ERROR`                     |
+| `%logger{50}` | Logger 名（类名），最长50字符 | `c.e.demo.controller.HelloController` |
+| `%msg`        | 日志内容                      | `hello 接口被调用`                    |
+| `%n`          | 换行符（跨平台自动识别）      | `\n`                                  |
+| `%L`          | 代码行号（⚠️ 有性能开销）     | `42`                                  |
+| `%M`          | 方法名（⚠️ 有性能开销）       | `hello`                               |
+| `%X{key}`     | MDC 值（见下文链路追踪）      | `trace-123`                           |
+
+> 线上环境避免用 `%L` 和 `%M`，它们通过**获取堆栈**来推断行号/方法名，高并发下性能损耗明显。
+
+#### 8.5 logback-spring.xml 完整配置（高级控制）
+
+当 `application.yml` 不够用时（比如要区分控制台/文件格式、异步日志、按大小滚动的组合策略），才需要用 `logback-spring.xml`。
+
+**为什么必须叫 `logback-spring.xml` 而不是 `logback.xml`？**
+
+- `logback.xml` — Spring 不参与解析，不支持 `<springProfile>` 标签，无法分环境
+- `logback-spring.xml` — Spring 接管解析，支持 `<springProfile>` 分环境控制
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- 控制台输出 -->
+    <!-- 变量：避免重复写 pattern -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"/>
+    <property name="LOG_PATH" value="logs"/>
+
+    <!-- ① 控制台输出（开发用，带颜色） -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <!-- 彩色日志需要 Logback 的 ColorConverter -->
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %cyan(%logger{50}) - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- 文件输出，按天滚动 -->
+    <!-- ② 文件输出，按天 + 按大小滚动 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/app.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory>   <!-- 保留 30 天 -->
+        <file>${LOG_PATH}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>     <!-- 单个文件上限 -->
+            <maxHistory>30</maxHistory>           <!-- 保留 30 天 -->
+            <totalSizeCap>2GB</totalSizeCap>      <!-- 总日志上限 -->
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>
 
-    <!-- 分环境控制日志级别 -->
+    <!-- ③ 错误日志单独输出（只记 ERROR 级别，方便排查） -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/error.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>60</maxHistory>            <!-- 错误日志保留更久 -->
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+        <!-- 关键：只接收 ERROR 级别 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+
+    <!-- ④ 异步日志（生产必备，避免日志 I/O 拖慢业务线程） -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1024</queueSize>               <!-- 队列大小，满了丢日志不阻塞 -->
+        <discardingThreshold>0</discardingThreshold> <!-- 队列满时是否丢弃 TRACE/DEBUG -->
+        <neverBlock>true</neverBlock>             <!-- 队列满时业务线程不阻塞，直接丢弃日志 -->
+        <appender-ref ref="FILE"/>
+    </appender>
+
+    <!-- 分环境控制 -->
     <springProfile name="dev">
         <logger name="com.example" level="DEBUG"/>
-    </springProfile>
-    <springProfile name="prod">
-        <logger name="com.example" level="INFO"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
     </springProfile>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </root>
+    <springProfile name="prod">
+        <!-- 生产环境只输出 WARN 及以上，减少日志量 -->
+        <logger name="com.example" level="WARN"/>
+        <root level="WARN">
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+    </springProfile>
 </configuration>
 ```
 
-#### 8.3 小结
+**Logback 配置标签详解：**
 
-日志用 SLF4J + Logback，配置文件命名为 `logback-spring.xml` 才能使用 `<springProfile>` 分环境标签。
+| 标签              | 作用                                          | 类比         |
+| ----------------- | --------------------------------------------- | ------------ |
+| `<configuration>` | 根标签，整份配置的入口                        | 房子的地基   |
+| `<property>`      | 定义变量，后面用 `${变量名}` 引用，避免重复写 | 全局变量     |
+| `<appender>`      | 定义日志输出目的地（控制台/文件/网络等）      | 水管出口     |
+| `<encoder>`       | 把日志事件转成字符串，指定输出格式（pattern） | 打印机       |
+| `<rollingPolicy>` | 定义文件滚动策略（什么时候切文件、怎么命名）  | 定时换日志本 |
+| `<filter>`        | 过滤日志事件，符合条件的才放行                | 筛子         |
+| `<logger>`        | 设置某个包/类的日志级别和 Appender            | 精准控制     |
+| `<root>`          | 设置全局默认日志级别和 Appender               | 兜底方案     |
+| `<springProfile>` | 分环境配置（只有 `logback-spring.xml` 支持）  | 环境开关     |
+
+所谓的滚动策略就是：文件满了或者新的一天 → 切分文件
+
+#### 8.6 异步日志（生产必备）
+
+同步日志：业务线程执行 `log.info()` → 写入磁盘 → 阻塞等待 I/O 完成 → 返回。高并发下磁盘 I/O 会成为瓶颈。
+
+异步日志：业务线程把日志事件丢进**内存队列**就返回，后台线程批量写入磁盘。
+
+```yaml
+# 异步日志的 application.yml 配置
+logging:
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 2GB
+  # 异步日志底层用 Logback 的 AsyncAppender，见上面 XML 配置
+```
+
+**异步日志的风险：**
+
+- 队列满时丢日志（`neverBlock=true` 时业务线程不阻塞，但日志被丢弃）
+- 应用崩溃时队列中未写入的日志丢失
+- 所以异步日志只适合 INFO/WARN，**ERROR 日志建议同步写入**，确保不丢
+
+#### 8.7 日志对象和Logback流程
+
+日志事件是一个 Java 对象（`ILoggingEvent`），里面存了时间、线程名、级别、消息、异常堆栈等信息。
+
+```json
+// 日志事件对象（ILoggingEvent）
+{
+    time: 2026-08-22 17:17:45.950,
+    thread: "http-nio-8080-exec-1",
+    level: "INFO",
+    logger: "com.example.OrderService",
+    message: "订单创建成功",
+    ...
+}
+
+// Encoder 根据 pattern 转成字符串
+"17:17:45.950 [http-nio-8080-exec-1] INFO  c.e.OrderService - 订单创建成功\n"
+//                                                          ↑ 写到文件/控制台
+```
+
+然后日志事件会发给不同的Appender监听者本质是监听者模式的运用。`<appender>` 标签对应一个独立的对象，每个 Appender 对象内部自己维护自己的 Filter 链和 Encoder。不是 Filter 组成一条链，而是每个 Appender 都有一条独立的 Filter 链
+
+```bash
+log.info("xxx")
+    ↓
+创建 LoggingEvent
+    ↓
+Logger 遍历 appenderList
+    │
+    ├─ ConsoleAppender
+    │   ├─ Filter链 → 通过 → Encoder → 控制台
+    │
+    ├─ FileAppender
+    │   ├─ Filter链 → 通过 → Encoder → 文件
+    │
+    └─ AsyncAppender  ← 注意：不走 Filter，直接进队列
+        ├─ 丢进内存队列（无 Filter 判断）
+        └─ 后台线程取出 → 持有实际的 Appender（如 FILE）
+            ├─ Filter链 → 通过 → Encoder → 文件
+```
+
+#### 8.8 MDC 链路追踪（Mapped Diagnostic Context）
+
+MDC 是 SLF4J 提供的线程级上下文 Map，**把同一个请求的所有日志关联起来**。
+
+```java
+@Component
+public class TraceFilter implements Filter {
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) {
+        try {
+            // ① 把 traceId 放 MDC（每个请求生成一个唯一 ID）
+            String traceId = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            MDC.put("traceId", traceId);
+
+            // ② 业务代码里用 log.info 不用传 traceId，自动带出来
+            chain.doFilter(request, response);
+        } finally {
+            // ③ 必须清理，否则线程复用导致 traceId 串号
+            MDC.clear();
+        }
+    }
+}
+```
+
+```yaml
+# pattern 里加 %X{traceId} 输出 MDC 的值
+logging:
+  pattern:
+    console: '%d{HH:mm:ss.SSS} [%X{traceId}] [%thread] %-5level %logger{50} - %msg%n'
+```
+
+输出效果：
+
+```
+14:30:15.123 [a1b2c3d4e5f67890] [http-nio-8080-exec-1] INFO  c.e.demo.OrderService - 创建订单
+14:30:15.456 [a1b2c3d4e5f67890] [http-nio-8080-exec-1] WARN  c.e.demo.PaymentService - 支付超时
+                                                    ↑ 同一个 traceId，说明是同一个请求
+```
+
+::: tip
+实际是乱的只是按照traceId做了过滤
+:::
+
+#### 8.9 动态调整日志级别（生产排查利器）
+
+生产出问题时，重启服务改日志级别代价太大。Spring Boot Actuator 支持**运行时动态调级别**：
+
+```bash
+# 把某个包的日志级别动态调成 DEBUG，排查完再调回去
+curl -X POST http://localhost:8080/actuator/loggers/com.example \
+  -H "Content-Type: application/json" \
+  -d '{"configuredLevel": "DEBUG"}'
+
+# 调回去
+curl -X POST http://localhost:8080/actuator/loggers/com.example \
+  -d '{"configuredLevel": null}'
+```
+
+```yaml
+# 暴露 loggers 端点才能动态调
+management:
+  endpoints:
+    web:
+      exposure:
+        include: loggers
+```
+
+#### 8.10 切换 Log4j2（当 Logback 不够用时）
+
+**为什么换 Log4j2？** Log4j2 的异步日志性能极好（无锁环形缓冲区，零 GC），高并发场景比 Logback 快 10 倍以上。
+
+```xml
+<!-- 排除 Logback，引入 Log4j2 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-log4j2</artifactId>
+</dependency>
+```
+
+```xml
+<!-- log4j2-spring.xml（放在 resources 下） -->
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+        <!-- 异步日志用无锁环形缓冲区，性能极高 -->
+        <Async name="AsyncFile">
+            <AppenderRef ref="RollingFile"/>
+        </Async>
+    </Appenders>
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
+```
+
+#### 8.11 小结
+
+日志配置的核心要点：
+
+1. **日常用 `application.yml` 配日志级别就够了**，别上来就写 `logback-spring.xml`
+2. **生产必须用异步日志**，避免日志 I/O 拖慢业务线程
+3. **MDC + traceId** 是实现日志链路追踪的必备手段，微服务排障全靠它
+4. **`logback-spring.xml` 支持 `<springProfile>`** 分环境，`logback.xml` 不支持
+5. **错误日志单独文件**，避免从海量 INFO 里翻 ERROR
+6. **动态调级别**是生产排障神器，配合 Actuator 开箱即用
 
 ---
 
@@ -652,17 +1501,17 @@ public class HelloController {
 
 #### 2.2 常用条件注解全集
 
-| 注解 | 生效条件 | 典型场景 |
-| --- | --- | --- |
-| `@ConditionalOnClass` | classpath 存在指定类 | 引入 redis 才配 RedisTemplate |
-| `@ConditionalOnMissingClass` | classpath 不存在指定类 | 缺类时走降级配置 |
-| `@ConditionalOnBean` | 容器中存在指定 Bean | 依赖别的 Bean 才创建 |
-| `@ConditionalOnMissingBean` | 容器中不存在指定 Bean | 给用户留覆盖口子 |
-| `@ConditionalOnProperty` | 配置项存在且匹配指定值 | 用开关控制功能 |
-| `@ConditionalOnWebApplication` | 是 Web 应用（Servlet/Reactive） | 只有 Web 才配相关 Bean |
-| `@ConditionalOnExpression` | SpEL 表达式为 true | 复杂条件判断 |
-| `@ConditionalOnResource` | 存在指定资源文件 | 有某配置文件才加载 |
-| `@ConditionalOnJava` | JDK 版本满足要求 | 按 JDK 版本分支 |
+| 注解                           | 生效条件                        | 典型场景                      |
+| ------------------------------ | ------------------------------- | ----------------------------- |
+| `@ConditionalOnClass`          | classpath 存在指定类            | 引入 redis 才配 RedisTemplate |
+| `@ConditionalOnMissingClass`   | classpath 不存在指定类          | 缺类时走降级配置              |
+| `@ConditionalOnBean`           | 容器中存在指定 Bean             | 依赖别的 Bean 才创建          |
+| `@ConditionalOnMissingBean`    | 容器中不存在指定 Bean           | 给用户留覆盖口子              |
+| `@ConditionalOnProperty`       | 配置项存在且匹配指定值          | 用开关控制功能                |
+| `@ConditionalOnWebApplication` | 是 Web 应用（Servlet/Reactive） | 只有 Web 才配相关 Bean        |
+| `@ConditionalOnExpression`     | SpEL 表达式为 true              | 复杂条件判断                  |
+| `@ConditionalOnResource`       | 存在指定资源文件                | 有某配置文件才加载            |
+| `@ConditionalOnJava`           | JDK 版本满足要求                | 按 JDK 版本分支               |
 
 #### 2.3 完整示例
 
@@ -808,16 +1657,16 @@ public class Result<T> {
 
 #### 4.2 常用校验注解
 
-| 注解 | 作用 |
-| --- | --- |
-| `@NotNull` | 不能为 null |
-| `@NotEmpty` | 不能为 null 且长度 > 0（字符串/集合） |
-| `@NotBlank` | 不能为 null 且去掉首尾空格后长度 > 0 |
-| `@Size(min, max)` | 长度/大小在范围内 |
-| `@Min` / `@Max` | 数值范围 |
-| `@Email` | 邮箱格式 |
-| `@Pattern(regexp)` | 正则匹配 |
-| `@Past` / `@Future` | 过去/未来时间 |
+| 注解                | 作用                                  |
+| ------------------- | ------------------------------------- |
+| `@NotNull`          | 不能为 null                           |
+| `@NotEmpty`         | 不能为 null 且长度 > 0（字符串/集合） |
+| `@NotBlank`         | 不能为 null 且去掉首尾空格后长度 > 0  |
+| `@Size(min, max)`   | 长度/大小在范围内                     |
+| `@Min` / `@Max`     | 数值范围                              |
+| `@Email`            | 邮箱格式                              |
+| `@Pattern(regexp)`  | 正则匹配                              |
+| `@Past` / `@Future` | 过去/未来时间                         |
 
 ```java
 public class UserDTO {
@@ -845,26 +1694,195 @@ public Result save(@Valid @RequestBody UserDTO user) {
 }
 ```
 
-#### 4.3 分组校验与嵌套校验
+#### 4.3 分组校验
+
+**解决的问题：** 同一个 DTO 在不同接口中校验规则不同。比如新增用户时 id 必须为空（由数据库自增），更新用户时 id 不能为空。
 
 ```java
-// 分组：新增和更新校验规则不同
+// 第一步：定义分组接口（空接口，只做标记）
 public interface AddGroup {}
 public interface UpdateGroup {}
 
+// 第二步：在 DTO 字段上指定 groups
 public class UserDTO {
+    // 新增时 id 必须为空，更新时 id 不能为空
     @Null(groups = AddGroup.class, message = "新增时 id 必须为空")
     @NotNull(groups = UpdateGroup.class, message = "更新时 id 不能为空")
     private Long id;
+
+    @NotBlank(groups = {AddGroup.class, UpdateGroup.class}, message = "姓名不能为空")  // 两组都要
+    private String name;
+
+    @Email(groups = UpdateGroup.class, message = "邮箱格式不对")  // 只有更新时才校验邮箱
+    private String email;
 }
 
-@PostMapping
-public Result add(@Validated(AddGroup.class) @RequestBody UserDTO user) { ... }
+// 第三步：在 Controller 上指定用哪个分组
+@PostMapping("/add")
+public Result add(@Validated(AddGroup.class) @RequestBody UserDTO user) {
+    // 只校验加了 groups = AddGroup.class 的字段
+    // id → @Null 校验；name → @NotBlank 校验；email → 不校验（没加 AddGroup 分组）
+    return Result.ok(userService.add(user));
+}
+
+@PostMapping("/update")
+public Result update(@Validated(UpdateGroup.class) @RequestBody UserDTO user) {
+    // 只校验加了 groups = UpdateGroup.class 的字段
+    // id → @NotNull 校验；name → @NotBlank 校验；email → @Email 校验
+    return Result.ok(userService.update(user));
+}
 ```
 
-#### 4.4 小结
+**不指定 groups 时**：默认是 `Default` 分组，只校验没写 `groups` 的字段（或写了 `groups = Default.class` 的字段）。
 
-参数校验把「非法参数」挡在业务逻辑之外，`@Valid`（单层）+ `@Validated`（分组/嵌套）+ 全局异常处理器组合使用是标准姿势。
+**注意：** 用 `@Validated` 指定分组后，**没写 `groups` 的字段（即 Default 分组）不会被校验**。所以如果既有分组字段又有通用字段，要在通用字段上加 `groups = {AddGroup.class, Default.class}`。
+
+#### 4.4 嵌套校验
+
+**解决的问题：** 一个 DTO 里嵌套了另一个对象，需要递归校验子对象的字段。
+
+##### 案例一：不分组（简单嵌套）
+
+```java
+// 场景：创建订单，订单里有用户信息，都要校验
+public class OrderDTO {
+    @NotNull(message = "订单号不能为空")
+    private String orderNo;
+
+    @NotNull(message = "用户信息不能为空")
+    @Valid                         // ← 关键：递归校验 UserInfo 里的字段
+    private UserInfo userInfo;
+}
+
+public class UserInfo {
+    @NotBlank(message = "姓名不能为空")
+    private String name;
+
+    @Phone(message = "手机号格式不对")
+    private String phone;
+}
+```
+
+```java
+@PostMapping("/create")
+// @Valid 触发校验 → 遇到 @Valid → 递归进入 UserInfo 校验 name 和 phone
+public Result create(@Valid @RequestBody OrderDTO order) {
+    return Result.ok(orderService.create(order));
+}
+```
+
+**没加 `@Valid` 会怎样？** 外层 `OrderDTO` 的 `@NotNull` 生效，但 `UserInfo` 里的 `@NotBlank`、`@Phone` 全部不校验——子对象被当黑盒，不会递归进去。
+
+##### 案例二：有分组（嵌套 + 分组校验）
+
+```java
+// 场景：新增时所有字段必填，更新时用户信息可选
+public interface AddGroup {}
+public interface UpdateGroup {}
+
+public class OrderDTO {
+    @Null(groups = AddGroup.class, message = "新增时 id 为空")
+    @NotNull(groups = UpdateGroup.class, message = "更新时 id 不能为空")
+    private Long id;
+
+    @Valid                         // ← 触发嵌套校验，分组会传播进来
+    @NotNull(groups = AddGroup.class)
+    private UserInfo userInfo;
+}
+
+public class UserInfo {
+    @NotBlank(groups = AddGroup.class, message = "姓名不能为空")
+    @NotBlank(groups = UpdateGroup.class, message = "姓名不能为空")
+    private String name;
+
+    @Phone(groups = AddGroup.class, message = "手机号格式不对")  // 新增时才校验手机号
+    private String phone;
+}
+```
+
+```java
+@PostMapping("/add")
+// @Validated 指定分组 → 传播给 @Valid → 子对象只校验加了 AddGroup 的字段
+public Result add(@Validated(AddGroup.class) @RequestBody OrderDTO order) {
+    // 校验：id → @Null；userInfo → @NotNull + @Valid 递归
+    //      UserInfo.name → @NotBlank；UserInfo.phone → @Phone
+    return Result.ok(orderService.add(order));
+}
+
+@PostMapping("/update")
+public Result update(@Validated(UpdateGroup.class) @RequestBody OrderDTO order) {
+    // 校验：id → @NotNull；userInfo → 不校验（没加 UpdateGroup）
+    //      UserInfo.name → @NotBlank；UserInfo.phone → 不校验
+    return Result.ok(orderService.update(order));
+}
+```
+
+**关键点：** `@Validated` 指定的分组会自动传播给 `@Valid` 标记的子对象。但**子对象里的字段也必须加对应的 `groups`**，否则默认是 `Default` 分组，和传入的分组不匹配，会被跳过。
+
+##### @Valid 和 @Validated 的区别
+
+| 对比     | @Valid（JSR-303 标准）       | @Validated（Spring 的） |
+| -------- | ---------------------------- | ----------------------- |
+| 分组校验 | ❌ 不支持                    | ✅ 支持（指定 groups）  |
+| 嵌套校验 | ✅ 支持（递归触发子对象）    | ❌ 不触发嵌套           |
+| 来源     | Jakarta Bean Validation 规范 | Spring 的注解           |
+
+#### 4.5 自定义校验注解
+
+当内置注解不够用时（如校验手机号、身份证、枚举值），可以自定义：
+
+**三步实现：**
+
+```java
+// 第一步：自定义注解
+@Target({FIELD})                                           // 贴在字段上
+@Retention(RUNTIME)
+@Constraint(validatedBy = PhoneValidator.class)            // 指定校验器，由它完成校验逻辑
+public @interface Phone {
+    String message() default "手机号格式不正确";              // 校验失败时的提示
+    Class<?>[] groups() default {};                         // 分组校验，必须加
+    Class<? extends Payload>[] payload() default {};        // 元数据，必须加
+}
+```
+
+```java
+// 第二步：实现校验器
+public class PhoneValidator implements ConstraintValidator<Phone, String> {
+
+    @Override
+    public boolean isValid(String value, ConstraintValidatorContext context) {
+        if (value == null) {
+            return true;                     // null 交给 @NotNull 判断，不在这里判空
+        }
+        return value.matches("^1[3-9]\\d{9}$");  // 校验手机号
+    }
+}
+```
+
+```java
+// 第三步：使用
+public class UserDTO {
+    @NotBlank(message = "手机号不能为空")
+    @Phone(message = "手机号格式不对")        // ← 自定义注解，像内置注解一样用
+    private String phone;
+}
+```
+
+**原理：** Spring 启动时扫描 `@Constraint` 注解，把校验器注册到 Validator 的映射表中。校验时根据注解类型找到对应的 `ConstraintValidator` 实例，调用 `isValid()` 方法判断。
+
+**常用场景：**
+
+| 场景     | 校验逻辑                        |
+| -------- | ------------------------------- |
+| 手机号   | `^1[3-9]\\d{9}$`                |
+| 身份证   | `^\\d{17}[\\dXx]$` + 校验位算法 |
+| 枚举值   | 检查值是否在枚举定义范围内      |
+| 敏感词   | 遍历黑名单列表                  |
+| 金额精度 | 检查小数点后不超过 2 位         |
+
+#### 4.6 小结
+
+参数校验把「非法参数」挡在业务逻辑之外，`@Valid`（单层）+ `@Validated`（分组/嵌套）+ 自定义注解 + 全局异常处理器组合使用是标准姿势。
 
 ---
 
@@ -872,13 +1890,13 @@ public Result add(@Validated(AddGroup.class) @RequestBody UserDTO user) { ... }
 
 #### 5.1 过滤器（Filter）vs 拦截器（Interceptor）
 
-| 维度 | 过滤器 Filter | 拦截器 Interceptor |
-| --- | --- | --- |
-| 归属 | Servlet 规范 | Spring MVC |
-| 作用范围 | 所有请求（含静态资源） | 进入 Controller 的请求 |
-| 能否拿到 Spring Bean | 不能直接拿（需手动从容器取） | 能（就是 Spring 管理的 Bean） |
-| 能否拿到 Handler 方法 | 不能 | 能（`HandlerMethod`） |
-| 典型场景 | 编码、CORS、日志 | 登录鉴权、权限、性能统计 |
+| 维度                  | 过滤器 Filter                | 拦截器 Interceptor            |
+| --------------------- | ---------------------------- | ----------------------------- |
+| 归属                  | Servlet 规范                 | Spring MVC                    |
+| 作用范围              | 所有请求（含静态资源）       | 进入 Controller 的请求        |
+| 能否拿到 Spring Bean  | 不能直接拿（需手动从容器取） | 能（就是 Spring 管理的 Bean） |
+| 能否拿到 Handler 方法 | 不能                         | 能（`HandlerMethod`）         |
+| 典型场景              | 编码、CORS、日志             | 登录鉴权、权限、性能统计      |
 
 #### 5.2 登录鉴权拦截器完整示例
 
@@ -908,6 +1926,8 @@ public class LoginInterceptor implements HandlerInterceptor {
 }
 ```
 
+> Spring MVC 启动时遍历所有 WebMvcConfigurer Bean，逐个调用 `addInterceptors()`、`addCorsMappings()` 等方法
+
 ```java
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -926,15 +1946,124 @@ public class WebConfig implements WebMvcConfigurer {
 }
 ```
 
+**InterceptorRegistry 配置项（registry 的链式调用）：**
+
+| 方法 | 作用 | 示例 |
+| --- | --- | --- |
+| `addPathPatterns("/**")` | 拦截哪些路径 | `addPathPatterns("/api/**", "/admin/**")` |
+| `excludePathPatterns("/login")` | 排除哪些路径（不拦截） | `excludePathPatterns("/login", "/register", "/css/**")` |
+| `order(1)` | 多个拦截器时的执行顺序，数字越小越先执行 | `order(0)` 最先执行 |
+
 #### 5.3 小结
 
 鉴权、日志、性能统计这类「横切关注点」，优先用拦截器（能拿 Spring Bean 和 Handler）；编码、CORS 这类更底层的事用过滤器。
 
 ---
 
-### 6. 定时任务
+### 6. CORS 跨域配置
 
 #### 6.1 定义
+
+前后端分离架构下，前端域名（`http://localhost:5173`）和后端域名（`http://localhost:8080`）不同，浏览器同源策略会拦截跨域请求。CORS（Cross-Origin Resource Sharing）是 W3C 标准，通过 **HTTP 响应头**告诉浏览器「允许这个跨域请求」。
+
+#### 6.2 两种配置方式
+
+**方式一：全局 CORS（推荐，一劳永逸）**
+
+```java
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")                    // 允许所有路径
+                .allowedOriginPatterns("*")            // 允许所有来源（生产环境要指定具体域名）
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")  // 允许的 HTTP 方法
+                .allowedHeaders("*")                   // 允许所有请求头
+                .allowCredentials(true)                // 允许携带 Cookie
+                .maxAge(3600);                         // 预检请求缓存时间（秒），减少 OPTIONS 请求
+    }
+}
+```
+
+**CorsRegistry 配置项：**
+
+| 方法 | 作用 | 示例 |
+| --- | --- | --- |
+| `addMapping("/**")` | 允许哪些路径跨域 | `addMapping("/api/**")` |
+| `allowedOriginPatterns("*")` | 允许哪些来源域名 | `allowedOriginPatterns("http://localhost:5173", "https://admin.com")` |
+| `allowedMethods("GET", "POST")` | 允许哪些 HTTP 方法 | `allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")` |
+| `allowedHeaders("*")` | 允许哪些请求头 | `allowedHeaders("token", "Content-Type")` |
+| `allowCredentials(true)` | 是否允许携带 Cookie | 需要 Cookie 时设 true，且不能和 `allowedOrigins("*")` 同时用 |
+| `maxAge(3600)` | 预检请求缓存时间（秒），减少 OPTIONS 请求 | `maxAge(3600)` 一小时内不发 OPTIONS |
+
+**方式二：Controller 级别（精准控制）**
+
+```java
+@RestController
+@RequestMapping("/api")
+// 精确指定某个 Controller 允许跨域
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
+public class ApiController {
+    // 也可以加在方法上，只允许某个接口跨域
+    @CrossOrigin(origins = "https://admin.example.com")
+    @GetMapping("/sensitive")
+    public String sensitive() { return "敏感数据"; }
+}
+```
+
+#### 6.3 预检请求（OPTIONS）
+
+```
+浏览器发 POST/PUT/DELETE 请求前，先发一个 OPTIONS 预检请求问服务器「允不允许」
+    ↓
+服务器返回 CORS 响应头（Access-Control-Allow-Origin 等）
+    ↓
+浏览器检查响应头，允许 → 发真实请求；不允许 → 拦截并报 CORS 错误
+```
+
+**为什么 `maxAge` 重要：** 每次真实请求前都发一个 OPTIONS，浪费性能。设置 `maxAge(3600)` 后，1 小时内不再发预检请求。
+
+#### 6.4 生产环境注意事项
+
+```java
+// 生产环境必须指定具体域名，不能用 *
+// allowedOriginPatterns("*")  ← 生产不能这么写
+//
+// 正确做法：用配置项控制
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Value("${cors.allowed-origins:http://localhost:5173}")
+    private String[] allowedOrigins;
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+                .allowedOriginPatterns(allowedOrigins)  // 从配置读取
+                .allowedMethods("GET", "POST")
+                .allowCredentials(true);
+    }
+}
+```
+
+```yaml
+# application-dev.yml
+cors:
+  allowed-origins: http://localhost:5173,http://localhost:3000
+
+# application-prod.yml
+cors:
+  allowed-origins: https://admin.example.com,https://www.example.com
+```
+
+#### 6.5 小结
+
+CORS 本质是**后端通过 HTTP 响应头告诉浏览器「这个跨域请求我允许」**，配置要点：`allowedOrigins` 生产环境写具体域名、`allowCredentials` 需要 Cookie 时设为 true、`maxAge` 减少预检请求次数。
+
+### 7. 定时任务
+
+#### 7.1 定义
 
 用 `@Scheduled` 让方法按 Cron 表达式定时执行。
 
@@ -961,13 +2090,63 @@ public class TaskJob {
 
 > `fixedDelay` 与 `fixedRate` 的区别：`fixedDelay` 从**上次执行完**开始计时，`fixedRate` 从**上次开始**计时（若任务执行超时，会等执行完再触发下次）。
 
-#### 6.2 小结
+#### 7.2 Cron 表达式完全指南
 
-定时任务适合轻量级调度；分布式环境下要配合 [Redis 分布式锁](./../learn_database) 或 [Nacos](../微服务/Nacos) 等避免多实例重复执行。
+**什么是 Cron？** 一个字符串，指定什么时候执行。格式：`秒 分 时 日 月 周`
+
+```
+ ┌────── 秒（0-59）
+ │ ┌───── 分（0-59）
+ │ │ ┌──── 时（0-23）
+ │ │ │ ┌─── 日（1-31）
+ │ │ │ │ ┌── 月（1-12）
+ │ │ │ │ │ ┌─ 周（0-7，0和7都代表周日）
+ │ │ │ │ │ │
+ * * * * * *
+```
+
+**特殊字符：**
+
+| 符号 | 含义 | 示例 |
+| --- | --- | --- |
+| `*` | 任意值（每） | `*` 在「分」位 = 每分钟 |
+| `?` | 不指定（日和周互斥时用） | 日期里写 `?` 表示不关心日期，让「周」来控制 |
+| `-` | 范围 | `10-15` 在「时」位 = 10点到15点 |
+| `,` | 枚举 | `1,3,5` 在「周」位 = 周一三五 |
+| `/` | 步长 | `0/5` 在「分」位 = 从0分开始每5分钟 |
+| `L` | 最后（Last） | `L` 在「日」位 = 当月最后一天，`6L` 最后周五 |
+| `W` | 最近工作日 | `15W` 在「日」位 = 15号最近的周一到周五那天 |
+| `#` | 第几个 | `3#2` 在「周」位 = 当月第2个周三 |
+
+**常用示例速查：**
+
+| 表达式 | 含义 |
+| --- | --- |
+| `0 0 2 * * ?` | 每天凌晨 2 点 |
+| `0 0 2 * * 1-5` | 工作日（周一到周五）凌晨 2 点 |
+| `0 0/5 * * * ?` | 每 5 分钟 |
+| `0 0 */2 * * ?` | 每 2 小时 |
+| `0 0 9-18 * * ?` | 每天 9 点到 18 点每小时整点 |
+| `0 30 9 * * 1-5` | 工作日每天 9:30 |
+| `0 0 0 1 * ?` | 每月 1 号凌晨 0 点 |
+| `0 0 3 ? * 1` | 每周一凌晨 3 点 |
+| `0 0 1 1 * ?` | 每年 1 月 1 日凌晨 1 点 |
+| `0 0/30 9-17 * * ?` | 每天 9-17 点之间每 30 分钟 |
+| `0 15 10 L * ?` | 每月最后一天 10:15 |
+| `0 0 2 ? * 6L` | 每月最后一个周五凌晨 2 点 |
+| `0 0 2 ? * 3#1` | 每月第一个周三凌晨 2 点 |
+
+**注意：**
+- `日` 和 `周` 不能同时指定，必须一个写 `?`。比如 `0 0 2 1 * ?` 表示每月1号2点，周写 `?`；`0 0 2 ? * 1` 表示每周一2点，日写 `?`。
+- 写错了不会报错，但任务不执行，日志里也看不到错误——这是最坑的地方。
+
+#### 7.3 小结
+
+`@Scheduled` 适合轻量级调度；分布式环境下要配合 [Redis 分布式锁](./../learn_database) 或 [Nacos](../微服务/Nacos) 等避免多实例重复执行。
 
 ---
 
-### 7. 异步任务
+### 8. 异步任务
 
 ```java
 @Configuration
@@ -997,7 +2176,7 @@ public class EmailService {
 
 ---
 
-### 8. Actuator 监控与健康检查
+### 9. Actuator 监控与健康检查
 
 #### 8.1 定义
 
@@ -1010,26 +2189,26 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,loggers   # 暴露哪些端点
-        exclude: env,beans                      # 排除敏感端点
+        include: health,info,metrics,loggers # 暴露哪些端点
+        exclude: env,beans # 排除敏感端点
   endpoint:
     health:
-      show-details: always    # 显示健康详情（组件状态）
+      show-details: always # 显示健康详情（组件状态）
   health:
     redis:
-      enabled: false          # 关闭某个健康检查项
+      enabled: false # 关闭某个健康检查项
 ```
 
 #### 8.3 常用端点
 
-| 端点 | 作用 |
-| --- | --- |
-| `/actuator/health` | 健康状态（UP/DOWN） |
-| `/actuator/info` | 应用信息（版本等） |
+| 端点                | 作用                         |
+| ------------------- | ---------------------------- |
+| `/actuator/health`  | 健康状态（UP/DOWN）          |
+| `/actuator/info`    | 应用信息（版本等）           |
 | `/actuator/metrics` | 指标列表（内存、线程、HTTP） |
-| `/actuator/env` | 环境属性（敏感，慎暴露） |
-| `/actuator/loggers` | 动态调整日志级别 |
-| `/actuator/beans` | 容器中所有 Bean |
+| `/actuator/env`     | 环境属性（敏感，慎暴露）     |
+| `/actuator/loggers` | 动态调整日志级别             |
+| `/actuator/beans`   | 容器中所有 Bean              |
 
 #### 8.4 自定义健康检查
 
@@ -1051,22 +2230,22 @@ Actuator 是「应用可观测性」的入口，生产环境要**谨慎暴露端
 
 ---
 
-### 9. 优雅停机
+### 10. 优雅停机
 
 ```yaml
 server:
-  shutdown: graceful       # 开启优雅停机
+  shutdown: graceful # 开启优雅停机
 
 spring:
   lifecycle:
-    timeout-per-shutdown-phase: 30s   # 最多等 30 秒
+    timeout-per-shutdown-phase: 30s # 最多等 30 秒
 ```
 
 > 优雅停机的过程：收到关闭信号 → 停止接收新请求 → 等正在处理的请求完成 → 关闭线程池 → 释放连接池 → 关闭容器。相比直接 `kill -9` 能避免**正在处理的请求被截断**。
 
 ---
 
-### 10. 热部署（DevTools）
+### 11. 热部署（DevTools）
 
 ```xml
 <dependency>
@@ -1081,7 +2260,7 @@ DevTools 通过**双类加载器**（base classloader 加载三方 jar，restart
 
 ---
 
-### 11. 事务管理
+### 12. 事务管理
 
 ```java
 @Service
@@ -1103,32 +2282,514 @@ public class OrderService {
 
 ---
 
-### 12. 单元测试
+### 13. 单元测试（完整版）
+
+#### 12.1 测试分层体系
+
+Spring Boot 提供从简单到完整的三种测试模式：
+
+| 方式     | 注解                              | 启动范围       | 速度  | 适用场景           |
+| -------- | --------------------------------- | -------------- | ----- | ------------------ |
+| 切片测试 | `@WebMvcTest` / `@DataJpaTest` 等 | 只启动某一层   | ⚡ 快 | 单元测试，隔离性强 |
+| 完整测试 | `@SpringBootTest`                 | 启动完整容器   | 🐢 慢 | 集成测试           |
+| 测试切片 | `@JsonTest` / `@RestClientTest`   | 只启动某个功能 | ⚡ 快 | 序列化/REST 客户端 |
+
+#### 12.2 切片测试（推荐，更快）
+
+**Controller 层测试：** 只启动 MVC 相关 Bean，不启动 Service/Repository
 
 ```java
-@SpringBootTest                 // 启动完整容器
-@AutoConfigureMockMvc            // 配置 MockMvc
+@WebMvcTest(UserController.class)        // 只加载 UserController 一个 Controller
 public class UserControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private MockMvc mockMvc;              // 模拟 HTTP 请求，不启动真实 Tomcat
+
+    @MockBean                             // Mock 替代真实 Service Bean
+    private UserService userService;
 
     @Test
     public void testGetUser() throws Exception {
-        mockMvc.perform(get("/user/1"))
-               .andExpect(status().isOk())
-               .andExpect(jsonPath("$.name").value("张三"));
-    }
+        // 准备 Mock 数据
+        when(userService.getById(1L)).thenReturn(new User(1L, "张三"));
 
-    @Test
-    @MockBean   // 用 Mock 替代真实 Bean，隔离外部依赖
-    public void testWithMock(UserService userService) { }
+        // 执行 HTTP 请求 + 断言
+        mockMvc.perform(get("/user/1"))
+               .andExpect(status().isOk())                              // 状态码 200
+               .andExpect(jsonPath("$.name").value("张三"))             // 响应体断言
+               .andExpect(jsonPath("$.id").value(1));
+    }
 }
 ```
 
+**Repository 层测试：** 只启动 JPA/MyBatis 相关 Bean
+
+```java
+@DataJpaTest                              // 只加载 JPA 相关 Bean，不启动完整容器
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)  // 用内嵌数据库替代真实库
+public class UserRepositoryTest {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    public void testFindByName() {
+        userRepository.save(new User(null, "张三"));
+
+        User user = userRepository.findByName("张三");
+
+        assertThat(user).isNotNull();
+        assertThat(user.getName()).isEqualTo("张三");
+    }
+}
+```
+
+#### 12.3 完整集成测试
+
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)  // 随机端口，避免冲突
+@AutoConfigureMockMvc
+public class OrderServiceIntegrationTest {
+
+    @Autowired
+    private TestRestTemplate restTemplate;        // 真实发 HTTP 请求（不是 MockMvc）
+
+    @Autowired
+    private OrderService orderService;
+
+    @Test
+    public void testCreateOrder() {
+        // 真实调用，不走 Mock
+        Order order = orderService.createOrder(1L, 2);
+
+        assertThat(order).isNotNull();
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
+    }
+
+    @Test
+    public void testApi() {
+        // 通过真实 HTTP 调用测试 API 接口
+        ResponseEntity<Result> response = restTemplate.exchange(
+            "/api/order/1", HttpMethod.GET, null, Result.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+}
+```
+
+#### 12.4 常用测试注解
+
+| 切片注解          | 加载的 Bean                     | 适用场景                  |
+| ----------------- | ------------------------------- | ------------------------- |
+| `@WebMvcTest`     | Controller、Filter、Interceptor | 测试 Controller 层        |
+| `@DataJpaTest`    | JPA Repository、EntityManager   | 测试数据访问层            |
+| `@JsonTest`       | Jackson/Gson 序列化             | 测试 JSON 序列化/反序列化 |
+| `@RestClientTest` | RestTemplate 相关               | 测试 REST 客户端          |
+| `@DataRedisTest`  | Redis 相关                      | 测试 Redis 操作           |
+
+#### 12.5 @MockBean 与 @SpyBean
+
+```java
+@WebMvcTest(UserController.class)
+public class UserControllerTest {
+
+    @MockBean     // ① 完全 Mock：调用方法不执行真实逻辑，返回默认值
+    private UserService userService;
+
+    @SpyBean      // ② 部分 Mock：默认调用真实方法，可以指定某个方法 Mock
+    private PaymentService paymentService;
+
+    @Test
+    public void testMock() {
+        // MockBean：完全替代，不调用真实方法
+        when(userService.getById(1L)).thenReturn(new User(1L, "张三"));
+
+        // SpyBean：默认调用真实方法，但可以覆盖某个方法
+        when(paymentService.refund(any())).thenReturn(true);  // 只 Mock refund 方法
+    }
+}
+```
+
+#### 12.6 测试数据库
+
+```java
+@SpringBootTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)  // 用 H2 替代 MySQL
+public class DatabaseTest {
+    // 测试时不需要连接真实 MySQL，用内嵌 H2 数据库，更快更隔离
+}
+```
+
+```yaml
+# 测试专用的配置 application-test.yml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb # 内存数据库，测试完自动销毁
+    driver-class-name: org.h2.Driver
+```
+
+#### 12.7 小结
+
+- **切片测试 > 完整集成测试**：切片测试只启动被测层，速度更快，优先用
+- **`@MockBean` 隔离外部依赖**：不依赖数据库、第三方 API
+- **`@SpringBootTest` 做集成验证**：验证各层协作，但慢，只在关键路径用
+
 ---
 
-## 原理篇
+### 14. 自定义 Starter
+
+#### 13.1 定义
+
+自定义 Starter = 把你的自动配置逻辑打包成一个依赖，其他项目引入后直接生效。常用于公司内部封装的通用组件（日志、鉴权、RPC、MQ 初始化等）。
+
+#### 13.2 Starter 的命名和结构
+
+```
+my-spring-boot-starter              ← ① 启动器（使用者引入的依赖）
+├── pom.xml                         ← 依赖自动配置模块
+└── src/main/java/...
+
+my-spring-boot-autoconfigure        ← ② 自动配置模块（真正的配置逻辑）
+├── pom.xml
+├── src/main/java/
+│   └── com/example/my/starter/
+│       ├── MyProperties.java        ← 配置属性类
+│       ├── MyService.java           ← 自动配置的 Bean
+│       └── MyAutoConfiguration.java ← 自动配置类
+└── src/main/resources/
+    └── META-INF/
+        └── spring/
+            └── org.springframework.boot.autoconfigure.AutoConfiguration.imports  ← 注册自动配置类
+```
+
+#### 13.3 完整实现
+
+**自动配置类：**
+
+```java
+// my-spring-boot-autoconfigure 模块
+@AutoConfiguration                         // 标记自动配置类
+@ConditionalOnClass(MyService.class)        // 有依赖才生效
+@EnableConfigurationProperties(MyProperties.class)  // 绑定配置属性
+public class MyAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean               // 使用者可以覆盖
+    public MyService myService(MyProperties properties) {
+        return new MyService(properties.getPrefix(), properties.getSuffix());
+    }
+}
+```
+
+**配置属性类：**
+
+```java
+@ConfigurationProperties(prefix = "my.starter")
+public class MyProperties {
+    private String prefix = "default-";     // 默认值
+    private String suffix = "";
+
+    // getter/setter
+}
+```
+
+**注册自动配置：**
+
+```properties
+# META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+com.example.my.starter.MyAutoConfiguration
+```
+
+**spring-autoconfigure-metadata（可选，加速启动）：**
+
+```properties
+# META-INF/spring/org.springframework.boot.autoconfigure.auto-configuration.imports
+# 加上条件过滤，避免每次启动都加载类判断
+com.example.my.starter.MyAutoConfiguration=
+  ConditionalOnClass=com.example.my.starter.MyService
+```
+
+#### 13.4 使用者引入
+
+```xml
+<dependency>
+    <groupId>com.example</groupId>
+    <artifactId>my-spring-boot-starter</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+```yaml
+# 引入后，直接在 application.yml 里配置
+my:
+  starter:
+    prefix: 'Hello-'
+    suffix: '!'
+```
+
+#### 13.5 小结
+
+自定义 Starter = 自动配置类 + 属性类 + `AutoConfiguration.imports` 注册，本质是把 Spring Boot 的自动配置机制封装成可复用的依赖包，是公司级组件复用的标准做法。
+
+---
+
+### 15. Spring Boot 事件机制
+
+#### 14.1 定义
+
+Spring Boot 内置了**事件驱动**机制，一个 Bean 发布事件，其他 Bean 监听并处理，实现**业务解耦**。
+
+#### 14.2 内置事件（启动流程触发）
+
+| 事件                                  | 触发时机                               | 常见用途       |
+| ------------------------------------- | -------------------------------------- | -------------- |
+| `ApplicationStartingEvent`            | 开始运行，还没创建容器                 | 初始化日志系统 |
+| `ApplicationEnvironmentPreparedEvent` | Environment 已准备好                   | 检查环境变量   |
+| `ApplicationStartedEvent`             | 容器刷新完成，ApplicationRunner 执行前 | 缓存预热       |
+| `ApplicationReadyEvent`               | 应用就绪，可以提供服务                 | 注册到注册中心 |
+| `ApplicationFailedEvent`              | 启动失败                               | 发送告警       |
+
+#### 14.3 自定义事件（业务解耦）
+
+**事件类：**
+
+```java
+// 事件：订单创建成功（从 ApplicationEvent 继承）
+public class OrderCreatedEvent extends ApplicationEvent {
+    private final Long orderId;
+    private final Long userId;
+
+    public OrderCreatedEvent(Object source, Long orderId, Long userId) {
+        super(source);
+        this.orderId = orderId;
+        this.userId = userId;
+    }
+
+    public Long getOrderId() { return orderId; }
+    public Long getUserId() { return userId; }
+}
+```
+
+**发布事件：**
+
+```java
+@Service
+public class OrderService {
+
+    private final ApplicationEventPublisher eventPublisher;
+
+    // 为什么用 ApplicationEventPublisher 注入而不是 ApplicationContext：
+    // ApplicationEventPublisher 是父接口，更轻量，只暴露发布事件的能力
+    public OrderService(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
+    public void createOrder(Order order) {
+        // 业务逻辑...
+        orderMapper.insert(order);
+
+        // 发布事件：不关心谁会处理，后续加功能不用改这里
+        eventPublisher.publishEvent(new OrderCreatedEvent(this, order.getId(), order.getUserId()));
+    }
+}
+```
+
+**监听事件（多种方式）：**
+
+```java
+@Component
+public class OrderEventListeners {
+
+    // 方式一：@EventListener 注解（推荐，最简单）
+    @EventListener
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        // 发短信通知用户
+        smsService.send(event.getUserId(), "您的订单已创建：" + event.getOrderId());
+    }
+
+    // 方式二：实现接口（需要 implements ApplicationListener<OrderCreatedEvent>）
+    // @Component
+    // public class EmailListener implements ApplicationListener<OrderCreatedEvent> {
+    //     @Override
+    //     public void onApplicationEvent(OrderCreatedEvent event) {
+    //         // 发邮件
+    //     }
+    // }
+
+    // 方式三：异步监听（不阻塞主流程）
+    @EventListener
+    @Async("taskExecutor")          // 配合 @EnableAsync 异步执行
+    public void sendCoupon(OrderCreatedEvent event) {
+        // 耗时操作：送积分、发优惠券
+        couponService.send(event.getUserId());
+    }
+
+    // 方式四：条件监听（只有满足条件才处理）
+    @EventListener(condition = "#event.orderId > 1000")
+    public void vipOrderNotify(OrderCreatedEvent event) {
+        // 大额订单特殊处理
+    }
+}
+```
+
+#### 14.4 执行流程
+
+```
+OrderService.createOrder()
+  ↓
+eventPublisher.publishEvent(event)
+  ↓
+ApplicationEventMulticaster（事件广播器）
+  ├─ 同步调用 → SMSListener.handleOrderCreated()      ← 同一线程，阻塞
+  ├─ 同步调用 → CouponListener.sendCoupon()            ← 除非 @Async
+  └─ 同步调用 → VipOrderListener.vipOrderNotify()
+```
+
+> **同步 vs 异步：** 默认是同步的（发布者线程串行执行所有监听器）。如果监听器逻辑耗时，加 `@Async` 异步执行，但要注意事务边界——异步监听器里的事务是独立的。
+
+#### 14.5 事务事件（@TransactionalEventListener）
+
+```java
+@Component
+public class OrderEventListeners {
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)  // 事务提交后才执行
+    public void handleAfterCommit(OrderCreatedEvent event) {
+        // ① 事务已提交，数据已落库
+        // ② 如果监听器抛异常，不会导致业务回滚
+        // ③ 适合发 MQ 消息、发邮件等操作
+        mqService.send("order.created", event.getOrderId());
+    }
+}
+```
+
+`TransactionPhase` 的四种选项：
+
+| 阶段               | 说明                      |
+| ------------------ | ------------------------- |
+| `AFTER_COMMIT`     | 事务提交后执行（最常用）  |
+| `AFTER_ROLLBACK`   | 事务回滚后执行            |
+| `AFTER_COMPLETION` | 事务完成（无论提交/回滚） |
+| `BEFORE_COMMIT`    | 事务提交前执行            |
+
+#### 14.6 小结
+
+事件机制实现「发布-监听」解耦，核心价值：**下单后发短信/送积分/发邮件，不需要在 OrderService 里写一行相关代码，新增功能只需加一个 @EventListener 方法**。
+
+---
+
+### 16. 国际化 i18n
+
+#### 15.1 定义
+
+国际化（Internationalization，i18n）让应用根据**浏览器语言**或**请求参数**返回不同语言的提示信息。Spring Boot 基于 MessageSource 实现。
+
+#### 15.2 资源文件
+
+```
+src/main/resources/
+├── messages.properties          ← 默认（通常是英文）
+├── messages_zh_CN.properties    ← 中文
+├── messages_ja_JP.properties    ← 日文
+└── i18n/
+    ├── messages.properties
+    ├── messages_zh_CN.properties
+    └── messages_ja_JP.properties
+```
+
+```properties
+# messages.properties（默认）
+user.notfound=User not found
+order.success=Order created successfully
+
+# messages_zh_CN.properties
+user.notfound=用户不存在
+order.success=订单创建成功
+
+# messages_ja_JP.properties
+user.notfound=ユーザーが見つかりません
+order.success=注文が正常に作成されました
+```
+
+#### 15.3 配置
+
+```yaml
+spring:
+  messages:
+    basename: messages # 资源文件基础名（默认就是 messages）
+    encoding: UTF-8 # 编码
+    fallback-to-system-locale: true # 找不到对应语言时，用系统默认语言
+    cache-duration: -1 # 缓存时间（-1 永久缓存，生产用）
+```
+
+#### 15.4 代码中使用
+
+```java
+@RestController
+public class MessageController {
+
+    @Autowired
+    private MessageSource messageSource;
+
+    @GetMapping("/message")
+    public String getMessage(HttpServletRequest request) {
+        // 从请求头 Accept-Language 自动解析语言
+        Locale locale = RequestContextUtils.getLocale(request);
+
+        // 取出国际化消息，支持参数占位符
+        String msg = messageSource.getMessage("user.notfound", null, locale);
+        // 带参数的：messageSource.getMessage("order.detail", new Object[]{orderId}, locale)
+        return msg;
+    }
+}
+```
+
+或者在 Thymeleaf 模板中直接使用（Spring Boot 自动注入了 MessageSource）：
+
+```html
+<!-- 用 #{} 语法取国际化消息 -->
+<p th:text="#{user.notfound}">默认英文</p>
+```
+
+#### 15.5 切换语言方式
+
+**方式一：根据请求头 Accept-Language（自动）**
+
+浏览器自动发送 `Accept-Language: zh-CN,zh;q=0.9`，Spring 通过 `AcceptHeaderLocaleResolver` 自动解析。
+
+**方式二：根据 URL 参数（手动切换）**
+
+```java
+@Configuration
+public class LocaleConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        // 添加 LocaleChangeInterceptor：通过 ?lang=zh_CN 参数切换语言
+        registry.addInterceptor(new LocaleChangeInterceptor())
+                .addPathPatterns("/**");
+    }
+
+    @Bean
+    public LocaleResolver localeResolver() {
+        // 基于 Session 存储用户选择的语言
+        SessionLocaleResolver resolver = new SessionLocaleResolver();
+        resolver.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
+        return resolver;
+    }
+}
+```
+
+```bash
+# 通过 URL 参数切换语言
+GET /api/users?lang=zh_CN    # 中文
+GET /api/users?lang=en_US    # 英文
+GET /api/users?lang=ja_JP    # 日文
+```
+
+#### 15.6 小结
+
+国际化 = `MessageSource` + 多语言 `messages.properties` 文件，Spring Boot 自动配置好了基础，你只需要写资源文件、在代码中调用 `messageSource.getMessage()` 即可。
 
 ### 1. @SpringBootApplication 三合一（源码结构）
 
@@ -1154,11 +2815,11 @@ public @interface SpringBootApplication {
 
 三个子注解的分工：
 
-| 注解 | 作用 | 底层本质 |
-| --- | --- | --- |
-| `@SpringBootConfiguration` | 标记当前类是配置类 | `@Configuration` 的别名 |
-| `@EnableAutoConfiguration` | 开启自动配置 | `@Import(AutoConfigurationImportSelector.class)` |
-| `@ComponentScan` | 扫描启动类所在包及子包 | 默认扫描启动类包下的 `@Component/@Service/@Controller` |
+| 注解                       | 作用                   | 底层本质                                               |
+| -------------------------- | ---------------------- | ------------------------------------------------------ |
+| `@SpringBootConfiguration` | 标记当前类是配置类     | `@Configuration` 的别名                                |
+| `@EnableAutoConfiguration` | 开启自动配置           | `@Import(AutoConfigurationImportSelector.class)`       |
+| `@ComponentScan`           | 扫描启动类所在包及子包 | 默认扫描启动类包下的 `@Component/@Service/@Controller` |
 
 #### 1.2 为什么启动类必须放在「根包」
 
@@ -1633,13 +3294,13 @@ Environment
 
 ### 7. Spring Boot 3 的新变化（Java 17 + Jakarta EE）
 
-| 变化 | Spring Boot 2.x | Spring Boot 3.x |
-| --- | --- | --- |
-| 最低 JDK | JDK 8 | JDK 17 |
-| 命名空间 | `javax.*` | `jakarta.*` |
+| 变化     | Spring Boot 2.x    | Spring Boot 3.x             |
+| -------- | ------------------ | --------------------------- |
+| 最低 JDK | JDK 8              | JDK 17                      |
+| 命名空间 | `javax.*`          | `jakarta.*`                 |
 | 配置清单 | `spring.factories` | `AutoConfiguration.imports` |
-| 核心依赖 | Spring 5.x | Spring 6.x |
-| 原生镜像 | 试验性 | GraalVM Native 成熟支持 |
+| 核心依赖 | Spring 5.x         | Spring 6.x                  |
+| 原生镜像 | 试验性             | GraalVM Native 成熟支持     |
 
 > 迁移提示：从 2.x 升 3.x 时，`javax.servlet`、`javax.persistence` 等包名要改成 `jakarta.*`，这是最大的破坏性变更。
 
@@ -1674,3 +3335,7 @@ Environment
 ---
 
 **相关链接**：[Spring](./Spring) · [Spring MVC](./Spring%20MVC) · [MyBatis](./MyBatis) · [MyBatis-Plus](./MyBatis-Plus) · [Spring Security](./Spring%20Security) · [Maven](./Maven) · [Spring Cloud](../微服务/Spring%20Cloud) · [Nacos](../微服务/Nacos) · [JVM](../Java核心/JVM) · [并发编程](../Java核心/并发编程) · [Java 集合](../Java核心/Java集合)
+
+```
+
+```

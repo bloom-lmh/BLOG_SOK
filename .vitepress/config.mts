@@ -348,6 +348,8 @@ export default defineConfig({
           text: '工具',
           items: [
             { text: 'Lombok', link: '/learn_backend/java/工具/Lombok' },
+            { text: 'MapStruct', link: '/learn_backend/java/工具/MapStruct' },
+            { text: 'Quartz', link: '/learn_backend/java/工具/Quartz' },
           ],
         },
       ],
@@ -365,6 +367,7 @@ export default defineConfig({
       ],
       '/learn_project/': [
         { text: '路线总览', link: '/learn_project/00-路线总览' },
+        { text: '每日面试', link: '/learn_project/每日面试' },
         {
           text: '课程商城 (Java)',
           collapsed: true,
@@ -488,6 +491,38 @@ export default defineConfig({
             {
               text: 'Day30 复盘',
               link: '/learn_project/course-mall/Day30-复盘',
+            },
+            {
+              text: 'Day31 WebSocket基础',
+              link: '/learn_project/course-mall/Day31-WebSocket基础',
+            },
+            {
+              text: 'Day32 WebSocket实战',
+              link: '/learn_project/course-mall/Day32-WebSocket实战',
+            },
+            {
+              text: 'Day33 视频上传',
+              link: '/learn_project/course-mall/Day33-视频上传',
+            },
+            {
+              text: 'Day34 视频播放',
+              link: '/learn_project/course-mall/Day34-视频播放',
+            },
+            {
+              text: 'Day35 直播房间',
+              link: '/learn_project/course-mall/Day35-直播房间',
+            },
+            {
+              text: 'Day36 直播互动',
+              link: '/learn_project/course-mall/Day36-直播互动',
+            },
+            {
+              text: 'Day37 Flowable入门',
+              link: '/learn_project/course-mall/Day37-Flowable入门',
+            },
+            {
+              text: 'Day38 工作流实战',
+              link: '/learn_project/course-mall/Day38-工作流实战',
             },
           ],
         },
