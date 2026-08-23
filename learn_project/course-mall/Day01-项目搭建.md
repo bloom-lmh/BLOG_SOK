@@ -114,6 +114,11 @@ target/
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
         </dependency>
+        <!-- slf4j-api：@Slf4j 生成的 log 字段需要 org.slf4j.Logger，spring-web 不会传递它，必须显式引入；版本由父工程锁定 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -395,10 +400,10 @@ curl http://localhost:8080/api/health
 
 ## 五、✅ 完成后回填
 
-- [ ] 完成时间：`____年__月__日`
-- [ ] 启动成功，`/api/health` 返回了预期 JSON：是 / 否
-- [ ] 踩坑记录（缺环境、报错等）：
-- [ ] 疑问（有就写，我来答）：
+- [✅ ] 完成时间：`__2026__年_8_月_21_日`
+- [✅] 启动成功，`/api/health` 返回了预期 JSON：是 / 否
+- [✅ ] 踩坑记录（缺环境、报错等）：lombok Slf4j 无法导入
+- [✅ ] 疑问（有就写，我来答）：
 
 ## 六、我下次会追问的问题（做完先自己想想）
 

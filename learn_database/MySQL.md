@@ -249,6 +249,75 @@ SELECT u.username, o.order_no FROM user u INNER JOIN orders o ON u.id = o.user_i
 SELECT u.username, o.order_no FROM user u LEFT JOIN orders o ON u.id = o.user_id;
 ```
 
+#### 4.1 CTE（公用表表达式）
+
+**背景**：复杂查询（递归树、多次引用同一子查询）用子查询嵌套很深，可读性差。CTE 把子查询提取到 `WITH` 子句里，命名后复用，让 SQL 像搭积木一样清晰。
+
+**非递归 CTE（普通 CTE）**：给子查询取个名字，后面可以多次引用同一条 CTE：
+
+```sql
+-- 不用 CTE：子查询嵌套，读起来费劲
+SELECT * FROM (
+    SELECT user_id, COUNT(*) AS cnt FROM orders GROUP BY user_id
+) t WHERE cnt > 5;
+
+-- 用 CTE：把子查询先定义，再引用，逻辑层次分明
+WITH order_cnt AS (
+    SELECT user_id, COUNT(*) AS cnt FROM orders GROUP BY user_id
+)
+SELECT * FROM order_cnt WHERE cnt > 5;
+```
+
+**递归 CTE（`WITH RECURSIVE`）**：用于树形结构查询（分类树、菜单树、组织架构），标准 SQL 语法，MySQL 8.0+ 支持：
+
+```sql
+WITH RECURSIVE cte AS (
+    -- ① 起点：anchor 成员，查根节点
+    SELECT id, parent_id, name, 1 AS level
+    FROM category WHERE id = 1
+    UNION ALL
+    -- ② 递归成员：每次 JOIN 上一轮结果，level + 1
+    SELECT c.id, c.parent_id, c.name, cte.level + 1
+    FROM category c JOIN cte ON c.parent_id = cte.id
+    -- ③ 限制递归层数（可选）：到第 3 层就停止，避免无限递归
+    WHERE cte.level < 3
+)
+SELECT * FROM cte;
+```
+
+**递归 CTE 的执行过程**：
+
+| 轮次 | 做了什么 | 结果 |
+| --- | --- | --- |
+| 第 1 轮 | 执行 anchor 查询，`WHERE id = 1` | 根节点，level=1 |
+| 第 2 轮 | 用第 1 轮的 `id`  JOIN `category.parent_id` | 子节点，level=2 |
+| 第 3 轮 | 用第 2 轮的 `id` 再 JOIN | 孙子节点，level=3 |
+| 第 4 轮 | `WHERE cte.level < 3` 不满足，停止 | 终止 |
+
+**实用场景**：
+
+```sql
+-- 查出某个分类及其所有子分类（包括子子孙孙）的所有课程
+WITH RECURSIVE cate_tree AS (
+    SELECT id FROM category WHERE id = 1
+    UNION ALL
+    SELECT c.id FROM category c JOIN cate_tree ON c.parent_id = cate_tree.id
+)
+SELECT * FROM course WHERE category_id IN (SELECT id FROM cate_tree);
+```
+
+**CTE 与子查询的对比**：
+
+| 对比 | 子查询 | CTE |
+| --- | --- | --- |
+| 可读性 | 嵌套深时难以理解 | 平铺定义，层次分明 |
+| 复用 | 多次引用需重复写 | 定义一次，`WITH` 后可多次引用 |
+| 递归 | ❌ 不支持 | ✅ `WITH RECURSIVE` 支持遍历树 |
+| 性能 | 多次引用可能多次执行 | 优化器可能只执行一次 |
+| 调试 | 不直观 | 可以先查 CTE 本身看中间结果 |
+
+**小结**：CTE 的核心价值是「把复杂查询拆成可命名的步骤」，非递归 CTE 替代子查询提升可读性，递归 CTE 解决树形查询（分类、菜单、组织架构）——这是 MySQL 8.0 的一大亮点，也是面试中「查分类树」的标准答案。**指定层数加 `WHERE cte.level < N` 即可**，写在递归成员里提前打断比外面过滤更高效。
+
 **小结**：SQL 是操作 MySQL 的唯一入口，四分类 + 执行顺序是后续 SQL 优化、索引调优的基础。记住「WHERE 在分组前、HAVING 在分组后、LIMIT 最后」，能解释很多「条件写错位置」的 bug。
 
 ---

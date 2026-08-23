@@ -175,5 +175,5 @@ spring:
 
 ## 相关知识
 
-- [Cron 表达式](Spring%20Boot#72-cron-表达式完全指南) — Spring Boot 定时任务的 Cron 写法
-- [Spring Boot 定时任务](Spring%20Boot#7-定时任务) — `@Scheduled` 基础用法
+- [Cron 表达式](/learn_backend/java/基础/Spring%20Boot#72-cron-表达式完全指南) — Spring Boot 定时任务的 Cron 写法
+- [Spring Boot 定时任务](/learn_backend/java/基础/Spring%20Boot#7-定时任务) — `@Scheduled` 基础用法

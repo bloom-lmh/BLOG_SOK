@@ -24,12 +24,12 @@
 
 这种「土办法」的问题非常明显：
 
-| 问题 | 表现 | 后果 |
-| --- | --- | --- |
-| **重复造轮子** | 每个项目、每个模块都写一遍登录/拦截逻辑 | 代码冗余、风格不一 |
-| **容易有漏洞** | 密码明文存库、用 MD5 加密、URL 直接拼接用户 id | 拖库、越权、暴力破解 |
-| **横切逻辑散落** | 权限判断散落在 Controller / Service / Mapper 各处 | 改一处漏一处 |
-| **攻击面没人管** | CSRF、XSS、Session 固定攻击没有统一防护 | 被黑还不自知 |
+| 问题             | 表现                                              | 后果                 |
+| ---------------- | ------------------------------------------------- | -------------------- |
+| **重复造轮子**   | 每个项目、每个模块都写一遍登录/拦截逻辑           | 代码冗余、风格不一   |
+| **容易有漏洞**   | 密码明文存库、用 MD5 加密、URL 直接拼接用户 id    | 拖库、越权、暴力破解 |
+| **横切逻辑散落** | 权限判断散落在 Controller / Service / Mapper 各处 | 改一处漏一处         |
+| **攻击面没人管** | CSRF、XSS、Session 固定攻击没有统一防护           | 被黑还不自知         |
 
 Spring Security 的思路就是把「安全」从业务代码里**剥离出来**，放到一个独立的过滤器链里统一处理——业务代码只需关注「我要做什么」，而「谁有资格做」交给框架。
 
@@ -37,10 +37,10 @@ Spring Security 的思路就是把「安全」从业务代码里**剥离出来**
 
 这是理解整个框架的入口，必须先把这两个词分清楚。
 
-| 概念 | 英文 | 回答的问题 | 典型动作 | 例子 |
-| --- | --- | --- | --- | --- |
-| 认证 | Authentication | 你是谁？ | 登录、验证凭证 | 输入账号密码登录 |
-| 授权 | Authorization | 你能干什么？ | 权限校验、访问控制 | 普通用户不能访问 `/admin/**` |
+| 概念 | 英文           | 回答的问题   | 典型动作           | 例子                         |
+| ---- | -------------- | ------------ | ------------------ | ---------------------------- |
+| 认证 | Authentication | 你是谁？     | 登录、验证凭证     | 输入账号密码登录             |
+| 授权 | Authorization  | 你能干什么？ | 权限校验、访问控制 | 普通用户不能访问 `/admin/**` |
 
 **执行顺序**：一定是**先认证、后授权**——因为你得先确认「你是谁」，才能知道「你能干什么」。
 
@@ -52,19 +52,21 @@ Spring Security 的思路就是把「安全」从业务代码里**剥离出来**
 
 Spring Security 由一组高度解耦的接口与类组成，先记住这些「主角」，后面所有流程都是它们之间的协作。
 
-| 组件 | 类型 | 作用 |
-| --- | --- | --- |
-| `SecurityContext` | 接口 | 安全上下文容器，保存当前登录用户的 `Authentication` |
-| `SecurityContextHolder` | 工具类 | 持有 `SecurityContext`，**默认用 `ThreadLocal` 存储**，保证线程隔离 |
-| `Authentication` | 接口 | 认证对象，封装**身份（principal）+ 凭证（credentials）+ 权限（authorities）** |
-| `UserDetails` | 接口 | 框架认识的标准用户模型，从数据库查出的用户要转成它 |
-| `UserDetailsService` | 接口 | 只做一件事：**根据用户名加载用户**，认证时被调用 |
-| `AuthenticationManager` | 接口 | 认证入口，真正干活的是它的实现 `ProviderManager` |
-| `AuthenticationProvider` | 接口 | 具体认证策略，如 `DaoAuthenticationProvider`（查库认证） |
-| `PasswordEncoder` | 接口 | 密码加密与比对（`encode` / `matches`） |
-| `GrantedAuthority` | 接口 | 权限项，如 `ROLE_ADMIN`、`order:read` |
-| `FilterChainProxy` | 类 | 安全过滤器链的**总入口**，把多个 `SecurityFilterChain` 串起来 |
-| `SecurityFilterChain` | 接口 | 一条具体的过滤器链（可配置多条，如 API 链 + 页面链） |
+| 组件                     | 类型   | 作用                                                                                                                     |
+| ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `SecurityContext`        | 接口   | 安全上下文容器，保存当前登录用户的 `Authentication`                                                                      |
+| `SecurityContextHolder`  | 工具类 | 持有 `SecurityContext`，**默认用 `ThreadLocal` 存储**，保证线程隔离                                                      |
+| `Authentication`         | 接口   | 认证对象，封装**身份（principal）+ 凭证（credentials）+ 权限（authorities）**                                  |
+| `UserDetails`            | 接口   | 框架认识的标准用户模型，从数据库查出的用户要转成它                                                                       |
+| `UserDetailsService`     | 接口   | 只做一件事：**根据用户名加载用户**，认证时被调用                                                                         |
+| `AuthenticationManager`  | 接口   | 认证入口，真正干活的是它的实现 `ProviderManager`                                                                         |
+| `AuthenticationProvider` | 接口   | 具体认证策略，如 `DaoAuthenticationProvider`（查库认证）                                                                 |
+| `PasswordEncoder`        | 接口   | 密码加密与比对（`encode` / `matches`）                                                                                   |
+| `GrantedAuthority`       | 接口   | 权限项，如 `ROLE_ADMIN`、`order:read`                                                                                    |
+| `FilterChainProxy`       | 类     | 安全过滤器链的**总入口**，把多个 `SecurityFilterChain` 串起来                                                            |
+| `SecurityFilterChain`    | 接口   | 一条具体的过滤器链（可配置多条，如 API 链 + 页面链）                                                                     |
+
+`UsernamePasswordAuthenticationToken` 是 `Authentication` 的一个常用实现，既可以表示“准备认证的用户名密码”，也可以表示“认证成功后的用户和权限”。
 
 它们之间的「三角关系」如下：
 
@@ -164,9 +166,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 2. `roles("USER")` 内部会自动加前缀变成 `ROLE_USER`；而 `authorities("USER")` 则**原样保留**，不加前缀。这是新手最常见的困惑点。
 3. `loadUserByUsername` 只负责「**查**用户」，**不负责比对密码**——比对由框架的 `DaoAuthenticationProvider` 调用 `PasswordEncoder.matches` 完成。
 
-### 6. 密码加密：BCrypt 为什么是默认选择
+::: tip 理解
+SpringSecurity做认证肯定需要基于用户信息，它不知道你的用户信息如何获得，所以你得给他提供用户信息。它定义好了获取用户信息的接口，你只需要按照规范实现并返回复合要求的用户详细对象即可，也就是实现`UserDetailsService`，这也是认证的第一步。当你提供了`UserDetailsServiceImpl`并注入容器，SpringSecurity自动装配就会采用你提供的`UserDetailsService`实现
+:::
 
-Spring Security 要求密码必须加密存储，最常用的是 `BCryptPasswordEncoder`。
+### 6. 密码加密：为什么常用 BCrypt
+
+Spring Security 要求密码必须加密存储，BCrypt 是最常用、也最容易理解的选择之一。它不是唯一的编码器；如果项目需要同时兼容多种算法或逐步升级密码算法，可以使用 `DelegatingPasswordEncoder`。
 
 ```java
 @Configuration
@@ -180,6 +186,17 @@ public class PasswordConfig {
     }
 }
 ```
+
+需要支持多种算法时，可以让密文带上算法标识：
+
+```java
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+}
+```
+
+生成的密文通常类似 `{bcrypt}xxxxx`，登录时 `matches` 会根据前缀选择对应的编码器。学习阶段使用单一的 `BCryptPasswordEncoder` 也完全可以。
 
 **注册时加密、登录时自动比对**：
 
@@ -233,7 +250,7 @@ Spring Security 在底层**并不是一个 Controller 或 Interceptor**，而是
 │       ──> ExceptionTranslationFilter（异常翻译）       │
 │       ──> AuthorizationFilter（授权校验）              │
 │                                                      │
-│   任何一个过滤器「不同意」就中断，返回 401/403 或重定向 │
+│   认证/授权相关过滤器发现问题时才会中断，其他过滤器继续执行 │
 └─────────────────────────────────────────────────────┘
    │
    ▼
@@ -242,17 +259,17 @@ DispatcherServlet（真正业务 Controller）
 
 只需先记住三个**最重要的过滤器**：
 
-| 过滤器 | 职责 | 失败表现 |
-| --- | --- | --- |
-| `UsernamePasswordAuthenticationFilter` | 处理 `/login` 表单登录，完成**认证** | 认证失败重定向回登录页 |
-| `AuthorizationFilter`（旧版 `FilterSecurityInterceptor`） | 根据 URL 规则判断是否放行，完成**授权** | 未认证 → 401，无权限 → 403 |
-| `ExceptionTranslationFilter` | 把认证/授权异常翻译成响应（重定向或错误码） | 决定返回 401 还是 403 |
+| 过滤器                                                    | 职责                                        | 失败表现                   |
+| --------------------------------------------------------- | ------------------------------------------- | -------------------------- |
+| `UsernamePasswordAuthenticationFilter`                    | 处理 `/login` 表单登录，完成**认证**        | 认证失败重定向回登录页     |
+| `AuthorizationFilter`（旧版常见的是 `FilterSecurityInterceptor`） | 根据 URL 规则判断是否放行，完成**授权** | 未认证 → 401，无权限 → 403 |
+| `ExceptionTranslationFilter`                              | 把认证/授权异常翻译成响应（重定向或错误码） | 决定返回 401 还是 403      |
 
 ### 8. 基础篇小结
 
 - Spring Security = **过滤器链 + 一组核心接口**，本质是「认证 + 授权」两条主线。
 - 认证靠 `UserDetailsService` 查用户 + `PasswordEncoder` 比密码；授权靠 `AuthorizationFilter` 按 URL 规则拦截。
-- 默认配置「即安全」，但真实项目必须重写 `UserDetailsService`、配置密码加密与访问规则。
+- 默认配置只能提供基础保护，并不等于业务配置已经安全；真实项目仍需配置用户来源、密码编码器和访问规则。
 - 用户信息全程通过 `SecurityContextHolder`（`ThreadLocal`）传递，业务代码随时可取当前登录人。
 
 ---
@@ -276,9 +293,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 1. 关闭 CSRF（前后端分离 + 无状态 token 时通常关闭，见后文专门讲解）
-            .csrf(csrf -> csrf.disable())
-            // 2. 授权规则：从上往下匹配，命中即止
+            // 表单登录使用 Session/Cookie，默认保留 CSRF 防护
+            // 1. 授权规则：从上往下匹配，命中即止
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/register", "/public/**", "/error").permitAll()  // 白名单
                 .requestMatchers("/admin/**").hasRole("ADMIN")   // 只有 ROLE_ADMIN 能访问
@@ -286,66 +302,103 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/goods").hasAuthority("goods:write") // 限定请求方法
                 .anyRequest().authenticated()                    // 其余都要登录
             )
-            // 3. 表单登录配置
+            // 2. 表单登录配置：会自动加入 UsernamePasswordAuthenticationFilter
             .formLogin(form -> form
-                .loginPage("/login.html")          // 自定义登录页
-                .loginProcessingUrl("/doLogin")    // 表单提交地址（POST 用户名密码）
-                .usernameParameter("username")     // 表单字段名（默认就是 username）
-                .passwordParameter("password")
-                .defaultSuccessUrl("/index")       // 登录成功默认跳转
-                .successHandler(customSuccessHandler)   // 前后端分离：成功返回 JSON
-                .failureHandler(customFailureHandler)   // 失败返回 JSON
-                .permitAll()                        // 登录页和提交接口放行
+                .defaultSuccessUrl("/index", true)  // 登录成功后跳转
+                .failureUrl("/login?error")         // 登录失败后跳转
+                .permitAll()
             )
-            // 4. 退出登录
+            // 3. 退出登录
             .logout(logout -> logout
                 .logoutUrl("/logout")              // 触发退出的地址
-                .logoutSuccessUrl("/login")        // 退出后跳转
-                .invalidateHttpSession(true)       // 清空 Session（默认 true）
-                .deleteCookies("JSESSIONID")       // 删除会话 Cookie
-            )
-            // 5. 会话管理
-            .sessionManagement(sm -> sm
-                .maximumSessions(1)                // 同一账号最多同时在线 1 个
-                .maxSessionsPreventsLogin(true)    // true：顶号后禁止新登录；false：踢掉旧的
+                .logoutSuccessUrl("/login?logout") // 退出后跳转
+                .invalidateHttpSession(true)
+                .deleteCookies("JSESSIONID", "remember-me")
+                .permitAll()
             );
         return http.build();
     }
 }
 ```
 
+#### 1.1 `formLogin` 如何使用 `UsernamePasswordAuthenticationFilter`
+
+普通的用户名密码登录不需要我们手动创建 `UsernamePasswordAuthenticationFilter`。只要配置了 `.formLogin(...)`，Spring Security 就会把它加入当前过滤器链。
+
+默认情况下，它处理的是：
+
+```text
+POST /login
+```
+
+如果希望把登录提交地址改成 `/doLogin`，只需要修改配置：
+
+```java
+.formLogin(form -> form
+    .loginProcessingUrl("/doLogin")  // 过滤器拦截的 POST 地址
+    .usernameParameter("username")   // 默认值就是 username
+    .passwordParameter("password")   // 默认值就是 password
+    .defaultSuccessUrl("/index", true)
+    .failureUrl("/login?error")
+    .permitAll()
+)
+```
+
+表单只负责提交数据，不需要再写一个 `POST /doLogin` 的 Controller：
+
+```html
+<form action="/doLogin" method="post">
+    <input name="username" type="text">
+    <input name="password" type="password">
+    <!-- Thymeleaf 页面还需要带上 CSRF Token -->
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+    <button type="submit">登录</button>
+</form>
+```
+
+过滤器内部大致做三件事：
+
+1. 从请求参数中取出用户名和密码；
+2. 创建一个**未认证**的 `UsernamePasswordAuthenticationToken`，交给 `AuthenticationManager`；
+3. 根据认证成功或失败，分别调用成功处理器或失败处理器。
+
+真正的查用户和比对密码由后面的 `DaoAuthenticationProvider`、`UserDetailsService` 和 `PasswordEncoder` 完成。也就是说，`UsernamePasswordAuthenticationFilter` 主要负责**拦截登录请求和启动认证流程**，不是自己查数据库。
+
+如果只是普通表单登录，不要手动 `new UsernamePasswordAuthenticationFilter()`；只有验证码、特殊请求头等场景，才需要额外编写自定义过滤器。
+
 **`requestMatchers` 常用匹配规则一览**：
 
-| 写法 | 说明 | 场景 |
-| --- | --- | --- |
-| `.permitAll()` | 无条件放行 | 登录页、注册页、静态资源 |
-| `.authenticated()` | 只要登录即可（不限角色） | 需要登录才能看的页面 |
-| `.hasRole("ADMIN")` | 必须拥有 `ROLE_ADMIN` 权限 | 管理员后台 |
-| `.hasAnyRole("ADMIN","USER")` | 拥有任一角色即可 | 多角色共享页面 |
-| `.hasAuthority("order:read")` | 拥有指定权限（**不带** ROLE_ 前缀） | 细粒度权限点 |
-| `.hasAnyAuthority(...)` | 拥有任一权限即可 | 多个权限点 |
-| `.denyAll()` | 全部拒绝 | 临时封禁某接口 |
-| `.anonymous()` | 只允许匿名（未登录）访问 | 已经登录了反而不能进登录页 |
-| `.rememberMe()` | 允许「记住我」登录的用户 | 依赖记住我功能 |
+| 写法                          | 说明                                 | 场景                       |
+| ----------------------------- | ------------------------------------ | -------------------------- |
+| `.permitAll()`                | 无条件放行                           | 登录页、注册页、静态资源   |
+| `.authenticated()`            | 只要登录即可（不限角色）             | 需要登录才能看的页面       |
+| `.hasRole("ADMIN")`           | 必须拥有 `ROLE_ADMIN` 权限           | 管理员后台                 |
+| `.hasAnyRole("ADMIN","USER")` | 拥有任一角色即可                     | 多角色共享页面             |
+| `.hasAuthority("order:read")` | 拥有指定权限（**不带** ROLE\_ 前缀） | 细粒度权限点               |
+| `.hasAnyAuthority(...)`       | 拥有任一权限即可                     | 多个权限点                 |
+| `.denyAll()`                  | 全部拒绝                             | 临时封禁某接口             |
+| `.anonymous()`                | 只允许匿名（未登录）访问             | 已经登录了反而不能进登录页 |
+| `.rememberMe()`               | 允许「记住我」登录的用户             | 依赖记住我功能             |
 
 ### 2. 认证方式全景：表单登录、HTTP Basic、Token
 
 Spring Security 支持多种认证方式，可以叠加使用。
 
-| 认证方式 | 适用场景 | 配置 |
-| --- | --- | --- |
-| 表单登录（formLogin） | 传统服务端渲染的 Web 应用 | `.formLogin(...)` |
-| HTTP Basic | 内部系统、简单接口、调试 | `.httpBasic(...)` |
-| JWT / Token | 前后端分离、移动端、分布式 | 自定义 Filter（见下文） |
-| OAuth2 / OIDC | 第三方登录、单点登录 | `.oauth2Login(...)` |
-| Remember Me | 记住登录状态，延长免登录时间 | `.rememberMe(...)` |
+| 认证方式              | 适用场景                     | 配置                    |
+| --------------------- | ---------------------------- | ----------------------- |
+| 表单登录（formLogin） | 传统服务端渲染的 Web 应用    | `.formLogin(...)`       |
+| HTTP Basic            | 内部系统、简单接口、调试     | `.httpBasic(...)`       |
+| Bearer JWT            | 前后端分离、移动端、分布式   | `.oauth2ResourceServer().jwt(...)` |
+| 自定义 Token           | 非标准协议或遗留系统          | 自定义 `OncePerRequestFilter` |
+| OAuth2 / OIDC         | 第三方登录、单点登录         | `.oauth2Login(...)`     |
+| Remember Me           | 记住登录状态，延长免登录时间 | `.rememberMe(...)`      |
 
 ```java
 // HTTP Basic：浏览器弹出原生的账号密码框，Authorization 头里带 Base64 的 user:pass
 http.httpBasic(Customizer.withDefaults());
 ```
 
-**为什么前后端分离要自己写 JWT 过滤器**：表单登录和 HTTP Basic 都依赖 Session/Cookie，而前后端分离场景下前端是独立域名、移动端根本没有 Cookie，所以业界统一采用「无状态 JWT」——登录后发一个 token，之后每次请求头携带，服务端解析后重建认证信息。
+前后端分离不等于必须自己写 JWT 过滤器。标准 Bearer JWT 优先使用 Spring Security 的 Resource Server 支持；只有 Token 格式、请求头协议或认证流程不符合标准时，才考虑自定义过滤器。后面的 JWT 小节会先介绍标准方案，再用自定义过滤器帮助理解底层流程。
 
 ### 3. 密码编码器细节：`matches` 比对与加密格式
 
@@ -372,9 +425,77 @@ $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
 
 **重点结论**：盐被**编码进了密文本身**，所以登录时 `matches("明文", "密文")` 能自动从密文里解析出盐来重算，无需单独存盐字段。
 
-### 4. JWT 整合实战（前后端分离标准方案）
+### 4. JWT：标准方案与自定义过滤器
 
-Spring Security 默认基于 Session，前后端分离要改成**无状态 JWT**，完整流程分四步：
+JWT 认证有两种学习方式：标准 Bearer JWT 交给 Spring Security 验证；特殊 Token 自己编写过滤器。实际项目优先考虑标准方案。
+
+#### 4.1 标准 Bearer JWT：使用 Resource Server
+
+如果 Token 是标准 JWT，Spring Security 可以自动完成取 Token、验签、检查过期时间、生成 `Authentication` 和权限映射，不需要自己解析字符串。
+
+引入依赖：
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+</dependency>
+```
+
+配置签发 JWT 的授权服务器：
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://example.com/issuer
+```
+
+然后在 API 的过滤器链中启用 JWT：
+
+```java
+@Bean
+public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    http
+        .csrf(csrf -> csrf.disable())
+        .sessionManagement(session -> session
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/public/**").permitAll()
+            .anyRequest().authenticated())
+        .oauth2ResourceServer(oauth2 -> oauth2
+            .jwt(Customizer.withDefaults()));
+
+    return http.build();
+}
+```
+
+如果 JWT 中有：
+
+```json
+{"scope":"order.read order.write"}
+```
+
+默认会映射成：
+
+```text
+SCOPE_order.read
+SCOPE_order.write
+```
+
+所以授权时可以写：
+
+```java
+.hasAuthority("SCOPE_order.read")
+```
+
+这套方案的核心过滤器是 `BearerTokenAuthenticationFilter`，它会把 Bearer Token 交给 `AuthenticationManager`，再由 `JwtAuthenticationProvider` 验证并创建 `JwtAuthenticationToken`。
+
+#### 4.2 自定义 JWT Filter：用于学习原理或非标准协议
+
+下面仍然保留一套自定义实现，目的是帮助理解“过滤器怎样把认证对象放入 `SecurityContext`”。如果项目使用标准 JWT，优先使用上一节的 Resource Server。
 
 **第一步：引入 JWT 依赖**（这里以 jjwt 为例）：
 
@@ -467,10 +588,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    // 创建新的上下文，再交给 SecurityContextHolder 持有
+                    SecurityContext context = SecurityContextHolder.createEmptyContext();
+                    context.setAuthentication(auth);
+                    SecurityContextHolder.setContext(context);
                 }
-            } catch (Exception e) {
-                // token 过期或非法：不设置认证，让后面的授权过滤器按「未认证」处理
+            } catch (JwtException | IllegalArgumentException e) {
+                // 只有 Token 解析/校验失败时清空认证；不要把数据库异常也静默吞掉
                 SecurityContextHolder.clearContext();
             }
         }
@@ -480,21 +604,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 }
 ```
 
+这里的 `UsernamePasswordAuthenticationToken` 是一个 `Authentication` 实现：
+
+- `user` 是当前用户；
+- `null` 表示认证完成后不再保存原始密码；
+- `user.getAuthorities()` 是角色和权限；
+- `setDetails(...)` 只补充请求 IP、Session ID 等请求信息，不负责验证 JWT，也不是授权必须步骤。
+
+真正让后续授权过滤器识别到当前用户的是上面代码中的 `SecurityContextHolder.setContext(context)`；`setDetails(...)` 只是补充请求信息。
+
 **第四步：注册过滤器 + 关闭 Session**：
 
 ```java
 @Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+public SecurityFilterChain filterChain(
+        HttpSecurity http,
+        JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
     http
         .csrf(csrf -> csrf.disable())
-        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 无状态，不创建 Session
+        .sessionManagement(sm -> sm
+            .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 无状态，不创建 Session
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/login", "/register").permitAll()
             .anyRequest().authenticated()
         )
         // 为什么用 addFilterBefore 而不是 after：
-        // 自定义 JWT 过滤器要先于 UsernamePasswordAuthenticationFilter 执行，
-        // 保证走到授权环节时认证信息已经就位
+        // 这里选择放在 UsernamePasswordAuthenticationFilter 之前，
+        // 让 JWT 认证先于后面的授权判断完成
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
 }
@@ -539,13 +675,13 @@ public class SecurityConfig { ... }
 
 常用注解一览：
 
-| 注解 | 作用 | 例子 |
-| --- | --- | --- |
-| `@PreAuthorize` | 方法调用**前**校验 | `@PreAuthorize("hasRole('ADMIN')")` |
+| 注解             | 作用                               | 例子                                                          |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------- |
+| `@PreAuthorize`  | 方法调用**前**校验                 | `@PreAuthorize("hasRole('ADMIN')")`                           |
 | `@PostAuthorize` | 方法调用**后**校验（能拿到返回值） | `@PostAuthorize("returnObject.owner == authentication.name")` |
-| `@PreFilter` | 入参集合过滤 | `@PreFilter("filterObject.owner == authentication.name")` |
-| `@PostFilter` | 返回值集合过滤 | `@PostFilter("filterObject.visible == true")` |
-| `@Secured` | 基于角色（需开启 securedEnabled） | `@Secured("ROLE_ADMIN")` |
+| `@PreFilter`     | 入参集合过滤                       | `@PreFilter("filterObject.owner == authentication.name")`     |
+| `@PostFilter`    | 返回值集合过滤                     | `@PostFilter("filterObject.visible == true")`                 |
+| `@Secured`       | 基于角色（需开启 securedEnabled）  | `@Secured("ROLE_ADMIN")`                                      |
 
 ```java
 @Service
@@ -575,13 +711,14 @@ URL 拦截是**入口级、粗粒度**控制（能不能访问这个接口），
 
 CSRF 攻击原理：用户登录了银行网站 A（浏览器带着 A 的 Cookie），此时访问了恶意网站 B，B 里的脚本偷偷向 A 发起转账请求——因为浏览器自动带上 A 的 Cookie，A 误以为是用户本人在操作。
 
-Spring Security 的防护：默认开启 CSRF 防护，要求**写操作**（POST/PUT/DELETE）必须携带一个服务端下发的 CSRF token。
+Spring Security 默认开启 CSRF 防护，通常保护除 `GET`、`HEAD`、`TRACE`、`OPTIONS` 之外的请求，也就是 POST、PUT、PATCH、DELETE 等写操作。
 
 ```
-1. 服务端生成 csrfToken，渲染进表单隐藏字段 / 存入 Cookie
-2. 浏览器提交时带上 token
-3. CsrfFilter 校验请求里的 token 与 Session 里的 token 是否一致
-4. 不一致 → 拒绝（403），因为攻击者跨站伪造的请求拿不到这个 token
+1. `CsrfTokenRepository` 读取或按需生成 Token（默认可以保存到 Session）
+2. 服务端把 Token 暴露给表单、请求参数或请求头
+3. 浏览器提交写请求时带上 Token
+4. `CsrfFilter` 校验请求里的 Token 与服务端保存的 Token 是否一致
+5. 不一致 → 拒绝（403），因为攻击者跨站伪造的请求拿不到这个 Token
 ```
 
 ```java
@@ -592,7 +729,7 @@ Spring Security 的防护：默认开启 CSRF 防护，要求**写操作**（POS
 http.csrf(csrf -> csrf.disable());
 ```
 
-**关键判断**：只要你的接口是**无状态 token 认证**（不依赖 Cookie 自动携带），就可以安全地关闭 CSRF；反之如果是 Session+Cookie 的老式 Web 应用，务必保持开启。
+**关键判断**：只有当接口使用不依赖浏览器自动携带的认证方式（例如 `Authorization: Bearer ...`），并且不接受 Session/Cookie 作为身份凭证时，才可以考虑关闭 CSRF。前后端分离但使用 Cookie，仍然需要 CSRF。
 
 #### 6.2 CORS（跨域资源共享）
 
@@ -619,9 +756,9 @@ public class CorsConfig {
 http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
 ```
 
-| 概念 | 攻击/问题来源 | 谁来拦 | 防护手段 |
-| --- | --- | --- | --- |
-| CSRF | 恶意网站伪造请求 | 服务端 | CSRF token 校验 |
+| 概念 | 攻击/问题来源      | 谁来拦 | 防护手段               |
+| ---- | ------------------ | ------ | ---------------------- |
+| CSRF | 恶意网站伪造请求   | 服务端 | CSRF token 校验        |
 | CORS | 同源策略拦跨域请求 | 浏览器 | 服务端返回 CORS 响应头 |
 
 ### 7. 异常处理与自定义返回
@@ -655,32 +792,282 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
 ```
 
 ```java
-// 挂到配置里
-http
-    .exceptionHandling(ex -> ex
-        .authenticationEntryPoint(customAuthenticationEntryPoint)  // 处理未认证
-        .accessDeniedHandler(customAccessDeniedHandler)            // 处理无权限
+// 在 SecurityFilterChain 方法参数中注入两个处理器
+@Bean
+public SecurityFilterChain apiFilterChain(
+        HttpSecurity http,
+        CustomAuthenticationEntryPoint authenticationEntryPoint,
+        CustomAccessDeniedHandler accessDeniedHandler) throws Exception {
+    http.exceptionHandling(ex -> ex
+        .authenticationEntryPoint(authenticationEntryPoint) // 未认证
+        .accessDeniedHandler(accessDeniedHandler)            // 无权限
     );
+    return http.build();
+}
 ```
 
 ### 8. Remember Me「记住我」
 
-让用户勾选「记住我」后，一段时间内免登录。原理是下发一个带签名和过期时间的 Cookie，下次访问自动用它重建认证。
+让用户勾选「记住我」后，即使本次 Session 失效，也可以在一段时间内自动恢复认证。它依赖 Cookie 和 `UserDetailsService`，不是把密码保存到 Cookie 中。
 
 ```java
 http.rememberMe(remember -> remember
-    .key("uniqueAndSecretKey")      // 签名密钥，多个节点必须一致
+    .key("uniqueAndSecretKey")      // 正式环境放配置文件，多个节点必须一致
     .tokenValiditySeconds(60 * 60 * 24 * 7)  // 7 天有效
     .userDetailsService(userDetailsService)  // 重建认证时查用户
 );
 ```
 
+登录表单中的复选框参数名必须是 `remember-me`：
+
+```html
+<input type="checkbox" name="remember-me"> 记住我
+```
+
+Remember Me 只负责恢复“你是谁”，恢复后仍然要经过 `hasRole`、`hasAuthority` 等授权判断。JWT 无状态 API 通常不使用 Remember Me；它们一般使用短期 Access Token 和 Refresh Token。
+
+Session 策略只先记这两个：
+
+| 策略 | 含义 | 常见场景 |
+| ---- | ---- | ---- |
+| `IF_REQUIRED` | 需要时创建 Session，表单登录常用 | Web 页面、Remember Me |
+| `STATELESS` | 不创建也不使用 Session 保存认证 | Bearer JWT API |
+
+表单登录和 Remember Me 使用 Cookie/Session；Bearer JWT API 使用 `STATELESS`。初学时不要把两种认证方式硬塞进同一条过滤器链。
+
 ### 9. 高级篇小结
 
 - 核心配置就是 `SecurityFilterChain` Bean，Lambda 链式 API 串联 CSRF、授权、登录、退出、会话。
-- 前后端分离的标准方案 = **关 CSRF + 无状态 Session + 自定义 JWT 过滤器 + 方法级注解**。
+- 前后端分离的常见方案是**无状态 API + Bearer Token**；标准 JWT 优先使用 Resource Server，非标准 Token 才考虑自定义过滤器。
 - CSRF 与 CORS 是两码事，一个防伪造、一个解决跨域，别混淆。
 - 异常处理要自定义成 JSON 返回，才能适配前后端分离。
+
+---
+
+## 实战演示：一步一步配置认证、授权与过滤器链
+
+这不是一个完整业务项目，而是一段可以单独学习的安全配置。我们先使用**表单登录 + Session**，因为这样可以把认证、授权、Remember Me 和退出登录串在一起；JWT 的 API 配置放在上一节单独学习。
+
+### 1. 准备认证数据：用户、密码和权限
+
+为了让示例简单可运行，先使用内存用户。真实项目中，把 `InMemoryUserDetailsManager` 换成前文的 `UserDetailsServiceImpl` 即可。
+
+```java
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
+
+@Bean
+public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
+    UserDetails user = User.withUsername("user")
+            .password(passwordEncoder.encode("123456"))
+            .roles("USER")                 // 自动得到 ROLE_USER
+            .build();
+
+    UserDetails admin = User.withUsername("admin")
+            .password(passwordEncoder.encode("123456"))
+            .authorities("ROLE_ADMIN", "report:read")
+            .build();
+
+    return new InMemoryUserDetailsManager(user, admin);
+}
+```
+
+这里先记住一件事：
+
+```text
+数据库 User / 内存 User
+        ↓
+UserDetailsService
+        ↓
+UserDetails
+        ↓
+DaoAuthenticationProvider
+```
+
+### 2. 编写一条最常用的 `SecurityFilterChain`
+
+```java
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            UserDetailsService userDetailsService) throws Exception {
+
+    http
+        // 1. 授权：从上到下匹配，最后一条是兜底规则
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/", "/public/**", "/error").permitAll()
+            .requestMatchers("/admin/**").hasRole("ADMIN")
+            .requestMatchers("/report/**").hasAuthority("report:read")
+            .anyRequest().authenticated()
+        )
+        // 2. 认证：自动加入 UsernamePasswordAuthenticationFilter
+        .formLogin(form -> form
+            .loginProcessingUrl("/login")
+            .defaultSuccessUrl("/home", true)
+            .failureUrl("/login?error")
+            .permitAll()
+        )
+        // 3. 登录状态：Session 失效后尝试用 Cookie 恢复认证
+        .rememberMe(remember -> remember
+            .key("security-demo-key")
+            .tokenValiditySeconds(7 * 24 * 60 * 60)
+            .userDetailsService(userDetailsService)
+        )
+        // 4. 退出登录
+        .logout(logout -> logout
+            .logoutUrl("/logout")
+            .logoutSuccessUrl("/login?logout")
+            .invalidateHttpSession(true)
+            .deleteCookies("JSESSIONID", "remember-me")
+            .permitAll()
+        );
+
+    // 这里没有调用 csrf.disable()。
+    // 因为表单登录使用 Session/Cookie，应该保留默认 CSRF 防护。
+        return http.build();
+    }
+}
+```
+
+这条链可以先用四句话理解：
+
+- `permitAll()`：公开访问；
+- `authenticated()`：只要求登录；
+- `hasRole()` / `hasAuthority()`：登录后继续检查权限；
+- `anyRequest().authenticated()`：没有写到的请求，默认必须登录。
+
+### 3. `UsernamePasswordAuthenticationFilter` 在哪里工作？
+
+访问受保护页面时，未登录用户会先被引导到默认登录页。提交表单后，过滤器链大致这样执行：
+
+```text
+POST /login
+    ↓
+UsernamePasswordAuthenticationFilter
+    ↓ 创建未认证的 UsernamePasswordAuthenticationToken
+AuthenticationManager
+    ↓
+DaoAuthenticationProvider
+    ↓
+UserDetailsService 查用户 + PasswordEncoder.matches 比密码
+    ↓
+返回已认证的 Authentication
+    ↓
+SecurityContextHolder 持有当前用户
+    ↓
+AuthorizationFilter 判断 URL 权限
+```
+
+登录表单只需要提交约定好的字段：
+
+```html
+<form action="/login" method="post">
+    <input name="username" type="text">
+    <input name="password" type="password">
+    <input name="remember-me" type="checkbox"> 记住我
+    <!-- 使用 Thymeleaf 时还要带上 _csrf -->
+    <button type="submit">登录</button>
+</form>
+```
+
+不需要编写 `POST /login` 的 Controller。`UsernamePasswordAuthenticationFilter` 会拦截它，并把认证工作交给 `AuthenticationManager`。
+
+### 4. 准备几个接口观察授权结果
+
+```java
+@RestController
+public class SecurityDemoController {
+
+    @GetMapping("/public/hello")
+    public String publicApi() {
+        return "所有人都可以访问";
+    }
+
+    @GetMapping("/home")
+    public String home(Authentication authentication) {
+        return "当前用户：" + authentication.getName();
+    }
+
+    @GetMapping("/admin/panel")
+    public String adminPanel() {
+        return "管理员页面";
+    }
+
+    @GetMapping("/report/list")
+    public String reportList() {
+        return "报表数据";
+    }
+
+    // URL 只要求登录，方法上再要求 ADMIN
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/operation/delete")
+    public String deleteOperation() {
+        return "管理员操作成功";
+    }
+}
+```
+
+### 5. 按场景验证
+
+| 操作 | 账号 | 结果 |
+| ---- | ---- | ---- |
+| 访问 `/public/hello` | 未登录 | 可以访问 |
+| 访问 `/home` | 未登录 | 跳转 `/login` |
+| 登录后访问 `/home` | `user / 123456` | 可以访问 |
+| 访问 `/admin/panel` | `user` | `403`，缺少 `ROLE_ADMIN` |
+| 访问 `/admin/panel` | `admin` | 可以访问 |
+| 访问 `/report/list` | `user` | `403`，缺少 `report:read` |
+| 访问 `/report/list` | `admin` | 可以访问 |
+| 访问 `/operation/delete` | `user` | `403`，方法权限失败 |
+| 勾选 Remember Me 后重新访问 | 任一账号 | 可以恢复认证 |
+| 退出后再次访问 `/home` | 任一账号 | 重新跳转 `/login` |
+
+::: tip 学习顺序
+先只配置 `formLogin`，确认能登录；再加入 `requestMatchers`，确认能授权；最后加入 Remember Me、退出和 `@PreAuthorize`。每次只增加一个功能，最容易看懂问题出在哪里。
+:::
+
+### 6. 用 `MockMvc` 做最小验证
+
+加入测试依赖：
+
+```xml
+<dependency>
+    <groupId>org.springframework.security</groupId>
+    <artifactId>spring-security-test</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+```java
+@Test
+void anonymousCannotVisitHome() throws Exception {
+    mockMvc.perform(get("/home"))
+            .andExpect(status().is3xxRedirection());
+}
+
+@Test
+void adminCanVisitAdminPage() throws Exception {
+    mockMvc.perform(get("/admin/panel")
+            .with(user("admin").authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+            .andExpect(status().isOk());
+}
+
+@Test
+void logoutNeedsCsrfToken() throws Exception {
+    mockMvc.perform(post("/logout")
+            .with(user("user").roles("USER"))
+            .with(csrf()))
+            .andExpect(status().is3xxRedirection());
+}
+```
+
+`.with(user(...))` 是模拟已经认证的用户，适合测试授权规则；`.with(csrf())` 为开启 CSRF 的写请求补充合法 Token。它们不会替代真正的登录流程测试。
 
 ---
 
@@ -710,12 +1097,12 @@ DispatcherServlet（业务）
 
 #### 1.2 Spring Security 6 默认过滤器顺序（重要，面试爱考）
 
-过滤器的**顺序是写死的**（在 `FilterOrderRegistration` 里定义），顺序错了认证授权就会乱套：
+Spring Security 为过滤器定义了相对顺序，但不同认证方式启用的过滤器并不完全相同。下面是常见配置下的简化顺序，不要把编号当成所有项目都固定不变的列表：
 
 ```
 1.  DisableEncodeUrlFilter            —— 禁止在 URL 里编码 Session id
 2.  WebAsyncManagerIntegrationFilter  —— 把 SecurityContext 集成到异步线程
-3.  SecurityContextHolderFilter        —— 从存储中恢复/保存 SecurityContext（6.x 新写法）
+3.  SecurityContextHolderFilter        —— 从存储中读取 SecurityContext（6.x 默认行为）
 4.  HeaderWriterFilter                 —— 写入安全响应头（X-Content-Type-Options 等）
 5.  CorsFilter                         —— CORS 处理
 6.  CsrfFilter                         —— CSRF 校验
@@ -728,19 +1115,19 @@ DispatcherServlet（业务）
 13. SecurityContextHolderAwareRequestFilter —— 包装请求，方便取 SecurityContext
 14. AnonymousAuthenticationFilter      —— 未登录时塞入「匿名认证对象」★关键
 15. ExceptionTranslationFilter         —— 捕获下游异常并翻译 ★核心
-16. AuthorizationFilter                —— 授权校验 ★核心（6.x 取代 FilterSecurityInterceptor）
+16. AuthorizationFilter                —— 授权校验 ★核心（authorizeHttpRequests 默认使用）
 ```
 
-**为什么 `AnonymousAuthenticationFilter` 很关键**：它会在「没人认证」时给当前请求塞一个 `AnonymousAuthenticationToken`，这样后续授权环节就不必判空——`isAuthenticated()` 永远有值，未登录就是 `anonymousUser`。
+**为什么 `AnonymousAuthenticationFilter` 很关键**：它会在「没人认证」时给当前请求塞一个 `AnonymousAuthenticationToken`。因此 `Authentication` 通常不会是 `null`，但匿名用户不等于真正登录；判断登录状态不能只看 `isAuthenticated()`，还要排除匿名认证。
 
-**为什么 `ExceptionTranslationFilter` 要放在授权过滤器之前**：它像一层「网」，捕获后面授权过滤器抛出的 `AuthenticationException` 和 `AccessDeniedException`，分别转成 401（重定向登录）和 403（拒绝）。
+**为什么 `ExceptionTranslationFilter` 要放在授权过滤器之前**：它像一层「网」，捕获后面授权过滤器抛出的异常，然后调用 `AuthenticationEntryPoint` 或 `AccessDeniedHandler`。页面应用通常重定向到登录页，API 通常返回 401/403。
 
 #### 1.3 认证的完整内部流程（逐层下钻）
 
 以「用户提交用户名密码登录」为例，一次完整的认证要穿过下面这些类：
 
 ```
-UsernamePasswordAuthenticationFilter（只拦截 POST /login）
+UsernamePasswordAuthenticationFilter（默认处理 POST /login，也可以通过 loginProcessingUrl 修改）
    │  把 username + password 包成一个 UsernamePasswordAuthenticationToken
    ▼
 AuthenticationManager（接口，实现是 ProviderManager）
@@ -753,9 +1140,12 @@ DaoAuthenticationProvider（支持 UsernamePasswordAuthenticationToken）
    │  3. createSuccessAuthentication() → 组装一个「已认证」的 Authentication
    ▼
 返回 Authentication（已认证，principal=UserDetails, authorities=权限列表）
-   │
-   ▼
-SecurityContextHolder.getContext().setAuthentication(auth)   // 存入 ThreadLocal
+    │
+    ▼
+认证过滤器的成功处理流程
+    │  设置 SecurityContext，并按配置保存到 Session/Repository
+    ▼
+SecurityContextHolder（默认使用 ThreadLocal 持有 SecurityContext）
 ```
 
 对应到 `DaoAuthenticationProvider` 的核心源码逻辑（简化版，帮助理解）：
@@ -825,7 +1215,7 @@ AuthorizationManager（如 RequestMatcherDelegatingAuthorizationManager）
 
 ### 3. `SecurityContextHolder`：ThreadLocal 的存储策略
 
-`SecurityContextHolder` 是贯穿整个请求的「信息载体」，默认用 `ThreadLocal` 存储，保证每个线程独立。
+`SecurityContextHolder` 是访问当前安全上下文的入口，默认使用 `ThreadLocal` 保存 `SecurityContext`，保证不同请求的用户信息互相隔离。
 
 ```java
 // 三种存储策略
@@ -834,7 +1224,7 @@ public static final String MODE_INHERITABLETHREADLOCAL = "MODE_INHERITABLETHREAD
 public static final String MODE_GLOBAL = "MODE_GLOBAL"; // 全局共享（慎用）
 ```
 
-**为什么用 ThreadLocal**：Servlet 容器为每个请求分配一个线程，把 `SecurityContext` 放进 `ThreadLocal` 后，同一请求在任意层（Controller/Service/Mapper）都能取到当前用户，且请求之间互不干扰。
+**为什么用 ThreadLocal**：Servlet 容器通常为每个请求分配一个线程，把 `SecurityContext` 放进 `ThreadLocal` 后，同一请求在任意层（Controller/Service/Mapper）都能取到当前用户。请求结束后必须清理，避免线程池复用造成用户信息串线。
 
 ```java
 // 业务代码里随时随地取当前登录用户
@@ -845,7 +1235,7 @@ if (auth != null && auth.isAuthenticated()) {
 }
 ```
 
-**重要清理规则**：请求结束后，`SecurityContextHolderFilter` 会调用 `SecurityContextHolder.clearContext()` 清空 ThreadLocal，防止线程复用（线程池）导致的**用户信息串号**——这是必须理解的安全细节。
+**重要清理规则**：请求结束后，`FilterChainProxy` 会确保清理 `SecurityContextHolder`，防止线程复用（线程池）导致的**用户信息串号**。而 `SecurityContextHolderFilter` 在 Spring Security 6 中主要负责读取上下文；自定义认证是否保存到 Session，要根据认证机制显式保存。
 
 ### 4. BCrypt 的慢哈希原理（字节级解析）
 
@@ -857,22 +1247,22 @@ BCrypt 之所以抗暴力破解，核心在两点：**随机盐**和**可调成�
 $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
 ```
 
-| 段 | 值 | 含义 |
-| --- | --- | --- |
-| 算法标识 | `$2a$` | BCrypt 版本（还有 2b / 2y，修复了小 bug） |
-| cost | `10` | 成本因子，实际迭代次数 = 2^10 = **1024 次** |
-| 盐 | 22 个字符 | 16 字节随机盐的 Base64 编码 |
-| 哈希 | 31 个字符 | 24 字节哈希结果的 Base64 编码 |
+| 段       | 值        | 含义                                        |
+| -------- | --------- | ------------------------------------------- |
+| 算法标识 | `$2a$`    | BCrypt 版本（还有 2b / 2y，修复了小 bug）   |
+| cost     | `10`      | 成本因子，实际迭代次数 = 2^10 = **1024 次** |
+| 盐       | 22 个字符 | 16 字节随机盐的 Base64 编码                 |
+| 哈希     | 31 个字符 | 24 字节哈希结果的 Base64 编码               |
 
 #### 4.2 cost 与速度的关系
 
 cost 每加 1，迭代次数翻倍，破解难度也翻倍。典型取值：
 
-| cost | 迭代次数 | 单次耗时（参考） | 适用 |
-| --- | --- | --- | --- |
-| 10 | 1024 | ~50~100ms | 一般系统 |
-| 12 | 4096 | ~200~400ms | 安全要求较高 |
-| 14 | 16384 | ~1s 左右 | 高安全场景 |
+| cost | 迭代次数 | 单次耗时（参考） | 适用         |
+| ---- | -------- | ---------------- | ------------ |
+| 10   | 1024     | ~50~100ms        | 一般系统     |
+| 12   | 4096     | ~200~400ms       | 安全要求较高 |
+| 14   | 16384    | ~1s 左右         | 高安全场景   |
 
 **注意权衡**：cost 太高会拖慢登录接口，可能被攻击者反过来用于**密码撞库导致的 CPU 耗尽（DoS）**，所以不是越高越好。
 
@@ -881,16 +1271,16 @@ cost 每加 1，迭代次数翻倍，破解难度也翻倍。典型取值：
 JWT 由三段 Base64URL 编码拼接而成，用 `.` 分隔：
 
 ```
-eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ6aGFuZ3NhbiJ9.4m7YF... 
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ6aGFuZ3NhbiJ9.4m7YF...
 │                      │                      │
 Header               Payload               Signature
 ```
 
-| 段 | 内容 | 说明 |
-| --- | --- | --- |
-| Header | `{"alg":"HS256","typ":"JWT"}` | 声明签名算法 |
-| Payload | `{"sub":"zhangsan","exp":1710000000}` | 载荷，**只 Base64 编码、不加密**，任何人可解码 |
-| Signature | 用密钥对前两段签名 | 保证内容**不可篡改** |
+| 段        | 内容                                  | 说明                                           |
+| --------- | ------------------------------------- | ---------------------------------------------- |
+| Header    | `{"alg":"HS256","typ":"JWT"}`         | 声明签名算法                                   |
+| Payload   | `{"sub":"zhangsan","exp":1710000000}` | 载荷，**只 Base64 编码、不加密**，任何人可解码 |
+| Signature | 用密钥对前两段签名                    | 保证内容**不可篡改**                           |
 
 **验证流程**：
 
@@ -912,24 +1302,24 @@ JWT 一旦签发，在有效期内服务端无法让它「失效」，因为服�
 Spring Security 的 CSRF 防护依赖 **`CsrfFilter`** 和一个「同步器令牌（Synchronizer Token）」：
 
 ```
-1. GET 请求进入 → CsrfFilter 生成一个随机 csrfToken，存入 Session + 暴露给视图
-   （传统表单项目会把 token 渲染成 <input type="hidden" name="_csrf">）
-2. 浏览器提交 POST → 请求里带上这个 token
-3. CsrfFilter 取出请求里的 token 与 Session 里的 token 比对
+1. 请求进入 → `CsrfFilter` 从 `CsrfTokenRepository` 读取或按需生成 Token
+   （传统表单项目会把 Token 渲染成 `<input type="hidden" name="_csrf">`）
+2. 浏览器提交 POST/PUT/PATCH/DELETE → 请求里带上这个 Token
+3. `CsrfFilter` 取出请求里的 Token，与服务端保存的 Token 比对
    ├─ 相等 → 放行
    └─ 不等/缺失 → 抛 CsrfException → 403
 ```
 
 **为什么能防住攻击**：攻击者伪造的跨站请求虽然会带上目标站的 Cookie（因为浏览器自动携带），但**拿不到隐藏在页面表单里的 CSRF token**，所以无法通过校验。
 
-**为什么前后端分离可以关掉它**：无状态 JWT 场景下，token 存在 `Authorization` 头里，浏览器**不会自动携带**（不像 Cookie），攻击者跨站无法伪造这个头，CSRF 的前提就不成立了。
+**什么时候可以关掉它**：如果某条 API 链只接受 `Authorization: Bearer ...`，不依赖浏览器自动携带的 Session/Cookie，那么 CSRF 的前提通常不成立；如果 JWT 放在 Cookie 中，或者同一条链仍接受 Cookie 登录，CSRF 仍应开启。
 
 ### 7. 原理篇小结
 
-- 过滤器链由 `DelegatingFilterProxy` → `FilterChainProxy` → `SecurityFilterChain` 三层串联，过滤器顺序是**固定**的。
+- 过滤器链由 `DelegatingFilterProxy` → `FilterChainProxy` → `SecurityFilterChain` 三层串联，过滤器使用框架定义的相对顺序。
 - 认证走 `AuthenticationManager → ProviderManager → DaoAuthenticationProvider → UserDetailsService + PasswordEncoder` 的链式下钻。
 - 授权走 `AuthorizationManager` 决策，`hasRole` 自动加 `ROLE_` 前缀是高频细节。
-- `SecurityContextHolder` 用 `ThreadLocal` 传用户，请求结束必须清理防串号。
+- `SecurityContextHolder` 默认用 `ThreadLocal` 持有用户，请求结束由 `FilterChainProxy` 确保清理；Session 是否保存上下文则取决于认证机制和显式保存配置。
 - BCrypt 的安全来自「随机盐 + 慢哈希」，JWT 的「无状态」是双刃剑，退出需要额外机制。
 
 ---
@@ -949,24 +1339,24 @@ Spring Security 的 CSRF 防护依赖 **`CsrfFilter`** 和一个「同步器令�
    展开：盐被编码进密文本身，每次加密盐都不同；cost=10 意味着 2^10 次迭代，故意拖慢计算速度，让批量破解变得不划算。
 
 4. **前后端分离怎么做认证？**
-   **结论**：关闭 Session（`STATELESS`）和 CSRF，用自定义 `OncePerRequestFilter` 从 `Authorization: Bearer xxx` 解析 JWT，手动构造 `Authentication` 塞进 `SecurityContextHolder`。
-   展开：因为前后端分离和移动端没有 Cookie/Session，改用无状态 token；JWT 过滤器要放在 `UsernamePasswordAuthenticationFilter` 之前，保证授权时认证信息已就位。
+   **结论**：标准 Bearer JWT 优先使用 Resource Server；API 通常使用 `STATELESS`，只有在认证凭证不依赖浏览器自动携带的 Cookie 时，才考虑关闭 CSRF。
+   展开：如果 Token 是非标准格式，再用 `OncePerRequestFilter` 解析并创建 `Authentication`；自定义过滤器要放在授权执行之前，常见做法是放在 `UsernamePasswordAuthenticationFilter` 之前。
 
 5. **`@PreAuthorize` 和 URL 拦截的区别？**
    **结论**：URL 拦截是入口级粗粒度控制，`@PreAuthorize` 是方法级细粒度控制，且支持 SpEL 引用参数和返回值。
    展开：两者配合形成纵深防御——URL 层先粗筛「能不能进接口」，方法层再精筛「能不能调这个方法、能不能操作这条数据」。
 
-6. **CSRF 攻击是什么？怎么防？为什么前后端分离可以关掉？**
-   **结论**：CSRF 是利用浏览器自动携带 Cookie 伪造请求的攻击；防护靠服务端下发并校验 CSRF token；前后端分离用 `Authorization` 头传 token（浏览器不自动携带），所以可以关闭。
-   展开：核心是「攻击者拿不到隐藏在页面里的 token」；无状态 JWT 场景下，跨站请求无法伪造 `Authorization` 头，CSRF 前提不成立。
+6. **CSRF 攻击是什么？什么时候可以关闭？**
+   **结论**：CSRF 是利用浏览器自动携带 Cookie 伪造请求的攻击；Session/Cookie 认证应校验 CSRF Token；只接受 Authorization Header 的无状态 API 通常可以在对应链中关闭。
+   展开：判断依据是“认证凭证是否会被浏览器自动带上”，而不是“有没有前端页面”。SPA + Cookie 仍然有 CSRF 风险，SPA + Bearer Header 通常没有同样的前提。
 
 7. **`SecurityContextHolder` 的存储机制是什么？为什么要清理？**
    **结论**：默认用 `ThreadLocal` 存储当前登录用户的 `SecurityContext`，实现请求内共享、请求间隔离；请求结束必须 `clearContext()` 清理。
    展开：Servlet 容器用线程池复用线程，若不清理，上一个请求的用户信息可能「串」到下一个请求，造成严重越权。
 
 8. **Spring Security 的过滤器链顺序为什么重要？**
-   **结论**：过滤器顺序是固定设计的，认证（`UsernamePasswordAuthenticationFilter`）必须在授权（`AuthorizationFilter`）之前，否则授权时拿不到认证信息。
-   展开：`ExceptionTranslationFilter` 要包在授权过滤器外层，才能把授权抛出的异常翻译成 401/403；顺序错乱会导致认证无效或异常无法被正确处理。
+   **结论**：过滤器有框架定义的相对顺序，负责建立认证信息的过滤器必须在授权判断之前执行。
+   展开：`ExceptionTranslationFilter` 要位于授权异常能够经过的位置，才能调用 `AuthenticationEntryPoint` 或 `AccessDeniedHandler`；自定义过滤器应使用 `addFilterBefore` / `addFilterAfter` 表达相对位置。
 
 ---
 

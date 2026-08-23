@@ -2142,7 +2142,7 @@ public class TaskJob {
 
 #### 7.3 小结
 
-`@Scheduled` 适合轻量级调度；分布式环境下要配合 [Redis 分布式锁](./../learn_database) 或 [Nacos](../微服务/Nacos) 等避免多实例重复执行。
+`@Scheduled` 适合轻量级调度；分布式环境下要配合 [Redis 分布式锁](/learn_database/Redis) 或 [Nacos](../微服务/Nacos) 等避免多实例重复执行。
 
 ---
 
@@ -2262,29 +2262,291 @@ DevTools 通过**双类加载器**（base classloader 加载三方 jar，restart
 
 ### 12. 事务管理
 
+#### 12.1 @Transactional 完整参数
+
 ```java
 @Service
 public class OrderService {
 
-    // @Transactional 开启声明式事务：方法抛 RuntimeException 自动回滚
-    @Transactional(rollbackFor = Exception.class)  // 指定所有异常都回滚（默认只回滚 RuntimeException）
+    @Transactional(
+        // 指定哪些异常触发回滚（默认只回滚 RuntimeException 和 Error）
+        rollbackFor = Exception.class,
+        // 指定哪些异常不触发回滚
+        noRollbackFor = {IllegalArgumentException.class},
+
+        // 事务传播行为
+        propagation = Propagation.REQUIRED,     // 默认：有事务就用当前的，没有就新建
+        // 事务隔离级别
+        isolation = Isolation.READ_COMMITTED,   // MySQL 默认，可重复读
+
+        // 超时时间（秒），超时抛异常回滚
+        timeout = 30,
+
+        // 只读事务优化（查询时用，告诉数据库不需要加锁）
+        readOnly = false
+    )
     public void createOrder(Order order) {
         orderMapper.insert(order);
-        stockService.deduct(order.getGoodsId(), order.getNum());  // 扣库存
-        // 如果上面抛异常，两条 SQL 一起回滚，保证数据一致性
+        stockService.deduct(order.getGoodsId(), order.getNum());
     }
 }
 ```
 
-::: tip 💡 面试题：@Transactional 失效的几种场景？
-① 同类内部方法自调用（`this.method()` 绕过了代理）；② 方法不是 public；③ 异常被 try-catch 吞掉；④ 抛的是受检异常且没指定 `rollbackFor`；⑤ 存储引擎不支持事务（如 MyISAM）——核心原因是 Spring 事务靠 AOP 动态代理实现，只有**通过代理对象调用**才会触发事务切面。
-:::
+#### 12.2 事务传播行为（Propagation）
+
+**解决的问题：** 方法 B 调方法 A，A 有事务，B 也有事务——B 是加入 A 的事务，还是挂起 A 自己开一个新的？
+
+```java
+@Service
+public class OrderService {
+    @Transactional
+    public void createOrder(Order order) {
+        orderMapper.insert(order);
+        // ↓ 这个方法的事务怎么处理？取决于 propagation
+        logService.log("创建订单", order.getId());
+    }
+}
+
+@Service
+public class LogService {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)  // 独立事务，不随主事务回滚
+    public void log(String action, Long bizId) {
+        logMapper.insert(new Log(action, bizId));
+    }
+}
+```
+
+| 传播行为 | 含义 | 场景 |
+| --- | --- | --- |
+| `REQUIRED`（默认） | 有事务就加入，没有就新建 | 普通业务方法 |
+| `REQUIRES_NEW` | 挂起当前事务，新建一个独立事务 | 操作日志（日志不能随主业务回滚） |
+| `NESTED` | 在嵌套事务中执行（JDBC savepoint） | 批量处理中的部分回滚 |
+| `SUPPORTS` | 有事务就加入，没有就非事务执行 | 查询方法 |
+| `NOT_SUPPORTED` | 以非事务方式执行 | 不关心事务的方法 |
+| `MANDATORY` | 必须已有事务，否则抛异常 | 严格要求有事务的方法 |
+| `NEVER` | 必须没有事务，否则抛异常 | 测试用 |
+
+**`REQUIRES_NEW` 最典型的场景：** 操作日志。你下单失败回滚了，但「下单失败」这个日志本身必须记录，不能跟着回滚。
+
+#### 12.3 事务隔离级别（Isolation）
+
+**解决的问题：** 多个事务并发操作同一行数据时，可能出现的问题。
+
+| 问题 | 含义 | 能否避免 |
+| --- | --- | --- |
+| 脏读 | 读到另一个事务未提交的数据 | `READ_COMMITTED` 可避免 |
+| 不可重复读 | 同一个事务两次读同一行，结果不一样 | `REPEATABLE_READ` 可避免 |
+| 幻读 | 同一个事务两次查询范围数据，行数不一样 | `SERIALIZABLE` 可避免 |
+
+| 隔离级别 | 脏读 | 不可重复读 | 幻读 | 性能 |
+| --- | --- | --- | --- | --- |
+| `READ_UNCOMMITTED` | ❌ 可能 | ❌ 可能 | ❌ 可能 | 最好 |
+| `READ_COMMITTED` | ✅ 避免 | ❌ 可能 | ❌ 可能 | 较好 |
+| `REPEATABLE_READ`（MySQL 默认） | ✅ 避免 | ✅ 避免 | ❌ 可能 | 中等 |
+| `SERIALIZABLE` | ✅ 避免 | ✅ 避免 | ✅ 避免 | 最差 |
+
+```java
+@Transactional(isolation = Isolation.READ_COMMITTED)
+public void updatePrice(Long id, BigDecimal price) {
+    // 只能读到其他事务已提交的数据，不会读到「正在改但还没提交」的脏数据
+}
+```
+
+**实际项目怎么选：** 绝大多数项目用 `READ_COMMITTED`（读已提交）。MySQL 默认 `REPEATABLE_READ` 但大多数项目会改成 `READ_COMMITTED`，因为性能更好且够用。
+
+#### 12.4 声明式事务 vs 编程式事务
+
+| 方式 | 写法 | 优点 | 缺点 |
+| --- | --- | --- | --- |
+| **声明式**（推荐） | 加 `@Transactional` 注解 | 最简洁，声明即生效 | 控制粒度不够细 |
+| **编程式** | `TransactionTemplate` 显式调用 | 精细控制，适合复杂事务 | 代码多 |
+
+```java
+// 声明式——简单，日常够用
+@Transactional
+public void createOrder(Order order) {
+    orderMapper.insert(order);
+    stockService.deduct(order.getGoodsId(), order.getNum());
+}
+
+// 编程式——细粒度控制，比如部分成功也算成功
+@Service
+public class OrderService {
+    private final TransactionTemplate transactionTemplate;
+
+    public OrderService(TransactionTemplate transactionTemplate) {
+        this.transactionTemplate = transactionTemplate;
+    }
+
+    public void batchCreate(List<Order> orders) {
+        for (Order order : orders) {
+            // 每个订单独立事务，一个失败不影响其他
+            transactionTemplate.execute(status -> {
+                try {
+                    orderMapper.insert(order);
+                    stockService.deduct(order.getGoodsId(), order.getNum());
+                    return null;
+                } catch (Exception e) {
+                    status.setRollbackOnly();  // 手动标记回滚
+                    log.error("订单处理失败", e);
+                    return null;
+                }
+            });
+        }
+    }
+}
+```
+
+#### 12.5 @Transactional 失效的七种场景
+
+| 场景 | 原因 | 解决 |
+| --- | --- | --- |
+| ① 同类内部自调用 | `this.method()` 绕过了代理对象，AOP 切面不触发 | 注入自己 `@Autowired OrderService self`，用 `self.method()` |
+| ② 方法不是 public | `@Transactional` 只对 public 方法生效 | 改成 public |
+| ③ 异常被 try-catch 吞掉 | 没抛出去，事务管理器不知道有异常 | 不要吞异常，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
+| ④ 抛的是受检异常 | 默认只回滚 RuntimeException，受检异常（如 `FileNotFoundException`）不回滚 | 加 `rollbackFor = Exception.class` |
+| ⑤ 存储引擎不支持事务 | MyISAM 不支持事务，MySQL 用 InnoDB | 检查 `ENGINE=InnoDB` |
+| ⑥ 方法被 final 修饰 | 动态代理无法重写 final 方法 | 去掉 final |
+| ⑦ 不同线程里的事务 | 事务和线程绑定，新线程没有原事务的 Connection | 事务内不要开新线程 |
+
+**自调用问题的解决方案：**
+
+```java
+@Service
+public class OrderService {
+    // 注入自己（Spring 允许循环依赖，但只限构造器注入）
+    @Autowired
+    private OrderService self;
+
+    // 写法一：注入自己，用 self 调 → 走代理，事务生效
+    public void batchProcess(List<Order> orders) {
+        for (Order order : orders) {
+            self.doSave(order);  // 走代理，@Transactional 生效
+        }
+    }
+
+    @Transactional
+    public void doSave(Order order) {
+        orderMapper.insert(order);
+    }
+
+    // 写法二：AopContext（需要 @EnableAspectJAutoProxy(exposeProxy = true)）
+    public void batchProcess2(List<Order> orders) {
+        for (Order order : orders) {
+            ((OrderService) AopContext.currentProxy()).doSave(order);
+        }
+    }
+}
+```
+
+#### 12.6 事务与多线程
+
+```java
+@Service
+public class OrderService {
+
+    @Transactional
+    public void createOrder(Order order) {
+        orderMapper.insert(order);
+
+        // ❌ 错误：新线程里的事务是独立的！
+        new Thread(() -> {
+            logService.log("创建订单", order.getId());  // 这行不在外面的事务里
+        }).start();
+
+        // ✅ 正确：事务内不要开新线程，或者把异步操作放到事务提交后
+        // 用 @TransactionalEventListener 在事务提交后异步处理
+    }
+}
+```
+
+#### 12.7 事务只读优化
+
+```java
+// 查询时加 readOnly = true，告诉数据库不需要加锁，MySQL/ORM 可以做优化
+@Transactional(readOnly = true)
+public Order getById(Long id) {
+    return orderMapper.selectById(id);
+}
+```
+
+**readOnly 的实际作用：**
+- MySQL：不需要加行锁，查询更快
+- JPA：FlushMode 设为 MANUAL，不触发自动 flush
+- JDBC：部分数据库驱动有优化
+
+#### 12.8 事务原理（AOP + 动态代理）
+
+Spring 事务底层就是 AOP 实现的，核心链路：
+
+```
+@Transactional
+    ↓ Spring 解析注解
+TransactionInterceptor（AOP 环绕通知）
+    ↓ 实现 MethodInterceptor
+invoke() 方法内部：
+    ├─ ① 获取事务属性（propagation、isolation、rollbackFor 等）
+    ├─ ② 开启事务（connection.setAutoCommit(false)）
+    ├─ ③ try { method.invoke(目标对象, args) }  ← 执行你的业务代码
+    ├─ ④ 没异常 → connection.commit()
+    └─ ⑤ 有异常 → connection.rollback()
+```
+
+**关键点：事务和 Connection 绑定在同一线程上**
+
+```java
+// 事务管理器里维护了一个 ThreadLocal，存着当前线程的 Connection
+public abstract class AbstractPlatformTransactionManager {
+    // 每个线程一个事务状态
+    private static final ThreadLocal<TransactionInfo> transactionInfoHolder =
+        new ThreadLocal<>();
+
+    protected void beginTransaction() {
+        // 从数据源拿 Connection
+        Connection conn = dataSource.getConnection();
+        conn.setAutoCommit(false);  // 关闭自动提交
+        // 把 Connection 绑到当前线程
+        TransactionSynchronizationManager.bindResource(dataSource, conn);
+    }
+}
+```
+
+**这就解释了为什么新线程里事务不生效：**
+
+```
+主线程：                   新线程：
+┌────────────────┐        ┌────────────────┐
+│ Connection T1  │        │  没有 Connection │
+│ @Transactional │        │  @Transactional │
+│ orderMapper    │        │  logMapper      │
+│   ↓ 用 T1 提交  │        │   ↓ 用新连接提交  │
+└────────────────┘        └────────────────┘
+    事务 A                     事务 B（独立）
+```
+
+**结合学过的 AOP 理解：**
+
+```
+没有 @Transactional 时：
+  OrderService.createOrder()
+    └─ orderMapper.insert()     ← 每条 SQL 自动提交
+
+有 @Transactional 时：
+  OrderServiceProxy（代理对象）
+    ├─ connection.setAutoCommit(false)    ← 关闭自动提交
+    ├─ orderMapper.insert()               ← 不提交
+    ├─ stockService.deduct()              ← 不提交
+    ├─ connection.commit()                ← 全部成功，提交
+    └─ connection.rollback()              ← 有异常，全部回滚
+```
+
+**所以 @Transactional 的本质就是：** AOP 在方法前后加了 `begin` / `commit` / `rollback`，把多条 SQL 包在同一个数据库事务里，保证要么全部成功要么全部失败。
 
 ---
 
 ### 13. 单元测试（完整版）
 
-#### 12.1 测试分层体系
+#### 13.1 测试分层体系
 
 Spring Boot 提供从简单到完整的三种测试模式：
 
@@ -2294,7 +2556,7 @@ Spring Boot 提供从简单到完整的三种测试模式：
 | 完整测试 | `@SpringBootTest`                 | 启动完整容器   | 🐢 慢 | 集成测试           |
 | 测试切片 | `@JsonTest` / `@RestClientTest`   | 只启动某个功能 | ⚡ 快 | 序列化/REST 客户端 |
 
-#### 12.2 切片测试（推荐，更快）
+#### 13.2 切片测试（推荐，更快）
 
 **Controller 层测试：** 只启动 MVC 相关 Bean，不启动 Service/Repository
 
@@ -2344,7 +2606,7 @@ public class UserRepositoryTest {
 }
 ```
 
-#### 12.3 完整集成测试
+#### 13.3 完整集成测试
 
 ```java
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)  // 随机端口，避免冲突
@@ -2377,7 +2639,7 @@ public class OrderServiceIntegrationTest {
 }
 ```
 
-#### 12.4 常用测试注解
+#### 13.4 常用测试注解
 
 | 切片注解          | 加载的 Bean                     | 适用场景                  |
 | ----------------- | ------------------------------- | ------------------------- |
@@ -2387,7 +2649,7 @@ public class OrderServiceIntegrationTest {
 | `@RestClientTest` | RestTemplate 相关               | 测试 REST 客户端          |
 | `@DataRedisTest`  | Redis 相关                      | 测试 Redis 操作           |
 
-#### 12.5 @MockBean 与 @SpyBean
+#### 13.5 @MockBean 与 @SpyBean
 
 ```java
 @WebMvcTest(UserController.class)
@@ -2410,7 +2672,7 @@ public class UserControllerTest {
 }
 ```
 
-#### 12.6 测试数据库
+#### 13.6 测试数据库
 
 ```java
 @SpringBootTest
@@ -2428,7 +2690,7 @@ spring:
     driver-class-name: org.h2.Driver
 ```
 
-#### 12.7 小结
+#### 13.7 小结
 
 - **切片测试 > 完整集成测试**：切片测试只启动被测层，速度更快，优先用
 - **`@MockBean` 隔离外部依赖**：不依赖数据库、第三方 API
@@ -2438,11 +2700,11 @@ spring:
 
 ### 14. 自定义 Starter
 
-#### 13.1 定义
+#### 14.1 定义
 
 自定义 Starter = 把你的自动配置逻辑打包成一个依赖，其他项目引入后直接生效。常用于公司内部封装的通用组件（日志、鉴权、RPC、MQ 初始化等）。
 
-#### 13.2 Starter 的命名和结构
+#### 14.2 Starter 的命名和结构
 
 ```
 my-spring-boot-starter              ← ① 启动器（使用者引入的依赖）
@@ -2462,7 +2724,7 @@ my-spring-boot-autoconfigure        ← ② 自动配置模块（真正的配置
             └── org.springframework.boot.autoconfigure.AutoConfiguration.imports  ← 注册自动配置类
 ```
 
-#### 13.3 完整实现
+#### 14.3 完整实现
 
 **自动配置类：**
 
@@ -2509,7 +2771,7 @@ com.example.my.starter.MyAutoConfiguration=
   ConditionalOnClass=com.example.my.starter.MyService
 ```
 
-#### 13.4 使用者引入
+#### 14.4 使用者引入
 
 ```xml
 <dependency>
@@ -2527,7 +2789,7 @@ my:
     suffix: '!'
 ```
 
-#### 13.5 小结
+#### 14.5 小结
 
 自定义 Starter = 自动配置类 + 属性类 + `AutoConfiguration.imports` 注册，本质是把 Spring Boot 的自动配置机制封装成可复用的依赖包，是公司级组件复用的标准做法。
 
@@ -2535,11 +2797,11 @@ my:
 
 ### 15. Spring Boot 事件机制
 
-#### 14.1 定义
+#### 15.1 定义
 
 Spring Boot 内置了**事件驱动**机制，一个 Bean 发布事件，其他 Bean 监听并处理，实现**业务解耦**。
 
-#### 14.2 内置事件（启动流程触发）
+#### 15.2 内置事件（启动流程触发）
 
 | 事件                                  | 触发时机                               | 常见用途       |
 | ------------------------------------- | -------------------------------------- | -------------- |
@@ -2549,7 +2811,7 @@ Spring Boot 内置了**事件驱动**机制，一个 Bean 发布事件，其他 
 | `ApplicationReadyEvent`               | 应用就绪，可以提供服务                 | 注册到注册中心 |
 | `ApplicationFailedEvent`              | 启动失败                               | 发送告警       |
 
-#### 14.3 自定义事件（业务解耦）
+#### 15.3 自定义事件（业务解耦）
 
 **事件类：**
 
@@ -2632,7 +2894,7 @@ public class OrderEventListeners {
 }
 ```
 
-#### 14.4 执行流程
+#### 15.4 执行流程
 
 ```
 OrderService.createOrder()
@@ -2647,7 +2909,7 @@ ApplicationEventMulticaster（事件广播器）
 
 > **同步 vs 异步：** 默认是同步的（发布者线程串行执行所有监听器）。如果监听器逻辑耗时，加 `@Async` 异步执行，但要注意事务边界——异步监听器里的事务是独立的。
 
-#### 14.5 事务事件（@TransactionalEventListener）
+#### 15.5 事务事件（@TransactionalEventListener）
 
 ```java
 @Component
@@ -2672,7 +2934,7 @@ public class OrderEventListeners {
 | `AFTER_COMPLETION` | 事务完成（无论提交/回滚） |
 | `BEFORE_COMMIT`    | 事务提交前执行            |
 
-#### 14.6 小结
+#### 15.6 小结
 
 事件机制实现「发布-监听」解耦，核心价值：**下单后发短信/送积分/发邮件，不需要在 OrderService 里写一行相关代码，新增功能只需加一个 @EventListener 方法**。
 
@@ -2680,84 +2942,177 @@ public class OrderEventListeners {
 
 ### 16. 国际化 i18n
 
-#### 15.1 定义
+#### 16.1 定义
 
-国际化（Internationalization，i18n）让应用根据**浏览器语言**或**请求参数**返回不同语言的提示信息。Spring Boot 基于 MessageSource 实现。
+国际化（Internationalization，i18n）让应用根据**浏览器语言**或**请求参数**返回不同语言的提示信息。Spring Boot 基于 `MessageSource` 实现。
 
-#### 15.2 资源文件
+#### 16.2 资源文件
+
+**命名规范：** `basename_language_country.properties`
 
 ```
 src/main/resources/
-├── messages.properties          ← 默认（通常是英文）
-├── messages_zh_CN.properties    ← 中文
-├── messages_ja_JP.properties    ← 日文
-└── i18n/
-    ├── messages.properties
-    ├── messages_zh_CN.properties
-    └── messages_ja_JP.properties
+├── messages.properties              ← 默认（找不到对应语言时的兜底）
+├── messages_zh_CN.properties        ← 中文（简体）
+├── messages_zh_TW.properties        ← 中文（繁体）
+├── messages_en_US.properties        ← 英文（美国）
+└── messages_ja_JP.properties        ← 日文
 ```
 
-```properties
-# messages.properties（默认）
+**命名规则：** `language` 是 [ISO 639](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) 语言码，`country` 是 [ISO 3166](https://en.wikipedia.org/wiki/ISO_3166-1) 国家码。
+
+| 文件 | 对应的 Locale | 什么时候生效 |
+| --- | --- | --- |
+| `messages.properties` | 无 | 兜底，找不到对应语言时用 |
+| `messages_zh_CN.properties` | 中文简体 | 浏览器语言 = zh-CN |
+| `messages_en_US.properties` | 英文美国 | 浏览器语言 = en-US |
+| `messages_zh.properties` | 中文（不区分地区） | 浏览器语言 = zh（任意中文地区） |
+
+**查找优先级：** `messages_zh_CN` → `messages_zh` → `messages`（兜底）
+
+**文件内容示例：**
+
+::: code-group
+
+```properties [messages.properties]
+# 默认（英文兜底）
 user.notfound=User not found
 order.success=Order created successfully
-
-# messages_zh_CN.properties
-user.notfound=用户不存在
-order.success=订单创建成功
-
-# messages_ja_JP.properties
-user.notfound=ユーザーが見つかりません
-order.success=注文が正常に作成されました
+order.fail=Order creation failed
+validation.notblank=This field cannot be blank
+validation.range=Length must be between {min} and {max}
+payment.timeout=Payment timeout for order {0}
 ```
 
-#### 15.3 配置
+```properties [messages_zh_CN.properties]
+# 中文简体
+user.notfound=用户不存在
+order.success=订单创建成功
+order.fail=订单创建失败
+validation.notblank=该字段不能为空
+validation.range=长度必须在 {min} 到 {max} 之间
+payment.timeout=订单 {0} 支付超时
+```
+
+```properties [messages_ja_JP.properties]
+# 日文
+user.notfound=ユーザーが見つかりません
+order.success=注文が正常に作成されました
+order.fail=注文の作成に失敗しました
+validation.notblank=このフィールドは必須です
+validation.range=長さは {min} から {max} までにする必要があります
+payment.timeout=注文 {0} の支払いがタイムアウトしました
+```
+
+:::
+
+**占位符规则：** `{0}` 是第一个参数，`{1}` 是第二个，`{min}` 和 `{max}` 是命名参数（用于校验注解）。
+
+#### 16.3 配置
 
 ```yaml
 spring:
   messages:
-    basename: messages # 资源文件基础名（默认就是 messages）
-    encoding: UTF-8 # 编码
-    fallback-to-system-locale: true # 找不到对应语言时，用系统默认语言
-    cache-duration: -1 # 缓存时间（-1 永久缓存，生产用）
+    # 资源文件基础名（默认就是 messages）
+    basename: messages
+    # 也可以指定多个基础名，逗号分隔
+    # basename: messages, errors, labels
+
+    # 编码（必须 UTF-8，否则中文乱码）
+    encoding: UTF-8
+
+    # 找不到对应语言时，用系统默认语言（true = 兜底）
+    fallback-to-system-locale: true
+
+    # 开发环境关闭缓存，方便实时看效果（默认永久缓存）
+    cache-duration: 0
+    # 生产环境用 -1 永久缓存，避免每次请求都解析文件
+    # cache-duration: -1
 ```
 
-#### 15.4 代码中使用
+#### 16.4 代码中使用（MessageSource）
 
 ```java
 @RestController
-public class MessageController {
+@RequestMapping("/api/order")
+public class OrderController {
 
     @Autowired
     private MessageSource messageSource;
 
     @GetMapping("/message")
     public String getMessage(HttpServletRequest request) {
-        // 从请求头 Accept-Language 自动解析语言
+        // 从请求头 Accept-Language 自动解析当前语言
         Locale locale = RequestContextUtils.getLocale(request);
 
-        // 取出国际化消息，支持参数占位符
-        String msg = messageSource.getMessage("user.notfound", null, locale);
-        // 带参数的：messageSource.getMessage("order.detail", new Object[]{orderId}, locale)
-        return msg;
+        // 不带参数
+        String msg1 = messageSource.getMessage("user.notfound", null, locale);
+        // → "用户不存在"
+
+        // 带位置参数（{0} 替换为订单号）
+        String msg2 = messageSource.getMessage("payment.timeout", new Object[]{"ORD-001"}, locale);
+        // → "订单 ORD-001 支付超时"
+
+        return msg1;
     }
 }
 ```
 
-或者在 Thymeleaf 模板中直接使用（Spring Boot 自动注入了 MessageSource）：
+**更简单的方式——用 LocaleContextHolder 获取当前语言：**
 
-```html
-<!-- 用 #{} 语法取国际化消息 -->
-<p th:text="#{user.notfound}">默认英文</p>
+```java
+// 不用传 Locale，自动从当前线程取
+Locale locale = LocaleContextHolder.getLocale();
+String msg = messageSource.getMessage("user.notfound", null, locale);
 ```
 
-#### 15.5 切换语言方式
+#### 16.5 在全局异常和校验中使用
 
-**方式一：根据请求头 Accept-Language（自动）**
+**校验注解中引用国际化消息：**
 
-浏览器自动发送 `Accept-Language: zh-CN,zh;q=0.9`，Spring 通过 `AcceptHeaderLocaleResolver` 自动解析。
+```java
+public class UserDTO {
+    // 不再写死 message = "姓名不能为空"，而是引用国际化 key
+    @NotBlank(message = "{validation.notblank}")
+    @Size(min = 2, max = 20, message = "{validation.range}")
+    private String name;
+}
+```
 
-**方式二：根据 URL 参数（手动切换）**
+**全局异常处理器中使用：**
+
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @Autowired
+    private MessageSource messageSource;
+
+    // 校验失败
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValid(MethodArgumentNotValidException e) {
+        // 拿到校验注解的国际化 key
+        String defaultMessage = e.getBindingResult().getFieldError().getDefaultMessage();
+        // 如果 key 是 {validation.notblank}，解析成实际文本
+        // 框架会自动做这一步，你也可以手动调 messageSource
+        return Result.fail(400, defaultMessage);
+    }
+}
+```
+
+#### 16.6 三种语言解析方式
+
+**方式一：Accept-Language 请求头（默认，最常用）**
+
+```
+浏览器自动发送:
+  Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+
+Spring 自动解析，选择权重最高的语言
+不需要写任何代码
+```
+
+**方式二：URL 参数（手动切换）**
 
 ```java
 @Configuration
@@ -2765,14 +3120,15 @@ public class LocaleConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 添加 LocaleChangeInterceptor：通过 ?lang=zh_CN 参数切换语言
-        registry.addInterceptor(new LocaleChangeInterceptor())
-                .addPathPatterns("/**");
+        // 拦截 ?lang=zh_CN 参数，自动切换语言
+        LocaleChangeInterceptor interceptor = new LocaleChangeInterceptor();
+        interceptor.setParamName("lang");    // 默认就是 lang
+        registry.addInterceptor(interceptor).addPathPatterns("/**");
     }
 
     @Bean
     public LocaleResolver localeResolver() {
-        // 基于 Session 存储用户选择的语言
+        // Session 存储用户选择的语言（刷新后不丢）
         SessionLocaleResolver resolver = new SessionLocaleResolver();
         resolver.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
         return resolver;
@@ -2781,15 +3137,37 @@ public class LocaleConfig implements WebMvcConfigurer {
 ```
 
 ```bash
-# 通过 URL 参数切换语言
+# 通过 URL 参数切换
 GET /api/users?lang=zh_CN    # 中文
 GET /api/users?lang=en_US    # 英文
 GET /api/users?lang=ja_JP    # 日文
 ```
 
-#### 15.6 小结
+**方式三：Cookie 存储（记住用户偏好）**
 
-国际化 = `MessageSource` + 多语言 `messages.properties` 文件，Spring Boot 自动配置好了基础，你只需要写资源文件、在代码中调用 `messageSource.getMessage()` 即可。
+```java
+@Bean
+public LocaleResolver localeResolver() {
+    // Cookie 存储语言，用户下次打开浏览器仍然生效
+    CookieLocaleResolver resolver = new CookieLocaleResolver("lang");
+    resolver.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
+    resolver.setCookieMaxAge(Duration.ofDays(365));  // 一年
+    return resolver;
+}
+```
+
+**三种方式对比：**
+
+| 方式 | 存储位置 | 有效期 | 适用场景 |
+| --- | --- | --- | --- |
+| Accept-Language | 浏览器请求头 | 每次请求 | 默认方案，国际化网站 |
+| URL 参数 | URL 查询参数 | 单次请求 | 手动切换、测试 |
+| Session | 服务端 Session | 会话期间 | 登录后记住语言 |
+| Cookie | 浏览器 Cookie | 可配置 | 记住用户偏好，跨会话 |
+
+---
+
+## 源码篇
 
 ### 1. @SpringBootApplication 三合一（源码结构）
 
@@ -2848,97 +3226,537 @@ com.example
 
 ### 2. 自动配置原理（高频考点，完整机制）
 
-#### 2.1 核心链路
+> **先记住结论**：Spring Boot 自动配置不是「看到某个依赖就直接 `new` 一个对象」，而是：
+>
+> **找到候选配置类 → 去重和排除 → 按条件过滤 → 导入满足条件的配置类 → 注册 BeanDefinition → 创建 Bean。**
 
-```
-@SpringBootApplication
-   └─ @EnableAutoConfiguration
-        └─ @Import(AutoConfigurationImportSelector.class)
-             └─ AutoConfigurationImportSelector#selectImports()
-                  └─ 读取 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
-                       └─ 加载所有自动配置类（如 DataSourceAutoConfiguration、RedisAutoConfiguration）
-                            └─ 每个自动配置类用 @ConditionalOnXxx 判断是否生效
-                                 └─ 生效的配置类里的 @Bean 被创建并放入容器
-```
+#### 2.1 先用一个手写配置理解「自动配置」
 
-#### 2.2 演进：spring.factories → AutoConfiguration.imports
-
-Spring Boot 2.7 之前，自动配置类写在 `META-INF/spring.factories`：
-
-```properties
-# spring.factories（旧版，2.7 之前）
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration,\
-org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-```
-
-Spring Boot 2.7 之后，改用 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（**每行一个类**，更简洁）：
-
-```
-# AutoConfiguration.imports（新版）
-org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
-org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-```
-
-#### 2.3 一个自动配置类的完整解剖（以 RedisAutoConfiguration 为例）
+如果不用自动配置，我们可能要自己写：
 
 ```java
-@AutoConfiguration                  // 标记是自动配置类
-@ConditionalOnClass(RedisOperations.class)   // ① 有 RedisOperations 类（引入了 starter）才生效
-@EnableConfigurationProperties(RedisProperties.class)  // ② 绑定 RedisProperties 配置
-@Import({ LettuceConnectionConfiguration.class, ... }) // ③ 引入连接配置
-public class RedisAutoConfiguration {
+@Configuration
+public class RedisConfig {
 
     @Bean
-    @ConditionalOnMissingBean(name = "redisTemplate")  // ④ 用户没自定义才用默认的
-    public RedisTemplate<Object, Object> redisTemplate(RedisConnectionFactory factory) {
-        // ⑤ 创建默认的 RedisTemplate
-        RedisTemplate<Object, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(factory);
+    public RedisTemplate<String, Object> redisTemplate(
+            RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
         return template;
     }
 }
 ```
 
-自动配置类的标准「五件套」：
+这段代码做了两件事：
 
-1. `@AutoConfiguration` / `@Configuration` 标记配置类
-2. `@ConditionalOnClass` 判断依赖是否存在
-3. `@EnableConfigurationProperties` 绑定配置属性类
-4. `@ConditionalOnMissingBean` 给用户留覆盖口子
-5. `@Bean` 创建默认 Bean
+1. 声明一个配置类；
+2. 声明一个 `RedisTemplate` Bean。
 
-#### 2.4 完整时序（结合启动流程）
-
-```
-SpringApplication.run()
-    └─ refreshContext()
-         └─ AbstractApplicationContext#refresh()
-              └─ invokeBeanFactoryPostProcessors()
-                   └─ ConfigurationClassPostProcessor 处理 @Configuration
-                        └─ 处理 @Import(AutoConfigurationImportSelector)
-                             └─ AutoConfigurationImportSelector#getAutoConfigurationEntry()
-                                  ├─ getCandidateConfigurations()  读取 AutoConfiguration.imports
-                                  ├─ removeDuplicates()             去重
-                                  ├─ getExclusions()                剔除 @SpringBootApplication(exclude=...)
-                                  └─ filter()                        用 @ConditionalOnXxx 过滤
-                                       └─ 满足条件的自动配置类 → 注册为 BeanDefinition
-```
-
-#### 2.5 排除某个自动配置
+Spring Boot 自动配置做的事情，本质上和这段代码一样，只是这段配置由 Spring Boot 官方提前写好了，并且加上了很多「是否应该生效」的判断：
 
 ```java
-// 方式一：注解排除
-@SpringBootApplication(exclude = DataSourceAutoConfiguration.class)
-public class DemoApplication { }
+@AutoConfiguration
+@ConditionalOnClass(RedisOperations.class)
+@ConditionalOnMissingBean(RedisTemplate.class)
+public class RedisAutoConfiguration {
 
-// 方式二：配置排除
-// spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+    @Bean
+    public RedisTemplate<?, ?> redisTemplate(...) {
+        // 官方帮我们创建默认 RedisTemplate
+        return ...;
+    }
+}
 ```
 
+因此，自动配置的本质不是魔法，而是：
+
+> **官方提前写好配置类，Spring Boot 在启动时根据当前项目的依赖、配置和已有 Bean，决定哪些配置类应该导入。**
+
+#### 2.2 自动配置的总入口
+
+`@SpringBootApplication` 可以拆成三个重要部分：
+
+```java
+@SpringBootConfiguration
+@EnableAutoConfiguration
+@ComponentScan
+public @interface SpringBootApplication {
+}
+```
+
+其中自动配置真正的入口是 `@EnableAutoConfiguration`：
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Inherited
+@AutoConfigurationPackage
+@Import(AutoConfigurationImportSelector.class)
+public @interface EnableAutoConfiguration {
+    Class<?>[] exclude() default {};
+    String[] excludeName() default {};
+}
+```
+
+这里最关键的是：
+
+```java
+@Import(AutoConfigurationImportSelector.class)
+```
+
+它**不是直接导入所有自动配置类**，而是先导入一个 `ImportSelector`。这个选择器会在启动过程中动态决定「到底要导入哪些配置类」。
+
+可以把它理解成：
+
+```text
+@Import(配置类)       = 固定导入某个配置类
+@Import(ImportSelector) = 启动时动态选择要导入的配置类
+```
+
+`@AutoConfigurationPackage` 负责保存启动类所在的基础包信息，主要给实体扫描等功能提供默认包；它不是自动配置候选类清单。
+
+#### 2.3 第一阶段：找到自动配置候选类
+
+Spring Boot 3.x 中，自动配置候选类记录在：
+
+```text
+META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+文件内容是「每行一个自动配置类的全限定类名」：
+
+```text
+org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+```
+
+这个文件通常位于 `spring-boot-autoconfigure` 或其他 Starter 的 jar 包中。项目启动时，Spring Boot 会从整个 classpath 中读取这些文件并合并候选类。
+
+Spring Boot 3.2.5 源码中的核心代码可以概括为：
+
+```java
+protected List<String> getCandidateConfigurations(
+        AnnotationMetadata metadata,
+        AnnotationAttributes attributes) {
+
+    return ImportCandidates
+            .load(AutoConfiguration.class, getBeanClassLoader())
+            .getCandidates();
+}
+```
+
+注意这里的结果只是：
+
+```text
+[WebMvcAutoConfiguration,
+ DataSourceAutoConfiguration,
+ RedisAutoConfiguration, ...]
+```
+
+此时还没有创建 `RedisTemplate`、`DataSource` 等对象，只是拿到了「可能要用的配置类名单」。
+
+##### 版本差异：`spring.factories` 和 `AutoConfiguration.imports`
+
+| Spring Boot 版本 | 自动配置候选类位置 | 格式 |
+| --- | --- | --- |
+| 2.6 及以前 | `META-INF/spring.factories` | 一个 key 对应多个类，用逗号分隔 |
+| 2.7 | 开始支持 `AutoConfiguration.imports` | 每行一个类 |
+| 3.x | 主要使用 `AutoConfiguration.imports` | 每行一个类 |
+
+旧格式：
+
+```properties
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration,\
+org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+```
+
+新格式：
+
+```text
+org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+```
+
+#### 2.4 第二阶段：处理候选类、排除项和条件
+
+`AutoConfigurationImportSelector` 的核心流程可以简化为：
+
+```java
+public String[] selectImports(AnnotationMetadata metadata) {
+    // 自动配置被关闭时，什么也不导入
+    if (!isEnabled(metadata)) {
+        return new String[0];
+    }
+
+    AutoConfigurationEntry entry =
+            getAutoConfigurationEntry(metadata);
+
+    // 返回最终允许导入的配置类名
+    return entry.getConfigurations().toArray(new String[0]);
+}
+```
+
+`getAutoConfigurationEntry()` 的主要步骤是：
+
+```text
+1. 读取 @EnableAutoConfiguration 的属性
+2. 加载 AutoConfiguration.imports 中的候选类
+3. removeDuplicates()：去重
+4. getExclusions()：收集排除项
+   - @SpringBootApplication(exclude = ...)
+   - @SpringBootApplication(excludeName = ...)
+   - spring.autoconfigure.exclude
+5. 删除排除的配置类
+6. 使用 AutoConfigurationImportFilter 进行快速过滤
+7. 返回最终配置类列表
+```
+
+对应源码中的方法链大致是：
+
+```text
+selectImports()
+  └─ getAutoConfigurationEntry()
+      ├─ getCandidateConfigurations()
+      ├─ removeDuplicates()
+      ├─ getExclusions()
+      ├─ checkExcludedClasses()
+      ├─ configurations.removeAll(exclusions)
+      └─ getConfigurationClassFilter().filter(configurations)
+```
+
+这一阶段的重点是：
+
+> `AutoConfigurationImportSelector` 负责选择和返回配置类名，不负责直接创建业务对象。
+
+#### 2.5 第三阶段：条件注解决定配置是否生效
+
+候选配置类通常会标注各种条件注解。条件注解的底层都是 Spring 的 `@Conditional`：
+
+| 条件注解 | 生效条件 | 常见用途 |
+| --- | --- | --- |
+| `@ConditionalOnClass` | classpath 中存在指定类 | 引入 Redis、MyBatis 等依赖时才启用配置 |
+| `@ConditionalOnMissingClass` | classpath 中不存在指定类 | 避免与某些依赖冲突 |
+| `@ConditionalOnBean` | 容器中已经有指定 Bean | 基于已有 Bean 继续配置 |
+| `@ConditionalOnMissingBean` | 容器中没有指定 Bean | 用户没配置时提供默认 Bean |
+| `@ConditionalOnProperty` | 配置文件中的属性满足条件 | 通过开关控制功能 |
+| `@ConditionalOnWebApplication` | 当前是 Web 应用 | Web 场景专用配置 |
+| `@ConditionalOnExpression` | SpEL 表达式为 `true` | 复杂条件判断 |
+
+条件可以放在配置类上，也可以放在 `@Bean` 方法上：
+
+```java
+// 配置类条件不满足：整个配置类都不处理
+@Configuration
+@ConditionalOnClass(RedisOperations.class)
+public class RedisAutoConfiguration {
+
+    // 方法条件不满足：只跳过这个 Bean，其他 Bean 仍可能生效
+    @Bean
+    @ConditionalOnMissingBean(RedisTemplate.class)
+    public RedisTemplate<?, ?> redisTemplate() {
+        return ...;
+    }
+}
+```
+
+这是「引入依赖就生效、没引入就跳过」的真正原因：
+
+```text
+没有 spring-data-redis
+    └─ RedisOperations 不存在
+        └─ @ConditionalOnClass 不满足
+            └─ RedisAutoConfiguration 不生效
+                └─ RedisTemplate 不会自动创建
+```
+
+#### 2.6 以 Redis 自动配置为例完整走一遍
+
+Spring Boot 3.2.5 中的 `RedisAutoConfiguration` 结构可以简化为：
+
+```java
+@AutoConfiguration
+@ConditionalOnClass(RedisOperations.class)
+@EnableConfigurationProperties(RedisProperties.class)
+@Import({
+        LettuceConnectionConfiguration.class,
+        JedisConnectionConfiguration.class
+})
+public class RedisAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(name = "redisTemplate")
+    @ConditionalOnSingleCandidate(RedisConnectionFactory.class)
+    public RedisTemplate redisTemplate(
+            RedisConnectionFactory connectionFactory) {
+
+        RedisTemplate template = new RedisTemplate();
+        template.setConnectionFactory(connectionFactory);
+        return template;
+    }
+}
+```
+
+启动时可以按下面的顺序理解：
+
+```text
+① 引入 spring-boot-starter-data-redis
+       ↓
+② classpath 中出现 RedisOperations、RedisConnectionFactory 等类
+       ↓
+③ 候选清单中找到 RedisAutoConfiguration
+       ↓
+④ @ConditionalOnClass(RedisOperations.class) 通过
+       ↓
+⑤ @EnableConfigurationProperties 绑定 spring.data.redis.* 配置
+       ↓
+⑥ @Import 导入 Lettuce/Jedis 连接配置
+       ↓
+⑦ 先得到 RedisConnectionFactory
+       ↓
+⑧ @ConditionalOnMissingBean 判断用户有没有自己的 redisTemplate
+       ↓
+⑨ 没有自定义 Bean，执行 @Bean 方法
+       ↓
+⑩ RedisTemplate 的 BeanDefinition 注册到容器，之后创建对象
+```
+
+这里最重要的是第 8 步：
+
+```java
+@ConditionalOnMissingBean(name = "redisTemplate")
+```
+
+它让自动配置遵循「默认提供，但允许用户覆盖」的原则。
+
+如果用户自己写了：
+
+```java
+@Bean
+public RedisTemplate<String, Object> redisTemplate() {
+    RedisTemplate<String, Object> template = new RedisTemplate<>();
+    // 自定义序列化器、连接工厂等
+    return template;
+}
+```
+
+那么自动配置中的 `@ConditionalOnMissingBean` 不满足，Spring Boot 就不会再创建自己的默认 `RedisTemplate`。
+
+#### 2.7 配置类什么时候真正注册到容器？
+
+前面需要区分两个概念：
+
+| 阶段 | 做的事情 | 结果 |
+| --- | --- | --- |
+| 选择阶段 | 找到并过滤自动配置类 | 得到配置类名称 |
+| 解析阶段 | 处理 `@Configuration`、`@Import`、条件注解 | 注册 BeanDefinition |
+| 实例化阶段 | 创建单例 Bean、注入依赖、执行后置处理器 | 得到真正的 Bean 对象 |
+
+结合 `SpringApplication.run()`，主链路是：
+
+```text
+SpringApplication.run()
+  └─ refreshContext()
+      └─ AbstractApplicationContext.refresh()
+          └─ invokeBeanFactoryPostProcessors()
+              └─ ConfigurationClassPostProcessor
+                  ├─ 解析 @Configuration
+                  ├─ 解析 @ComponentScan
+                  ├─ 解析 @Import
+                  ├─ 执行 AutoConfigurationImportSelector
+                  └─ 注册满足条件的配置类 BeanDefinition
+          └─ registerBeanPostProcessors()
+          └─ finishBeanFactoryInitialization()
+              └─ 创建非懒加载单例 Bean
+```
+
+所以不要把下面两句话混为一谈：
+
+```text
+导入自动配置类       ≠ 立刻创建所有 Bean
+注册 BeanDefinition  ≠ 已经完成对象实例化
+```
+
+自动配置类本身也是普通的 Spring 配置类。它最终还是通过 `@Bean`、`@Import`、组件扫描和依赖注入，参与 Spring 容器的正常生命周期。
+
+#### 2.8 为什么自动配置不会覆盖用户配置？
+
+自动配置一般会使用：
+
+```java
+@ConditionalOnMissingBean
+```
+
+同时，Spring Boot 会让用户配置优先于自动配置。这样就形成了：
+
+```text
+用户没有提供 Bean
+    └─ 条件满足
+        └─ 使用 Spring Boot 默认 Bean
+
+用户已经提供 Bean
+    └─ @ConditionalOnMissingBean 不满足
+        └─ 跳过默认 Bean，使用用户 Bean
+```
+
+这就是 Spring Boot 的设计原则：
+
+> **约定提供默认值，用户配置可以覆盖默认值。**
+
+如果多个自动配置之间存在依赖关系，还会通过下面这些注解控制顺序：
+
+```java
+@AutoConfiguration(before = A.class)
+@AutoConfiguration(after = B.class)
+```
+
+旧写法也可能看到：
+
+```java
+@AutoConfigureBefore(A.class)
+@AutoConfigureAfter(B.class)
+```
+
+顺序很重要，因为 `@ConditionalOnMissingBean` 只能判断当前阶段已经处理过的 Bean 定义。
+
+#### 2.9 排除某个自动配置
+
+有时默认配置和项目需求冲突，可以主动排除：
+
+```java
+// 方式一：通过注解排除
+@SpringBootApplication(exclude = DataSourceAutoConfiguration.class)
+public class DemoApplication {
+}
+```
+
+```yaml
+# 方式二：通过配置文件排除
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+```
+
+命令行也可以：
+
+```bash
+java -jar app.jar \
+  --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+```
+
+排除的本质是：自动配置候选类已经被找到，但在 `getExclusions()` 阶段被移出最终导入列表。
+
+#### 2.10 如何观察哪些自动配置生效了？
+
+不要只根据启动日志猜。可以打开条件评估报告：
+
+```yaml
+debug: true
+```
+
+或者启动时传入：
+
+```bash
+java -jar app.jar --debug
+```
+
+日志里会出现 `CONDITIONS EVALUATION REPORT`，其中包含：
+
+```text
+Positive matches   ← 哪些自动配置匹配成功
+Negative matches   ← 哪些自动配置没有匹配
+Unconditional classes ← 无条件导入的配置
+Exclusions         ← 被排除的配置
+```
+
+如果项目引入了 Actuator，也可以暴露条件端点：
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: conditions
+```
+
+然后访问：
+
+```text
+GET /actuator/conditions
+```
+
+这对排查「为什么 Bean 没有自动创建」非常有用，通常按下面顺序查：
+
+1. 依赖是否真的在 classpath 中；
+2. 自动配置类是否在 `AutoConfiguration.imports` 中；
+3. 是否被 `exclude` 或 `spring.autoconfigure.exclude` 排除；
+4. `@ConditionalOnClass`、`@ConditionalOnProperty` 是否满足；
+5. 是否已经存在用户 Bean，导致 `@ConditionalOnMissingBean` 不满足；
+6. 配置类是否因为包扫描范围错误而没有被处理。
+
+#### 2.11 自定义 Starter 为什么也能自动配置？
+
+自定义 Starter 只是在重复 Spring Boot 的这套约定：
+
+```text
+自动配置类
+  ├─ @AutoConfiguration
+  ├─ @ConditionalOnClass
+  ├─ @EnableConfigurationProperties
+  ├─ @ConditionalOnMissingBean
+  └─ @Bean
+
+注册文件
+  └─ META-INF/spring/
+      └─ org.springframework.boot.autoconfigure.AutoConfiguration.imports
+```
+
+注册文件写入：
+
+```text
+com.example.starter.MyAutoConfiguration
+```
+
+其他项目引入 Starter 后，Spring Boot 就能从 classpath 找到这份文件，再按照同样的流程加载你的自动配置类。
+
+#### 2.12 一句话面试答案
+
 ::: tip 💡 面试题：Spring Boot 自动配置原理是什么？
-启动类上的 `@EnableAutoConfiguration` 通过 `@Import(AutoConfigurationImportSelector.class)` 读取 `spring-boot-autoconfigure` 包里 `AutoConfiguration.imports` 文件列出的所有自动配置类，再由 `@ConditionalOnClass` 等条件注解按需过滤——因为只有满足条件的配置类才会真正生效，所以「引入了依赖就自动配好，没引入就跳过」，实现按需装配。
+`@SpringBootApplication` 中的 `@EnableAutoConfiguration` 通过 `@Import` 导入 `AutoConfigurationImportSelector`。选择器从 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 中读取自动配置候选类，经过去重、排除和 `@ConditionalOnXxx` 条件过滤后，把满足条件的配置类导入 Spring 容器。配置类中的 `@Bean` 最终注册为 `BeanDefinition`，再由 Spring 完成依赖注入和 Bean 实例化。自动配置通常配合 `@ConditionalOnMissingBean`，因此用户自定义 Bean 可以覆盖默认 Bean。
+:::
+
+#### 2.13 源码追踪路线
+
+面试官如果继续追问，可以按这条路线看源码：
+
+```text
+SpringApplication.run()
+  └─ AbstractApplicationContext.refresh()
+      └─ ConfigurationClassPostProcessor
+          └─ ConfigurationClassParser
+              └─ AutoConfigurationImportSelector
+                  ├─ selectImports()
+                  ├─ getAutoConfigurationEntry()
+                  ├─ getCandidateConfigurations()
+                  ├─ ImportCandidates.load()
+                  ├─ getExclusions()
+                  └─ getConfigurationClassFilter().filter()
+```
+
+Spring Boot 3.2.5 源码：
+
+- [`EnableAutoConfiguration`](https://github.com/spring-projects/spring-boot/blob/v3.2.5/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/EnableAutoConfiguration.java)
+- [`AutoConfigurationImportSelector`](https://github.com/spring-projects/spring-boot/blob/v3.2.5/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/AutoConfigurationImportSelector.java)
+- [`RedisAutoConfiguration`](https://github.com/spring-projects/spring-boot/blob/v3.2.5/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/data/redis/RedisAutoConfiguration.java)
+
+::: tip 💡 最容易混淆的三句话
+1. `Starter` 主要负责引入依赖；自动配置类负责写配置逻辑。
+2. `AutoConfigurationImportSelector` 负责选择配置类，不是直接创建所有 Bean。
+3. `@ConditionalOnMissingBean` 是「默认配置可被用户覆盖」的关键。
 :::
 
 ---
