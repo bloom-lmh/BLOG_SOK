@@ -12,7 +12,7 @@
 
 ## 二、完成后你会得到什么
 
-1. 一个 `POST /api/file/upload` 接口，能接收 `multipart/form-data` 上传的图片
+1. 一个受 `file:upload` 权限保护的 `POST /api/files/upload` 接口
 2. 本地存储模式：文件落到磁盘，能通过 `http://localhost:8080/upload/xxx.jpg` 访问
 3. 存储策略可切换：改一个配置项，就能从「本地磁盘」切到「阿里云 OSS」，业务代码零改动
 4. 三层文件校验：目录白名单 → 扩展名白名单 → 魔数（magic number）校验
@@ -54,86 +54,40 @@ FileStorage 接口（存储策略）
 
 文件上传要新增几个专属错误码（比复用 `PARAM_ERROR` 更精确，前端能针对性提示）。
 
-打开 `E:\course-mall\mall-common\src\main\java\com\mall\common\result\ErrorCode.java`，在 Day 01 的基础上**新增**三个常量（完整枚举如下）：
+Day01 的统一错误码已包含 `FILE_EMPTY`、`FILE_TOO_LARGE`、`FILE_TYPE_UNSUPPORTED`、`FILE_UPLOAD_FAILED`，这里不要再创建一套旧式 `(code, 中文消息)` 枚举。为目录白名单补一个错误码和消息键：
 
 ```java
-package com.mall.common.result;
+// ErrorCode.java（文件域）
+FILE_DIRECTORY_INVALID(400702, MessageKeys.File.DIRECTORY_INVALID),
 
-public enum ErrorCode {
-    SUCCESS(200, "success"),
-    PARAM_ERROR(400, "参数错误"),
-    UNAUTHORIZED(401, "未登录"),
-    FORBIDDEN(403, "无权限"),
-    NOT_FOUND(404, "资源不存在"),
-    SYSTEM_ERROR(500, "系统繁忙，请稍后再试"),
+// MessageKeys.File
+public static final String DIRECTORY_INVALID = "file.directory-invalid";
 
-    // ===== Day 09 新增：文件相关错误码 =====
-    // 用 400xx / 500xx 而不是复用 400/500：给前端更精确的提示，也方便统计/告警区分
-    FILE_TYPE_NOT_ALLOWED(40001, "不支持的文件类型"),
-    FILE_TOO_LARGE(40002, "文件大小超过限制"),
-    FILE_UPLOAD_FAILED(50001, "文件上传失败");
+// messages.properties / messages_zh_CN.properties
+file.directory-invalid=上传目录不合法
 
-    private final Integer code;
-    private final String message;
-
-    ErrorCode(Integer code, String message) {
-        this.code = code;
-        this.message = message;
-    }
-
-    public Integer getCode() { return code; }
-    public String getMessage() { return message; }
-}
+// messages_en.properties
+file.directory-invalid=Invalid upload directory
 ```
 
 再打开 `GlobalExceptionHandler.java`，新增一个处理「文件超限」的方法。为什么单独接？因为文件超过 `spring.servlet.multipart` 配置的上限时，Spring 会在**进入 Controller 之前**就抛 `MaxUploadSizeExceededException`，不处理的话会落到兜底 `Exception` 分支返回 500。
 
 ```java
-package com.mall.common.exception;
-
-import com.mall.common.result.ErrorCode;
-import com.mall.common.result.Result;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
-
-@Slf4j
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(BizException.class)
-    public Result<Void> handleBiz(BizException e) {
-        log.warn("业务异常: {}", e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
-    }
-
-    // Day 09 新增：文件超限异常。比兜底 Exception 更早被匹配，返回 40002 而不是 500
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-    public Result<Void> handleMaxUpload(MaxUploadSizeExceededException e) {
-        log.warn("上传文件超过大小限制: {}", e.getMessage());
-        return Result.fail(ErrorCode.FILE_TOO_LARGE.getCode(), ErrorCode.FILE_TOO_LARGE.getMessage());
-    }
-
-    @ExceptionHandler(Exception.class)
-    public Result<Void> handleOther(Exception e) {
-        log.error("系统异常", e);
-        return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMessage());
-    }
+@ExceptionHandler(MaxUploadSizeExceededException.class)
+public Result<Void> handleMaxUpload(MaxUploadSizeExceededException e) {
+    log.warn("上传文件超过大小限制: {}", e.getMessage());
+    return Result.fail(ErrorCode.FILE_TOO_LARGE);
 }
 ```
 
+方法继续放在现有 `com.mall.common.web.advice.GlobalExceptionHandler` 中；`ResultMessageAdvice` 会按请求语言解析消息键。
+
 ### 步骤 2：multipart 配置 + 存储配置（`application.yml` + `StorageProperties`）
 
-打开 `E:\course-mall\mall-user\src\main\resources\application.yml`，改成下面这样（完整版）：
+打开 `E:\CourseMall\mall-user\src\main\resources\application.yml`，只合并下面新增项，不要覆盖已有数据库、Redis、JWT 配置：
 
 ```yaml
-server:
-  port: 8080
-
 spring:
-  application:
-    name: mall-user
   servlet:
     multipart:
       # 单个文件上限：超过后 Spring 在进入 Controller 前就抛 MaxUploadSizeExceededException
@@ -146,14 +100,14 @@ mall:
   file:
     storage-type: local                # local（本地磁盘，默认）/ oss（阿里云对象存储）
     local:
-      upload-dir: E:/course-mall/upload   # 本地存储根目录（不存在会自动创建）
+      upload-dir: ${COURSE_MALL_UPLOAD_DIR:E:/CourseMall/upload}
       url-prefix: /upload                 # 对外访问前缀，配合步骤 5 的静态资源映射
     oss:
-      endpoint: oss-cn-hangzhou.aliyuncs.com      # OSS 地域域名
-      access-key-id: your-access-key-id           # 阿里云 AccessKey（切到 OSS 时再填）
-      access-key-secret: your-access-key-secret
-      bucket: course-mall
-      url-prefix: https://course-mall.oss-cn-hangzhou.aliyuncs.com
+      endpoint: ${COURSE_MALL_OSS_ENDPOINT:}
+      access-key-id: ${COURSE_MALL_OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${COURSE_MALL_OSS_ACCESS_KEY_SECRET:}
+      bucket: ${COURSE_MALL_OSS_BUCKET:}
+      url-prefix: ${COURSE_MALL_OSS_URL_PREFIX:}
 ```
 
 ::: tip 💡 面试题：`max-file-size` 和 `max-request-size` 有什么区别？
@@ -257,8 +211,12 @@ public class LocalFileStorage implements FileStorage {
     @Override
     public String upload(MultipartFile file, String objectName) {
         String uploadDir = properties.getLocal().getUploadDir();
-        // Paths.get(目录, 文件名)：跨平台拼路径，比字符串 + "/" 安全
-        Path target = Paths.get(uploadDir, objectName);
+        Path root = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path target = root.resolve(objectName).normalize();
+        // 双重防线：即使以后 objectName 的生成方式改变，也不能逃出上传根目录。
+        if (!target.startsWith(root)) {
+            throw new BizException(ErrorCode.FILE_DIRECTORY_INVALID);
+        }
         try {
             // createDirectories：父目录不存在就逐级创建（等价 mkdir -p）
             Files.createDirectories(target.getParent());
@@ -280,15 +238,25 @@ public class LocalFileStorage implements FileStorage {
 
 ### 步骤 4：文件校验 + 上传服务（`FileService`）
 
+先建立稳定返回对象 `FileUploadVO.java`：
+
+```java
+package com.mall.user.vo;
+
+public record FileUploadVO(String url, long size, String contentType) {
+}
+```
+
 新建服务接口 `E:\course-mall\mall-user\src\main\java\com\mall\user\service\FileService.java`：
 
 ```java
 package com.mall.user.service;
 
+import com.mall.user.vo.FileUploadVO;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface FileService {
-    String upload(MultipartFile file, String dir);
+    FileUploadVO upload(MultipartFile file, String dir);
 }
 ```
 
@@ -301,6 +269,7 @@ import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
 import com.mall.user.service.FileService;
 import com.mall.user.storage.FileStorage;
+import com.mall.user.vo.FileUploadVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -328,19 +297,19 @@ public class FileServiceImpl implements FileService {
     private static final List<String> ALLOWED_EXT = Arrays.asList("jpg", "jpeg", "png", "webp");
 
     @Override
-    public String upload(MultipartFile file, String dir) {
+    public FileUploadVO upload(MultipartFile file, String dir) {
         // ① 非空 + 目录校验
         if (file == null || file.isEmpty()) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "文件不能为空");
+            throw new BizException(ErrorCode.FILE_EMPTY);
         }
         if (!ALLOWED_DIRS.contains(dir)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "非法目录: " + dir);
+            throw new BizException(ErrorCode.FILE_DIRECTORY_INVALID);
         }
 
         // ② 扩展名校验：从原始文件名提取后缀，转小写后比对
         String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
         if (ext == null || !ALLOWED_EXT.contains(ext.toLowerCase(Locale.ROOT))) {
-            throw new BizException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+            throw new BizException(ErrorCode.FILE_TYPE_UNSUPPORTED);
         }
 
         // ③ 魔数校验：读文件内容头几个字节，防止「改后缀伪装」（见下方 tip）
@@ -350,7 +319,8 @@ public class FileServiceImpl implements FileService {
         String objectName = dir + "/" + UUID.randomUUID() + "." + ext.toLowerCase(Locale.ROOT);
 
         // ⑤ 交给存储策略（本地 / OSS），业务层不关心存到哪
-        return fileStorage.upload(file, objectName);
+        String url = fileStorage.upload(file, objectName);
+        return new FileUploadVO(url, file.getSize(), file.getContentType());
     }
 
     // 校验文件头 12 字节的「魔数」，判断真实类型
@@ -360,7 +330,7 @@ public class FileServiceImpl implements FileService {
             // 只读文件头几个字节判断类型，不用读整个文件（简化写法，小文件单次 read 即可读满）
             int read = file.getInputStream().read(head);
             if (read < 12) {
-                throw new BizException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+                throw new BizException(ErrorCode.FILE_TYPE_UNSUPPORTED);
             }
             // & 0xFF：Java 的 byte 是有符号的（-128~127），与 0xFF 按位与转成无符号 0~255，
             // 否则 0xFF 会被读成 -1，魔数判断全错
@@ -372,13 +342,13 @@ public class FileServiceImpl implements FileService {
                     && (head[10] & 0xFF) == 0x42 && (head[11] & 0xFF) == 0x50;
 
             if (!jpeg && !png && !webp) {
-                throw new BizException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+                throw new BizException(ErrorCode.FILE_TYPE_UNSUPPORTED);
             }
         } catch (BizException e) {
             throw e;   // 业务异常原样上抛，交给全局异常处理器
         } catch (Exception e) {
             log.warn("读取文件头失败", e);
-            throw new BizException(ErrorCode.FILE_TYPE_NOT_ALLOWED);
+            throw new BizException(ErrorCode.FILE_TYPE_UNSUPPORTED);
         }
     }
 }
@@ -401,30 +371,44 @@ package com.mall.user.controller;
 
 import com.mall.common.result.Result;
 import com.mall.user.service.FileService;
+import com.mall.user.vo.FileUploadVO;
+import jakarta.validation.constraints.Pattern;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+@Validated
 @RestController
-@RequestMapping("/api/file")
+@RequiredArgsConstructor
+@RequestMapping("/api/files")
 public class FileController {
 
     private final FileService fileService;
 
-    public FileController(FileService fileService) {
-        this.fileService = fileService;
-    }
-
+    @PreAuthorize("hasAuthority('file:upload')")
     @PostMapping("/upload")
-    public Result<String> upload(@RequestParam("file") MultipartFile file,
-                                 @RequestParam(value = "dir", defaultValue = "cover") String dir) {
+    public Result<FileUploadVO> upload(
+            @RequestParam("file") MultipartFile file,
+            @Pattern(regexp = "cover|avatar|video", message = "{file.directory-invalid}")
+            @RequestParam(value = "dir", defaultValue = "cover") String dir) {
         // 返回的 URL 就是以后写进 course.cover / teacher.avatar 字段的值（Day 02 已建好这些列）
         return Result.ok(fileService.upload(file, dir));
     }
 }
 ```
+
+上传本身必须登录并拥有 `file:upload` 权限；封面和头像的读取可以在 `SecurityConfig` 中公开：
+
+```java
+.requestMatchers(HttpMethod.GET, "/upload/**").permitAll()
+```
+
+这里的本地静态映射只服务公开图片。课程视频不能直接这样公开，Day33/34 会改成鉴权后的对象存储签名 URL。
 
 新建配置类 `E:\course-mall\mall-user\src\main\java\com\mall\user\config\WebMvcConfig.java`，把 `/upload/**` 映射到本地磁盘目录（本地模式才有意义，OSS 模式不依赖它）：
 
@@ -482,7 +466,8 @@ mvn -pl mall-user spring-boot:run    # 启动用户服务
 上传：
 
 ```bash
-curl -X POST http://localhost:8080/api/file/upload \
+curl -X POST http://localhost:8080/api/files/upload \
+  -H "Authorization: Bearer 你的ADMIN_TOKEN" \
   -F "file=@E:/course-mall/test-cover.jpg" \
   -F "dir=cover"
 ```
@@ -502,8 +487,8 @@ http://localhost:8080/upload/cover/2f3b0e1a-....jpg
 再做几个「负面」验证，确认校验真的生效：
 
 ```bash
-# 1) 把 .txt 改名成 .jpg 再上传 —— 会被魔数校验拦截（返回 40001，不是看后缀放行）
-# 2) 传一个 >10MB 的文件 —— 返回 40002（MaxUploadSizeExceededException 被全局异常接住）
+# 1) 把 .txt 改名成 .jpg 再上传 —— 返回 FILE_TYPE_UNSUPPORTED（415701）
+# 2) 传一个 >10MB 的文件 —— 返回 FILE_TOO_LARGE（413701）
 # 3) dir 传 ../evil —— 返回 400 非法目录（目录白名单拦截）
 ```
 
@@ -530,6 +515,8 @@ package com.mall.user.storage;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.ClientException;
+import com.aliyun.oss.OSSException;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
@@ -564,7 +551,7 @@ public class AliyunOssStorage implements FileStorage {
             // putObject 直接上传流：objectName 就是 OSS 里的 key（如 cover/uuid.jpg）
             ossClient.putObject(new PutObjectRequest(
                     properties.getOss().getBucket(), objectName, file.getInputStream()));
-        } catch (IOException e) {
+        } catch (OSSException | ClientException | IOException e) {
             log.error("OSS 上传失败: {}", objectName, e);
             throw new BizException(ErrorCode.FILE_UPLOAD_FAILED);
         }
@@ -608,7 +595,8 @@ public class AliyunOssStorage implements FileStorage {
 - [ ] 完成时间：`____年__月__日`
 - [ ] 本地模式上传成功，返回了 `/upload/cover/xxx.jpg`，浏览器能打开图片：是 / 否
 - [ ] 把 `.txt` 改名 `.jpg` 上传被拦（魔数校验生效）：是 / 否
-- [ ] 传 >10MB 文件返回 40002（超限被全局异常接住）：是 / 否
+- [ ] 无 Token / 无权限 Token 上传分别返回 401 / 403：是 / 否
+- [ ] 传 >10MB 文件返回 413701（超限被全局异常接住）：是 / 否
 - [ ] （可选）切到 OSS 上传成功，返回 OSS 域名 URL：是 / 否
 - [ ] 踩坑记录（multipart 配置、Windows 路径、魔数判断等）：
 - [ ] 疑问（有就写，我来答）：

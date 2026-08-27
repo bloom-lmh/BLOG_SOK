@@ -1,10 +1,10 @@
 # Day 06 · 课程服务（MyBatis-Plus：CRUD + 分类 + 分页 + 条件查询 + 逻辑删除）
 
-> **今天目标**：新建 `mall-course` 课程服务模块，用 MyBatis-Plus 完成课程的「增删改查 + 分类 + 分页 + 条件查询 + 逻辑删除」——今天是你第一次在项目里接数据库，重点是搞懂 MyBatis-Plus 是怎么「少写 SQL」的。
+> **今天目标**：新建 `mall-course` 课程领域模块，用 MyBatis-Plus 完成课程的「增删改查 + 分类 + 分页 + 条件查询 + 逻辑删除」。Day01～Day12 采用**模块化单体**：代码按 Maven 模块拆分，但只启动 `mall-user`，这样课程接口才能复用 Day04 的 JWT 认证、权限和统一异常处理。
 
 ## 一、前置条件
 
-- 已完成 **Day 01**（Maven 多模块骨架，`mall-common` 里有 `Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler`）
+- 已完成 **Day 01～Day05**（统一响应、i18n、参数校验、JWT 认证与 RBAC 权限已可用）
 - 已完成 **Day 02**（`course_mall` 库建好，`course` 表和 `category` 表 + 种子数据已插入）
 
 > ⚠️ 本天所有代码都复用 Day 02 已经建好的表结构，**不要再建新表**。
@@ -12,28 +12,29 @@
 ## 二、今天完成后你会得到什么
 
 ```
-E:\course-mall\
+E:\CourseMall\
 ├─ pom.xml                                    # 改：加 mall-course 模块 + MyBatis-Plus 版本管理
-└─ mall-course/                               # 新增：课程服务
+├─ mall-user/                                 # 唯一启动模块，依赖 mall-course
+└─ mall-course/                               # 新增：课程领域模块（不单独启动）
    ├─ pom.xml
    └─ src/main/java/com/mall/course/
-      ├─ MallCourseApplication.java           # 启动类
       ├─ config/
       │  ├─ MybatisPlusConfig.java            # 分页插件
       │  └─ MyMetaObjectHandler.java          # 自动填充 create_time/update_time
-      ├─ entity/Course.java                   # 课程实体（@TableLogic）
+      ├─ entity/Course.java                   # 课程实体（deleted_at 逻辑删除）
       ├─ entity/Category.java                 # 分类实体
       ├─ mapper/CourseMapper.java             # 继承 BaseMapper，零 SQL
       ├─ mapper/CategoryMapper.java
-      ├─ service/ + service/impl/             # IService + ServiceImpl
-      ├─ dto/CourseQuery.java                 # 分页 + 条件查询入参
-      ├─ vo/CategoryTreeVO.java               # 分类树返回对象
+      ├─ service/ + service/impl/             # 业务校验与 CRUD
+      ├─ dto/                                 # 保存、修改、分页查询入参
+      ├─ converter/CourseConverter.java        # MapStruct 转换
+      ├─ vo/                                  # CourseVO / CategoryTreeVO
       └─ controller/                          # 对外接口
 ```
 
 ## 三、先搞懂：MyBatis-Plus 到底解决了什么
 
-Day 01/02 我们写了 `Result`、建了 11 张表，但**还没写过一条 SQL**。传统 MyBatis 要「手写 XML + 手写 SQL」，一个简单的 `SELECT * FROM course WHERE id = ?` 都要写 5 行 XML。表越多，这种样板越多。
+Day 02 我们建了 17 张表。传统 MyBatis 往往需要手写 Mapper 方法、XML 和 SQL，一个简单的单表 CRUD 也会产生很多样板代码。
 
 MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体类继承 `BaseMapper`，它就自动帮你生成单表的 CRUD**——`selectById`、`insert`、`updateById`、`deleteById` 全都不用自己写。它不改变 MyBatis 底层，只是帮你「生成那些重复的 SQL」。
 
@@ -43,9 +44,9 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
 
 ## 四、步骤
 
-### 步骤 1：父工程 `pom.xml` 加模块 + 版本管理
+### 步骤 1：父工程加模块，启动模块依赖课程模块
 
-打开 `E:\course-mall\pom.xml`，做两处修改：
+打开 `E:\CourseMall\pom.xml`，先加入模块和版本管理：
 
 **① `<modules>` 里加 `mall-course`：**
 
@@ -57,12 +58,14 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
 </modules>
 ```
 
-**② `<properties>` 加 MP 版本、`<dependencyManagement>` 加 MP 依赖：**
+**② `<properties>` 加统一版本、`<dependencyManagement>` 管理内部模块和第三方依赖：**
 
 ```xml
 <properties>
     <java.version>17</java.version>
-    <mybatis-plus.version>3.5.7</mybatis-plus.version>   <!-- 新增：MP 版本统一管 -->
+    <mybatis-plus.version>3.5.7</mybatis-plus.version>
+    <mapstruct.version>1.6.3</mapstruct.version>
+    <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 </properties>
 
 <dependencyManagement>
@@ -72,21 +75,41 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
             <artifactId>mall-common</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- 新增：MP 版本在父工程统一管，子模块引用时不用写版本号 -->
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-course</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
     </dependencies>
 </dependencyManagement>
 ```
+
+然后在**唯一启动模块** `mall-user/pom.xml` 中加入：
+
+```xml
+<dependency>
+    <groupId>com.mall</groupId>
+    <artifactId>mall-course</artifactId>
+</dependency>
+```
+
+依赖方向必须是 `mall-user → mall-course → mall-common`，`mall-course` 不能反向依赖 `mall-user`，否则会形成 Maven 循环依赖。
 
 > 为什么用 `mybatis-plus-spring-boot3-starter`？因为本项目是 Spring Boot 3.x，MP 针对 Spring Boot 3 单独出了这个 starter（旧的 `mybatis-plus-boot-starter` 是给 Spring Boot 2 用的，不兼容）。
 
 ### 步骤 2：新建 `mall-course` 模块 `pom.xml`
 
-创建 `E:\course-mall\mall-course\pom.xml`：
+创建 `E:\CourseMall\mall-course\pom.xml`：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -113,94 +136,120 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- 编译 @PreAuthorize；真正的过滤器链仍由 mall-user 配置 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+        </dependency>
         <!-- MyBatis-Plus（Spring Boot 3 专用 starter）：版本由父工程管，不写 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
-        <!-- MySQL 驱动：runtime 表示只在运行时需要，编译期不用 -->
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- 仅生成普通 jar；这里配置的是编译期代码生成，不是 Boot 可执行包插件 -->
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>
 </project>
 ```
 
-::: tip 💡 面试题：`mysql-connector-j` 的 `<scope>runtime</scope>` 是什么意思？
-**一句话**：`runtime` 表示「编译阶段不需要、运行时才需要」——你的代码里没有 `import com.mysql...`，只是运行时 JDBC 要通过驱动连接数据库，所以只在运行期引入。好处是它不会传递给依赖方、不污染编译期。详见 [Maven](/learn_backend/java/基础/Maven)。
+`mall-course` 没有启动类、MySQL 驱动和 `spring-boot-maven-plugin`。这些运行期能力由 `mall-user` 提供；它只是被打进最终应用的普通 jar。
+
+::: tip 💡 面试题：Maven 多模块等于微服务吗？
+不等于。Maven 模块只是**代码与依赖边界**；是否是微服务取决于它是否独立启动、独立部署并通过网络通信。Day01～Day12 是模块化单体，Day13 才开始拆成独立服务。
 :::
 
-### 步骤 3：`application.yml` 配置数据源 + MP
+### 步骤 3：在唯一启动模块补充 MP 配置
 
-创建 `E:\course-mall\mall-course\src\main\resources\application.yml`：
+继续使用 `mall-user/src/main/resources/application.yml` 中 Day03 已配置的数据源，只补充 MP 配置；**不要在 `mall-course` 再建一套数据源配置**：
 
 ```yaml
-server:
-  port: 8081          # mall-user 占了 8080，课程服务用 8081
-
-spring:
-  application:
-    name: mall-course
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    # course_mall 是 Day02 建的库；serverTimezone 和 allowPublicKeyRetrieval 是老版本 MySQL 驱动的常见坑
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 你的MySQL密码        # ← 改成你自己的
-
 mybatis-plus:
   configuration:
-    # 驼峰 ↔ 下划线自动映射：实体 courseId ↔ 表字段 course_id（默认就是 true，写出来让你知道）
     map-underscore-to-camel-case: true
-    # 控制台打印 SQL，开发期看 MP 到底生成了什么 SQL，调试完可以关掉
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
-      # 逻辑删除全局配置：告诉 MP「deleted 字段 = 逻辑删除标记」
-      logic-delete-field: deleted   # 实体里叫 deleted 的字段
-      logic-delete-value: 1         # 删除后置为 1
-      logic-not-delete-value: 0     # 未删除是 0
+      # course 表使用 deleted_at：null=未删除，删除时写入数据库当前时间
+      logic-delete-value: now()
+      logic-not-delete-value: "null"
 ```
 
-### 步骤 4：启动类 + MP 配置类
+生产式项目不要长期使用 `StdOutImpl` 打 SQL，它绕过日志框架。需要排查 SQL 时临时把 `com.mall` / MyBatis 日志级别调为 `DEBUG`。
 
-启动类 `E:\course-mall\mall-course\src\main\java\com\mall\course\MallCourseApplication.java`：
+### 步骤 4：让 `mall-user` 扫描课程模块
+
+修改 Day03 的 `MallUserApplication`：
 
 ```java
-package com.mall.course;
+package com.mall.user;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-// scanBasePackages = "com.mall"：和 Day01 一样，扫到 mall-common 的全局异常处理器
-// @MapperScan：把 mapper 接口交给 MyBatis 生成代理实现（否则每个 Mapper 都要写 @Mapper 注解）
 @SpringBootApplication(scanBasePackages = "com.mall")
-@MapperScan("com.mall.course.mapper")
-public class MallCourseApplication {
+@MapperScan({"com.mall.user.mapper", "com.mall.course.mapper"})
+public class MallUserApplication {
     public static void main(String[] args) {
-        SpringApplication.run(MallCourseApplication.class, args);
+        SpringApplication.run(MallUserApplication.class, args);
     }
 }
 ```
 
-分页插件配置 `E:\course-mall\mall-course\src\main\java\com\mall\course\config\MybatisPlusConfig.java`：
+`scanBasePackages = "com.mall"` 会扫描课程模块中的 Controller、Service 和配置类；`@MapperScan` 则专门让 MyBatis 为两个模块的 Mapper 创建代理。
+
+再在 Day04 的 `SecurityConfig` 白名单中加入公开读取接口（需要导入 `org.springframework.http.HttpMethod`）：
+
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/api/user/login", "/api/user/register", "/doc.html", "/v3/api-docs/**").permitAll()
+    .requestMatchers(HttpMethod.GET,
+            "/api/courses/**", "/api/categories/**", "/api/teachers/**").permitAll()
+    .anyRequest().authenticated())
+```
+
+只放行课程前台的 GET 查询；后台写接口仍需 JWT，并继续由 `@PreAuthorize` 校验具体权限。
+
+分页插件配置 `E:\CourseMall\mall-course\src\main\java\com\mall\course\config\MybatisPlusConfig.java`：
 
 ```java
 package com.mall.course.config;
@@ -225,7 +274,7 @@ public class MybatisPlusConfig {
 }
 ```
 
-自动填充配置 `E:\course-mall\mall-course\src\main\java\com\mall\course\config\MyMetaObjectHandler.java`：
+自动填充配置 `E:\CourseMall\mall-course\src\main\java\com\mall\course\config\MyMetaObjectHandler.java`：
 
 ```java
 package com.mall.course.config;
@@ -261,7 +310,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
 
 ### 步骤 5：课程实体 `Course.java`
 
-创建 `E:\course-mall\mall-course\src\main\java\com\mall\course\entity\Course.java`：
+创建 `E:\CourseMall\mall-course\src\main\java\com\mall\course\entity\Course.java`：
 
 ```java
 package com.mall.course.entity;
@@ -292,16 +341,18 @@ public class Course {
     // 用 double/float 会精度丢失，钱相关的字段永远用 BigDecimal
     private BigDecimal price;
     private BigDecimal originalPrice;
+    private Integer stock;
+    private Integer version;
 
     private String description;    // TEXT 长文本，用 String 接收即可
     private Integer status;        // 1上架 0下架
     private Integer viewCount;     // 浏览量
     private Integer buyCount;      // 购买量
 
-    // @TableLogic：逻辑删除标记字段。声明后，MP 的 delete 会变成 update deleted=1，
-    // 所有的 select 会自动拼上 where deleted=0（详见下面面试题）
-    @TableLogic
-    private Integer deleted;
+    // 与 Day02 的 deleted_at 一致：null 表示有效，删除时写入当前时间。
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 
     // fill = FieldFill.INSERT：insert 时由 MyMetaObjectHandler 自动填充
     @TableField(fill = FieldFill.INSERT)
@@ -314,164 +365,494 @@ public class Course {
 ```
 
 ::: tip 💡 面试题：`@TableLogic` 逻辑删除的底层原理是什么？
-**一句话**：声明 `@TableLogic` 后，MP 会把你调的 `deleteById` **改写成 `UPDATE course SET deleted=1 WHERE id=?`**（不是真删），并在你后续所有 `select` 的 WHERE 里**自动拼上 `deleted=0`**，让你「查不到已删的」。所以逻辑删除 = 「假删 + 查询自动过滤」。**但注意**：这个自动过滤只对 MP 生成的 SQL 生效，你自己手写的 XML 里写 `SELECT * FROM course` 不会自动加 `deleted=0`，得手动拼。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
+**一句话**：声明 `@TableLogic(value = "null", delval = "now()")` 后，MP 会把 `deleteById` 改写成类似 `UPDATE course SET deleted_at=now() WHERE id=? AND deleted_at IS NULL`，并给 MP 生成的查询追加 `deleted_at IS NULL`。**注意**：自定义 XML SQL 要自己处理逻辑删除条件。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
 :::
 
 ### 步骤 6：`CourseMapper` —— 零 SQL 拿到全套 CRUD
 
-创建 `E:\course-mall\mall-course\src\main\java\com\mall\course\mapper\CourseMapper.java`：
+创建 `E:\CourseMall\mall-course\src\main\java\com\mall\course\mapper\CourseMapper.java`：
 
 ```java
 package com.mall.course.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.mall.course.entity.Course;
+import org.apache.ibatis.annotations.Select;
 
 // 继承 BaseMapper<Course> 后，selectById/insert/updateById/deleteById 等十几个方法自动就有了
 // 这就是「少写 SQL」的核心：单表 CRUD 全部免费
 public interface CourseMapper extends BaseMapper<Course> {
-    // 复杂多表查询（Day07 的讲师关联）可以在这里自定义方法 + XML
+    // BaseMapper 只处理 Course 单表；跨表存在性校验需要自定义 SQL。
+    @Select("SELECT COUNT(*) FROM teacher WHERE id = #{teacherId}")
+    long countTeacherById(Long teacherId);
 }
 ```
 
-### 步骤 7：`CourseService` + `CourseServiceImpl`
+### 步骤 7：建立 DTO、VO、分页响应和 MapStruct 转换
 
-接口 `E:\course-mall\mall-course\src\main\java\com\mall\course\service\CourseService.java`：
+真实项目不要让 Controller 直接接收或返回 Entity：Entity 对应数据库，DTO 对应输入契约，VO 对应输出契约。这样前端不能篡改 `buyCount`、`deletedAt` 等内部字段，表结构变化也不会直接破坏 API。
+
+先在 `mall-common` 建立通用分页结果 `PageResult.java`：
+
+```java
+package com.mall.common.page;
+
+import java.util.List;
+
+/**
+ * 稳定的分页响应，避免把 MyBatis-Plus 的 Page 实现细节暴露给前端。
+ */
+public record PageResult<T>(List<T> records, long total, long pageNum, long pageSize) {
+    public PageResult {
+        records = records == null ? List.of() : List.copyOf(records);
+    }
+}
+```
+
+保存参数 `CourseSaveDTO.java`：
+
+```java
+package com.mall.course.dto;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.math.BigDecimal;
+
+/** 课程新增、完整修改时允许客户端提交的字段。 */
+@Data
+public class CourseSaveDTO {
+
+    @NotNull(message = "{validation.course.teacher-id.not-null}")
+    private Long teacherId;
+
+    @NotNull(message = "{validation.course.category-id.not-null}")
+    private Long categoryId;
+
+    @NotBlank(message = "{validation.course.title.not-blank}")
+    private String title;
+
+    private String cover;
+
+    @NotNull(message = "{validation.course.price.not-null}")
+    @DecimalMin(value = "0.00", message = "{validation.course.price.min}")
+    private BigDecimal price;
+
+    @DecimalMin(value = "0.00", message = "{validation.course.price.min}")
+    private BigDecimal originalPrice;
+
+    private String description;
+
+    @Min(value = 0, message = "{common.param-error}")
+    @Max(value = 1, message = "{common.param-error}")
+    private Integer status;
+}
+```
+
+查询参数 `CourseQuery.java`：
+
+```java
+package com.mall.course.dto;
+
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.Data;
+
+import java.math.BigDecimal;
+
+/** 课程分页与筛选条件。 */
+@Data
+public class CourseQuery {
+
+    @Min(value = 1, message = "{common.page-invalid}")
+    private long pageNum = 1;
+
+    @Min(value = 1, message = "{common.size-invalid}")
+    @Max(value = 100, message = "{common.size-invalid}")
+    private long pageSize = 10;
+
+    private String title;
+    private Long categoryId;
+
+    @Min(value = 0, message = "{common.param-error}")
+    @Max(value = 1, message = "{common.param-error}")
+    private Integer status;
+
+    @DecimalMin(value = "0.00", message = "{validation.course.price.min}")
+    private BigDecimal minPrice;
+
+    @DecimalMin(value = "0.00", message = "{validation.course.price.min}")
+    private BigDecimal maxPrice;
+
+    @AssertTrue(message = "{common.param-error}")
+    public boolean isPriceRangeValid() {
+        return minPrice == null || maxPrice == null || minPrice.compareTo(maxPrice) <= 0;
+    }
+}
+```
+
+返回对象 `CourseVO.java`：
+
+```java
+package com.mall.course.vo;
+
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/** 前台和后台可见的课程信息，不暴露逻辑删除字段。 */
+@Data
+public class CourseVO {
+    private Long id;
+    private Long teacherId;
+    private Long categoryId;
+    private String title;
+    private String cover;
+    private BigDecimal price;
+    private BigDecimal originalPrice;
+    private String description;
+    private Integer status;
+    private Integer viewCount;
+    private Integer buyCount;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
+}
+```
+
+转换器 `CourseConverter.java`：
+
+```java
+package com.mall.course.converter;
+
+import com.mall.course.dto.CourseSaveDTO;
+import com.mall.course.entity.Course;
+import com.mall.course.vo.CourseVO;
+import org.mapstruct.BeanMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.ReportingPolicy;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+public interface CourseConverter {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "viewCount", constant = "0")
+    @Mapping(target = "buyCount", constant = "0")
+    @Mapping(target = "stock", constant = "100")
+    @Mapping(target = "version", constant = "0")
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    Course toEntity(CourseSaveDTO source);
+
+    CourseVO toVO(Course source);
+
+    List<CourseVO> toVOList(List<Course> sources);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "viewCount", ignore = true)
+    @Mapping(target = "buyCount", ignore = true)
+    @Mapping(target = "stock", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    void updateEntity(CourseSaveDTO source, @MappingTarget Course target);
+}
+```
+
+`ReportingPolicy.ERROR` 会在遗漏字段映射时直接编译失败，能尽早发现 DTO/Entity 改字段后忘记同步转换器的问题。
+
+### 步骤 8：在 Service 编排业务规则
+
+接口 `CourseService.java` 不向 Controller 暴露 MP 的通用写方法，只公开本项目真正需要的业务用例：
 
 ```java
 package com.mall.course.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
-import com.mall.course.entity.Course;
+import com.mall.common.page.PageResult;
+import com.mall.course.dto.CourseQuery;
+import com.mall.course.dto.CourseSaveDTO;
+import com.mall.course.vo.CourseVO;
 
-// IService 是 Service 层的增强接口，在 BaseMapper 之上又包了一层，
-// 提供 save/updateById/removeById/page 等更「业务化」的方法
-public interface CourseService extends IService<Course> {
+public interface CourseService {
+    CourseVO create(CourseSaveDTO dto);
+    CourseVO getPublished(Long id);
+    PageResult<CourseVO> pagePublished(CourseQuery query);
+    CourseVO getForAdmin(Long id);
+    PageResult<CourseVO> pageForAdmin(CourseQuery query);
+    void update(Long id, CourseSaveDTO dto);
+    void delete(Long id);
 }
 ```
 
-实现类 `E:\course-mall\mall-course\src\main\java\com\mall\course\service\impl\CourseServiceImpl.java`：
+实现类 `CourseServiceImpl.java`：
 
 ```java
 package com.mall.course.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.mall.common.exception.BizException;
+import com.mall.common.page.PageResult;
+import com.mall.common.result.ErrorCode;
+import com.mall.course.converter.CourseConverter;
+import com.mall.course.dto.CourseQuery;
+import com.mall.course.dto.CourseSaveDTO;
 import com.mall.course.entity.Course;
+import com.mall.course.mapper.CategoryMapper;
 import com.mall.course.mapper.CourseMapper;
 import com.mall.course.service.CourseService;
+import com.mall.course.vo.CourseVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-// ServiceImpl<CourseMapper, Course>：泛型第一个是 Mapper，第二个是实体。
-// 继承后，this.list() / this.page() / this.getById() 等方法直接用
+import java.util.Objects;
+
 @Service
-public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> implements CourseService {
+@RequiredArgsConstructor
+public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course>
+        implements CourseService {
+
+    private final CourseMapper courseMapper;
+    private final CategoryMapper categoryMapper;
+    private final CourseConverter courseConverter;
+
+    @Override
+    @Transactional
+    public CourseVO create(CourseSaveDTO dto) {
+        validateReferences(dto);
+        Course course = courseConverter.toEntity(dto);
+        course.setStatus(Objects.requireNonNullElse(course.getStatus(), 0));
+        if (!save(course)) {
+            throw new BizException(ErrorCode.OPERATION_FAILED);
+        }
+        return courseConverter.toVO(course);
+    }
+
+    @Override
+    public CourseVO getPublished(Long id) {
+        Course course = requireCourse(id);
+        // 前台把“下架”也表现为不存在，避免泄露未发布课程。
+        if (!Objects.equals(course.getStatus(), 1)) {
+            throw new BizException(ErrorCode.COURSE_NOT_FOUND, id);
+        }
+        return courseConverter.toVO(course);
+    }
+
+    @Override
+    public PageResult<CourseVO> pagePublished(CourseQuery query) {
+        return page(query, true);
+    }
+
+    @Override
+    public CourseVO getForAdmin(Long id) {
+        return courseConverter.toVO(requireCourse(id));
+    }
+
+    @Override
+    public PageResult<CourseVO> pageForAdmin(CourseQuery query) {
+        return page(query, false);
+    }
+
+    @Override
+    @Transactional
+    public void update(Long id, CourseSaveDTO dto) {
+        Course course = requireCourse(id);
+        validateReferences(dto);
+        courseConverter.updateEntity(dto, course);
+        if (!updateById(course)) {
+            throw new BizException(ErrorCode.OPERATION_FAILED);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        requireCourse(id);
+        if (!removeById(id)) {
+            throw new BizException(ErrorCode.OPERATION_FAILED);
+        }
+    }
+
+    private PageResult<CourseVO> page(CourseQuery query, boolean publishedOnly) {
+        LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<Course>()
+                .like(StringUtils.hasText(query.getTitle()), Course::getTitle, query.getTitle())
+                .eq(query.getCategoryId() != null, Course::getCategoryId, query.getCategoryId())
+                .eq(publishedOnly, Course::getStatus, 1)
+                .eq(!publishedOnly && query.getStatus() != null,
+                        Course::getStatus, query.getStatus())
+                .ge(query.getMinPrice() != null, Course::getPrice, query.getMinPrice())
+                .le(query.getMaxPrice() != null, Course::getPrice, query.getMaxPrice())
+                .orderByDesc(Course::getCreateTime);
+
+        Page<Course> result = this.page(
+                Page.of(query.getPageNum(), query.getPageSize()), wrapper);
+        return new PageResult<>(
+                courseConverter.toVOList(result.getRecords()),
+                result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    private Course requireCourse(Long id) {
+        Course course = getById(id);
+        if (course == null) {
+            throw new BizException(ErrorCode.COURSE_NOT_FOUND, id);
+        }
+        return course;
+    }
+
+    private void validateReferences(CourseSaveDTO dto) {
+        if (categoryMapper.selectById(dto.getCategoryId()) == null) {
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, dto.getCategoryId());
+        }
+        if (courseMapper.countTeacherById(dto.getTeacherId()) == 0) {
+            throw new BizException(ErrorCode.TEACHER_NOT_FOUND, dto.getTeacherId());
+        }
+    }
 }
 ```
+
+`@Transactional` 放在业务写方法上，不放 Controller；这样以后新增章节、标签等多条 SQL 时，仍能保持“要么全部成功，要么全部回滚”。
 
 ::: tip 💡 面试题：为什么 MP 要分 `BaseMapper`（Mapper 层）和 `IService`（Service 层）两层？只用 Mapper 不行吗？
 **一句话**：两层职责不同。`BaseMapper` 是**贴近 SQL 的原子操作**（selectById、insert）；`IService` 在其上封装了**带业务语义的批量/链式操作**（saveBatch 批量插入、getOne、page 分页、还有事务相关的 saveOrUpdate）。小项目只用 Mapper 也行，但分层能让你在 Service 层做事务、批量等扩展而不污染 Mapper。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
 :::
 
-### 步骤 8：分页入参 DTO + 课程 Controller
+### 步骤 9：公开查询与后台管理分开
 
-分页/条件查询入参 `E:\course-mall\mall-course\src\main\java\com\mall\course\dto\CourseQuery.java`：
+前台只看已上架课程，不要求登录；后台接口要求登录，并通过 `@PreAuthorize` 做操作级授权。
 
-```java
-package com.mall.course.dto;
-
-import lombok.Data;
-
-import java.math.BigDecimal;
-
-// 查询条件对象：把「分页 + 筛选条件」打包成一个入参，而不是 Controller 里写一堆 @RequestParam
-@Data
-public class CourseQuery {
-    private long pageNum = 1;       // 页码，默认第 1 页
-    private long pageSize = 10;     // 每页条数，默认 10
-    private String title;           // 标题（模糊匹配）
-    private Long categoryId;        // 分类（精确匹配）
-    private Integer status;         // 状态：1上架 0下架
-    private BigDecimal minPrice;    // 最低价
-    private BigDecimal maxPrice;    // 最高价
-}
-```
-
-Controller `E:\course-mall\mall-course\src\main\java\com\mall\course\controller\CourseController.java`：
+公开接口 `CourseController.java`：
 
 ```java
 package com.mall.course.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.page.PageResult;
 import com.mall.common.result.Result;
 import com.mall.course.dto.CourseQuery;
-import com.mall.course.entity.Course;
 import com.mall.course.service.CourseService;
-import org.springframework.web.bind.annotation.*;
+import com.mall.course.vo.CourseVO;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-// 复用 Day01 的 Result，返回统一 JSON 结构
+/** 课程前台查询接口。 */
+@Validated
 @RestController
-@RequestMapping("/api/course")
+@RequiredArgsConstructor
+@RequestMapping("/api/courses")
 public class CourseController {
 
     private final CourseService courseService;
 
-    // 构造器注入：Spring 推荐的方式，字段不可变 + 便于单测
-    public CourseController(CourseService courseService) {
-        this.courseService = courseService;
+    @GetMapping
+    public Result<PageResult<CourseVO>> page(@Valid @ModelAttribute CourseQuery query) {
+        return Result.ok(courseService.pagePublished(query));
     }
 
-    // 1. 新增课程
-    @PostMapping
-    public Result<Course> save(@RequestBody Course course) {
-        // save() 会自动塞 createTime/updateTime（步骤 4 的填充器），然后 insert
-        courseService.save(course);
-        return Result.ok(course);
-    }
-
-    // 2. 按 ID 查询
     @GetMapping("/{id}")
-    public Result<Course> getById(@PathVariable Long id) {
-        // 因为 @TableLogic，这个 getById 生成的 SQL 会自动带 where deleted=0
-        return Result.ok(courseService.getById(id));
-    }
-
-    // 3. 更新课程
-    @PutMapping
-    public Result<Void> update(@RequestBody Course course) {
-        // updateById 只更新非 null 字段；updateTime 自动刷新
-        courseService.updateById(course);
-        return Result.ok();
-    }
-
-    // 4. 删除课程（逻辑删除！）
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        // 因为 @TableLogic，这行实际执行的是 UPDATE course SET deleted=1 WHERE id=?
-        courseService.removeById(id);
-        return Result.ok();
-    }
-
-    // 5. 条件分页查询（今天最核心的接口）
-    @GetMapping("/page")
-    public Result<Page<Course>> page(CourseQuery query) {
-        // LambdaQueryWrapper：用「方法引用」拼条件，避免手写列名字符串
-        LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<>();
-
-        // 第一个参数是 boolean 条件：条件不成立（值为 null）时，这个条件不参与拼接
-        wrapper.like(query.getTitle() != null, Course::getTitle, query.getTitle())        // title like '%xx%'
-               .eq(query.getCategoryId() != null, Course::getCategoryId, query.getCategoryId()) // category_id = ?
-               .eq(query.getStatus() != null, Course::getStatus, query.getStatus())      // status = ?
-               .ge(query.getMinPrice() != null, Course::getPrice, query.getMinPrice())   // price >= ?
-               .le(query.getMaxPrice() != null, Course::getPrice, query.getMaxPrice())   // price <= ?
-               .orderByDesc(Course::getCreateTime);                                       // 按创建时间倒序
-
-        // page(new Page<>(页码, 每页数), wrapper)：执行 count + limit 两条 SQL
-        Page<Course> page = courseService.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
-        return Result.ok(page);
+    public Result<CourseVO> detail(
+            @Positive(message = "{common.id-required}") @PathVariable Long id) {
+        return Result.ok(courseService.getPublished(id));
     }
 }
 ```
+
+后台接口 `CourseAdminController.java`：
+
+```java
+package com.mall.course.controller;
+
+import com.mall.common.page.PageResult;
+import com.mall.common.result.Result;
+import com.mall.course.dto.CourseQuery;
+import com.mall.course.dto.CourseSaveDTO;
+import com.mall.course.service.CourseService;
+import com.mall.course.vo.CourseVO;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/** 课程后台管理接口。 */
+@Validated
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/admin/courses")
+public class CourseAdminController {
+
+    private final CourseService courseService;
+
+    @PreAuthorize("hasAuthority('course:list')")
+    @GetMapping
+    public Result<PageResult<CourseVO>> page(@Valid @ModelAttribute CourseQuery query) {
+        return Result.ok(courseService.pageForAdmin(query));
+    }
+
+    @PreAuthorize("hasAuthority('course:list')")
+    @GetMapping("/{id}")
+    public Result<CourseVO> detail(
+            @Positive(message = "{common.id-required}") @PathVariable Long id) {
+        return Result.ok(courseService.getForAdmin(id));
+    }
+
+    @PreAuthorize("hasAuthority('course:create')")
+    @PostMapping
+    public Result<CourseVO> create(@Valid @RequestBody CourseSaveDTO dto) {
+        return Result.ok(courseService.create(dto));
+    }
+
+    @PreAuthorize("hasAuthority('course:edit')")
+    @PutMapping("/{id}")
+    public Result<Void> update(
+            @Positive(message = "{common.id-required}") @PathVariable Long id,
+            @Valid @RequestBody CourseSaveDTO dto) {
+        courseService.update(id, dto);
+        return Result.ok();
+    }
+
+    @PreAuthorize("hasAuthority('course:delete')")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(
+            @Positive(message = "{common.id-required}") @PathVariable Long id) {
+        courseService.delete(id);
+        return Result.ok();
+    }
+}
+```
+
+`@Valid` 负责 DTO 内部字段，类上的 `@Validated` 让 `@PathVariable` / 查询参数上的约束生效；`@PreAuthorize` 依赖 Day04 的 `@EnableMethodSecurity` 和登录用户的权限列表。
 
 ::: tip 💡 面试题：`LambdaQueryWrapper` 和 `QueryWrapper` 有什么区别？为什么推荐用 Lambda 的？
 **一句话**：`QueryWrapper` 靠**字符串**写列名（`wrapper.eq("category_id", 1)`），列名写错编译器发现不了，改表字段名时也要全局搜字符串；`LambdaQueryWrapper` 靠**方法引用**写列名（`wrapper.eq(Course::getCategoryId, 1)`），编译器能检查字段是否存在，重构改字段名时 IDE 一起改，**类型安全**。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
@@ -481,11 +862,11 @@ public class CourseController {
 **一句话**：它是「条件是否拼接」的开关。当 `query.getCategoryId() == null`（前端没传这个筛选条件）时，`eq` 这条条件就直接跳过，不会生成 `WHERE category_id = null` 这种错误 SQL。这样你就不用写一堆 `if (xx != null) { wrapper.eq(...) }` 了，代码更简洁。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
 :::
 
-### 步骤 9：分类 `Category`（list + 树形）
+### 步骤 10：分类 `Category`（下拉选项 + 树形）
 
 课程分类是「自关联」表（`parent_id` 指向自己的 `id`，见 Day02），今天做两个接口：平铺列表（课程表单下拉用）+ 树形（后台菜单用）。
 
-实体 `E:\course-mall\mall-course\src\main\java\com\mall\course\entity\Category.java`：
+实体 `E:\CourseMall\mall-course\src\main\java\com\mall\course\entity\Category.java`：
 
 ```java
 package com.mall.course.entity;
@@ -515,7 +896,7 @@ public class Category {
 }
 ```
 
-Mapper `E:\course-mall\mall-course\src\main\java\com\mall\course\mapper\CategoryMapper.java`：
+Mapper `E:\CourseMall\mall-course\src\main\java\com\mall\course\mapper\CategoryMapper.java`：
 
 ```java
 package com.mall.course.mapper;
@@ -527,24 +908,23 @@ public interface CategoryMapper extends BaseMapper<Category> {
 }
 ```
 
-Service 接口 `E:\course-mall\mall-course\src\main\java\com\mall\course\service\CategoryService.java`：
+Service 接口 `E:\CourseMall\mall-course\src\main\java\com\mall\course\service\CategoryService.java`：
 
 ```java
 package com.mall.course.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
-import com.mall.course.entity.Category;
+import com.mall.course.vo.CategoryVO;
 import com.mall.course.vo.CategoryTreeVO;
 
 import java.util.List;
 
-public interface CategoryService extends IService<Category> {
-    // 自定义方法：把平铺的分类列表组装成树（IService 里没有，需要自己写）
+public interface CategoryService {
+    List<CategoryVO> listOptions();
     List<CategoryTreeVO> tree();
 }
 ```
 
-Service 实现 `E:\course-mall\mall-course\src\main\java\com\mall\course\service\impl\CategoryServiceImpl.java`：
+Service 实现 `E:\CourseMall\mall-course\src\main\java\com\mall\course\service\impl\CategoryServiceImpl.java`：
 
 ```java
 package com.mall.course.service.impl;
@@ -553,6 +933,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.mall.course.entity.Category;
 import com.mall.course.mapper.CategoryMapper;
 import com.mall.course.service.CategoryService;
+import com.mall.course.vo.CategoryVO;
 import com.mall.course.vo.CategoryTreeVO;
 import org.springframework.stereotype.Service;
 
@@ -565,9 +946,13 @@ import java.util.Map;
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
 
     @Override
+    public List<CategoryVO> listOptions() {
+        return listOrdered().stream().map(this::toVO).toList();
+    }
+
+    @Override
     public List<CategoryTreeVO> tree() {
-        // list() 是 ServiceImpl 继承来的，等价于 SELECT * FROM category
-        List<Category> all = this.list();
+        List<Category> all = listOrdered();
 
         // 第一步：把每个分类转成 VO，放进 map（key = id），方便 O(1) 找到父节点
         Map<Long, CategoryTreeVO> map = new HashMap<>();
@@ -595,10 +980,39 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
         }
         return roots;
     }
+
+    private List<Category> listOrdered() {
+        return lambdaQuery().orderByAsc(Category::getSort, Category::getId).list();
+    }
+
+    private CategoryVO toVO(Category category) {
+        CategoryVO vo = new CategoryVO();
+        vo.setId(category.getId());
+        vo.setParentId(category.getParentId());
+        vo.setName(category.getName());
+        vo.setSort(category.getSort());
+        return vo;
+    }
 }
 ```
 
-树返回对象 `E:\course-mall\mall-course\src\main\java\com\mall\course\vo\CategoryTreeVO.java`：
+下拉选项对象 `CategoryVO.java`：
+
+```java
+package com.mall.course.vo;
+
+import lombok.Data;
+
+@Data
+public class CategoryVO {
+    private Long id;
+    private Long parentId;
+    private String name;
+    private Integer sort;
+}
+```
+
+树返回对象 `E:\CourseMall\mall-course\src\main\java\com\mall\course\vo\CategoryTreeVO.java`：
 
 ```java
 package com.mall.course.vo;
@@ -619,15 +1033,16 @@ public class CategoryTreeVO {
 }
 ```
 
-Controller `E:\course-mall\mall-course\src\main\java\com\mall\course\controller\CategoryController.java`：
+Controller `E:\CourseMall\mall-course\src\main\java\com\mall\course\controller\CategoryController.java`：
 
 ```java
 package com.mall.course.controller;
 
 import com.mall.common.result.Result;
-import com.mall.course.entity.Category;
 import com.mall.course.service.CategoryService;
+import com.mall.course.vo.CategoryVO;
 import com.mall.course.vo.CategoryTreeVO;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -635,19 +1050,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/category")
+@RequiredArgsConstructor
+@RequestMapping("/api/categories")
 public class CategoryController {
 
     private final CategoryService categoryService;
 
-    public CategoryController(CategoryService categoryService) {
-        this.categoryService = categoryService;
-    }
-
     // 平铺列表：课程表单的「分类下拉框」用
-    @GetMapping("/list")
-    public Result<List<Category>> list() {
-        return Result.ok(categoryService.list());
+    @GetMapping("/options")
+    public Result<List<CategoryVO>> listOptions() {
+        return Result.ok(categoryService.listOptions());
     }
 
     // 树形结构：后台的分类管理菜单用
@@ -662,39 +1074,46 @@ public class CategoryController {
 **一句话**：核心是「两遍遍历 + HashMap 索引」——第一遍把所有节点按 id 放进 Map，第二遍根据 parentId 挂到父节点 children 下。**不用递归**是因为：递归每找一个父节点都要从头扫一遍列表，复杂度 O(n²)；而 HashMap 查找是 O(1)，整体 O(n)。数据量大时（几万条分类）差距巨大。详见 [Java集合](/learn_backend/java/Java核心/Java集合)。
 :::
 
-### 步骤 10：启动验证
+### 步骤 11：启动验证
 
-在 `E:\course-mall\` 根目录执行：
-
-```bash
-mvn clean install -DskipTests            # 编译安装所有模块（含新的 mall-course）
-mvn -pl mall-course spring-boot:run      # 启动课程服务（端口 8081）
-```
-
-依次用 curl 验证（前提：Day02 的种子数据已插入）：
+在 `E:\CourseMall\` 根目录执行：
 
 ```bash
-# 1. 分页查询（无条件，第 1 页 10 条）
-curl "http://localhost:8081/api/course/page"
-
-# 2. 条件查询：标题含"高并发" + 分类 2（Java）
-curl "http://localhost:8081/api/course/page?title=高并发&categoryId=2"
-
-# 3. 条件查询：价格区间 100~300
-curl "http://localhost:8081/api/course/page?minPrice=100&maxPrice=300"
-
-# 4. 按 ID 查（注意看控制台日志，SQL 里自动带了 deleted=0）
-curl "http://localhost:8081/api/course/1"
-
-# 5. 逻辑删除课程 2，然后再次查询，发现查不到了
-curl -X DELETE "http://localhost:8081/api/course/2"
-curl "http://localhost:8081/api/course/2"      # 预期返回 data 为 null（被逻辑删除过滤掉了）
-
-# 6. 分类树
-curl "http://localhost:8081/api/category/tree"
+mvn clean verify -DskipTests
+mvn -pl mall-user -am spring-boot:run    # 仍然只启动 mall-user，端口 8080
 ```
 
-重点观察：**第 5 步删除后**，去数据库里 `SELECT * FROM course WHERE id = 2`，会发现这条记录**还在**，只是 `deleted` 变成了 `1`——这就是逻辑删除。
+公开查询不需要 Token：
+
+```bash
+# 1. 只返回已上架课程
+curl "http://localhost:8080/api/courses?pageNum=1&pageSize=10"
+
+# 2. 条件查询
+curl "http://localhost:8080/api/courses?title=高并发&categoryId=2&minPrice=100&maxPrice=300"
+
+# 3. 参数校验：预期返回 PARAM_ERROR，而不是进入数据库
+curl "http://localhost:8080/api/courses?pageSize=101"
+
+# 4. 分类树
+curl "http://localhost:8080/api/categories/tree"
+```
+
+后台写接口请在 Apifox 的 Auth 中填写 Day04/05 登录得到的 ADMIN Token，再验证：
+
+```bash
+# 不带 Token：预期 401；普通用户 Token：预期 403；ADMIN Token：预期成功
+curl -X POST "http://localhost:8080/api/admin/courses" \
+  -H "Authorization: Bearer 你的ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"teacherId":1,"categoryId":2,"title":"MP 实战课","price":99.00,"status":1}'
+
+# 使用刚创建的测试课程 ID 验证逻辑删除，不要删除 Day02 的种子数据
+curl -X DELETE "http://localhost:8080/api/admin/courses/刚创建的ID" \
+  -H "Authorization: Bearer 你的ADMIN_TOKEN"
+```
+
+删除后执行 `SELECT id, deleted_at FROM course WHERE id = 刚创建的ID;`：记录仍在，但 `deleted_at` 已写入时间；再次调用公开详情应返回 `COURSE_NOT_FOUND`。
 
 ## 五、知识点索引（今天涉及的，会陆续补全）
 
@@ -704,23 +1123,30 @@ curl "http://localhost:8081/api/category/tree"
 | MyBatis 底层、SQL 会话、映射 | [MyBatis](/learn_backend/java/基础/MyBatis) |
 | starter 自动装配、`@Configuration` / `@Bean` | [Spring Boot](/learn_backend/java/基础/Spring Boot) |
 | 构造器注入、Bean 管理 | [Spring](/learn_backend/java/基础/Spring) |
+| 模块化单体、Maven 模块依赖方向 | [Maven](/learn_backend/java/基础/Maven) |
+| DTO 校验、`@Valid` / `@Validated` | [Spring Boot](/learn_backend/java/基础/Spring Boot) |
+| `@EnableMethodSecurity` / `@PreAuthorize` | [Spring Security](/learn_backend/java/基础/Spring Security) |
+| DTO / Entity / VO 与 MapStruct | [MapStruct](/learn_backend/java/工具/MapStruct) |
+| Service 事务边界、`@Transactional` | [Spring](/learn_backend/java/基础/Spring) |
 | `HashMap` 组装树、`List` | [Java集合](/learn_backend/java/Java核心/Java集合) |
 | `DECIMAL` ↔ `BigDecimal`、索引 | [MySQL](/learn_database/MySQL) |
 
 ## 六、✅ 完成后回填
 
 - [ ] 完成时间：`____年__月__日`
-- [ ] `mall-course` 启动成功，`/api/course/page` 返回了课程列表 JSON：是 / 否
-- [ ] 逻辑删除跑通（删 id=2 后，库里记录还在、`deleted=1`，接口查不到）：是 / 否
+- [ ] 只启动 `mall-user`，`/api/courses` 成功返回课程列表：是 / 否
+- [ ] `pageSize=101` 被参数校验拦截：是 / 否
+- [ ] 无 Token / 无权限 / ADMIN Token 分别得到 401 / 403 / 成功：是 / 否
+- [ ] 逻辑删除跑通（记录仍在、`deleted_at` 有值、接口查不到）：是 / 否
 - [ ] 条件查询跑通（title / categoryId / 价格区间任意组合都能筛）：是 / 否
-- [ ] 分类树 `/api/category/tree` 返回了父子层级：是 / 否
+- [ ] 分类树 `/api/categories/tree` 返回了父子层级：是 / 否
 - [ ] 踩坑记录（数据库连不上、密码、SQL 报错等）：
 - [ ] 疑问（有就写，我来答）：
 
 ## 七、我下次会追问的问题（做完先自己想想）
 
-1. `@TableLogic` 逻辑删除到底怎么实现的？为什么 `removeById` 变成 `UPDATE ... SET deleted=1`，而 `getById` 又自动带上了 `deleted=0`？你自己手写 XML 的 `SELECT * FROM course` 会自动加 `deleted=0` 吗？
-2. MyBatis-Plus 的分页为什么必须手动配 `PaginationInnerInterceptor`？它内部做了哪两条 SQL？没配插件会是什么结果？
-3. `LambdaQueryWrapper` 和 `QueryWrapper` 有什么区别？为什么推荐用 Lambda 的？`eq(condition, ...)` 第一个 boolean 参数有什么用？
-4. 为什么 MP 要分 `BaseMapper`（Mapper）和 `IService`（Service）两层？各自职责是什么？只用 Mapper 能不能完成今天的功能？
-5. 金额字段 `price` 在 Java 里为什么用 `BigDecimal` 而不是 `double`？呼应 Day02 的 `DECIMAL(10,2)`，说说用 `double` 会出什么实际问题。
+1. Maven 模块化单体和微服务有什么区别？为什么 Day06 不能另起一个应用后还期待复用 Day04 的 `SecurityContext`？
+2. `@TableLogic(value = "null", delval = "now()")` 会怎样改写删除与查询 SQL？自定义 XML 是否自动生效？
+3. 为什么 Controller 要使用 DTO/VO，而不是直接收发 Entity？MapStruct 在这里解决了什么问题？
+4. `@Valid`、`@Validated` 和 `@PreAuthorize` 分别在哪个阶段工作？缺少 `@EnableMethodSecurity` 会怎样？
+5. 为什么公开课程列表必须强制 `status=1`，而后台列表才允许按状态筛选？

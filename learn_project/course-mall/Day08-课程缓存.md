@@ -7,7 +7,7 @@
 - 已完成 **Day 02**：`course` 表已建，种子数据（course id=1/2/3，`status=1`）已插入
 - 已完成 **Day 06**：`mall-course` 模块已建，MyBatis-Plus 已配好，`Course` 实体 + `CourseMapper` 已建，课程 CRUD 能跑通
 - **Redis 已装**（`localhost:6379`，Day 5 存验证码时应该已经连过）
-- 假设 Day 6 的课程服务在 **`mall-course` 模块**（包 `com.mall.course`）。如果你当时建在了别的模块，把模块名/包名替换成你自己的即可。
+- 已完成 **Day07**：公开课程详情返回 `CourseDetailVO`，Mapper XML 已过滤下架和逻辑删除数据
 
 > ⚠️ 本文代码只在 Day 6 基础上**新增缓存**，不重做 CRUD。如果你 Day 6 还没做完，先回去补完再进本天。
 
@@ -29,137 +29,36 @@
 
 ### 步骤 1：给 `mall-course` 加 Redis 依赖
 
-打开 `E:\course-mall\mall-course\pom.xml`，在 `<dependencies>` 里**新增**下面这一条（其余 Day 6 已加，这里贴全方便对照）：
+打开 `E:\CourseMall\mall-course\pom.xml`，只新增 Redis 编译依赖（运行时连接仍由唯一启动模块 `mall-user` 提供）：
 
 ```xml
-<dependencies>
-    <!-- 依赖自己的公共模块 -->
-    <dependency>
-        <groupId>com.mall</groupId>
-        <artifactId>mall-common</artifactId>
-    </dependency>
-
-    <!-- web：提供 HTTP 接口 -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-
-    <!-- MyBatis-Plus（Day 6 已加）：注意是 boot3 专属 starter，别导成 mybatis-plus-boot-starter -->
-    <dependency>
-        <groupId>com.baomidou</groupId>
-        <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-        <version>3.5.7</version>
-    </dependency>
-
-    <!-- MySQL 驱动（Day 6 已加）：版本由 Spring Boot 父工程锁定，不写 -->
-    <dependency>
-        <groupId>com.mysql</groupId>
-        <artifactId>mysql-connector-j</artifactId>
-        <scope>runtime</scope>
-    </dependency>
-
-    <!-- ===== 今天新增：Redis =====
-         Spring Boot 3 的 Redis 启动器，自动配置 RedisTemplate / StringRedisTemplate -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-redis</artifactId>
-    </dependency>
-</dependencies>
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
 ```
 
 ### 步骤 2：配置 `application.yml`
 
-`E:\course-mall\mall-course\src\main\resources\application.yml`：
+继续修改 `mall-user/src/main/resources/application.yml`，不要在 `mall-course` 建第二份配置：
 
 ```yaml
-server:
-  port: 8081               # mall-user 用了 8080，课程服务用 8081
-
 spring:
-  application:
-    name: mall-course
-  datasource:
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false
-    username: root
-    password: 你的密码        # 改成你自己的
-    driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
-      host: localhost
-      port: 6379
-      # password: 有密码就填
-      database: 0            # 用 0 号库（验证码/课程缓存先放一起，Day19 会按用途分库）
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true   # 下划线转驼峰：teacher_id → teacherId
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 打印 SQL，方便看「到底有没有打到 DB」
-  global-config:
-    db-config:
-      logic-delete-field: deleted        # 逻辑删除字段
-      logic-delete-value: 1
-      logic-not-delete-value: 0
+      host: ${COURSE_MALL_REDIS_HOST:127.0.0.1}
+      port: ${COURSE_MALL_REDIS_PORT:6379}
+      password: ${COURSE_MALL_REDIS_PASSWORD:}
+      database: ${COURSE_MALL_REDIS_DATABASE:0}
 ```
 
 ::: tip 💡 面试题：Spring Boot 3 里 Redis 的配置前缀为什么是 `spring.data.redis` 而不是 `spring.redis`？
 **一句话**：Spring Boot 2.x 用 `spring.redis.*`，**3.x 统一改成了 `spring.data.redis.*`**（和 `spring.data.mongodb` 等数据源前缀对齐）。很多老教程还是 `spring.redis`，照抄到 3.x 项目里会**静默失效**（连的还是默认 localhost）。详见 [Spring Boot](/learn_backend/java/基础/Spring Boot)。
 :::
 
-### 步骤 3：`Course` 实体 + `CourseMapper`（Day 6 已建，贴出来对照）
+### 步骤 3：确定缓存对象与 key 版本
 
-这两样 Day 6 已经建好，这里贴出来是为了确认字段和表结构对得上（复用 Day 2 的 `course` 表，**不要另建表**）。
-
-`com/mall/course/entity/Course.java`：
-
-```java
-package com.mall.course.entity;
-
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-@Data
-@TableName("course")   // 对应 Day 2 的 course 表，字段一一对应
-public class Course {
-    @TableId(type = IdType.AUTO)   // 主键自增
-    private Long id;
-    private Long teacherId;
-    private Long categoryId;
-    private String title;
-    private String cover;
-    private BigDecimal price;        // 金额用 BigDecimal，Day 2 已强调
-    private BigDecimal originalPrice;
-    private String description;
-    private Integer status;          // 1上架 0下架
-    private Integer viewCount;
-    private Integer buyCount;
-    @TableLogic                      // 逻辑删除：select 自动拼 deleted=0
-    private Integer deleted;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
-```
-
-`com/mall/course/mapper/CourseMapper.java`：
-
-```java
-package com.mall.course.mapper;
-
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mall.course.entity.Course;
-import org.apache.ibatis.annotations.Mapper;
-
-// 继承 BaseMapper 后，selectById/updateById 等 CRUD 方法自带，不用写 SQL
-@Mapper
-public interface CourseMapper extends BaseMapper<Course> {
-}
-```
+缓存 Day07 的 `CourseDetailVO`，不缓存 Entity。key 使用 `course:detail:v1:{id}`：以后 VO 结构变化时升级为 `v2`，避免旧 JSON 反序列化失败。公开详情 SQL 已强制 `status=1 AND deleted_at IS NULL`，因此缓存中也只会出现可公开课程。
 
 ### 步骤 4：序列化方案 —— 为什么用 `StringRedisTemplate` + Jackson
 
@@ -179,7 +78,7 @@ private ObjectMapper objectMapper;           // Boot 自动配置的 Jackson，�
 
 ### 步骤 5：核心 —— `CourseCacheService`（穿透/击穿/雪崩都在这）
 
-新建 `E:\course-mall\mall-course\src\main\java\com\mall\course\service\CourseCacheService.java`。这是今天的心脏，逐段解释：
+新建 `E:\CourseMall\mall-course\src\main\java\com\mall\course\service\CourseCacheService.java`：
 
 ```java
 package com.mall.course.service;
@@ -188,110 +87,120 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
-import com.mall.course.entity.Course;
 import com.mall.course.mapper.CourseMapper;
-import jakarta.annotation.Resource;
+import com.mall.course.vo.CourseDetailVO;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.CompletableFuture;
+import java.time.Duration;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CourseCacheService {
 
-    private static final String CACHE_PREFIX = "course:detail:";      // 缓存 key 前缀，区分用途
-    private static final String LOCK_PREFIX  = "course:lock:";        // 互斥锁 key 前缀
-    private static final long   CACHE_TTL_MINUTES      = 30;          // 正常缓存过期时间（分钟）
-    private static final long   CACHE_NULL_TTL_SECONDS = 60;          // 空值缓存过期时间（秒，要短）
-    private static final String NULL_MARK = "NULL";                   // 空值占位标记
+    private static final String CACHE_PREFIX = "course:detail:v1:";
+    private static final String LOCK_PREFIX = "course:detail:lock:";
+    private static final String NULL_MARK = "NULL";
+    private static final long CACHE_TTL_MINUTES = 30;
+    private static final int MAX_RETRY = 3;
 
-    @Resource
-    private CourseMapper courseMapper;
-    @Resource
-    private StringRedisTemplate redisTemplate;
-    @Resource
-    private ObjectMapper objectMapper;
+    // 只有锁里的值仍等于自己的 token 才删除，比较与删除由 Lua 保证原子性。
+    private static final DefaultRedisScript<Long> UNLOCK_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('get', KEYS[1]) == ARGV[1] "
+                    + "then return redis.call('del', KEYS[1]) else return 0 end",
+            Long.class);
+
+    private final CourseMapper courseMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     /**
      * 查询课程详情（带缓存，穿透/击穿/雪崩三管齐下）
      */
-    public Course getCourseById(Long id) {
-        return getCourseById(id, 0);
+    public CourseDetailVO getPublishedDetail(Long id) {
+        try {
+            CourseDetailVO detail = getWithMutex(id, 0);
+            if (detail == null) {
+                throw new BizException(ErrorCode.COURSE_NOT_FOUND, id);
+            }
+            return detail;
+        } catch (RedisConnectionFailureException e) {
+            // 缓存是加速层，不应因 Redis 临时不可用拖垮课程详情。
+            log.error("Redis 不可用，课程详情降级查库，courseId={}", id, e);
+            CourseDetailVO detail = courseMapper.selectCourseWithTeacher(id);
+            if (detail == null) {
+                throw new BizException(ErrorCode.COURSE_NOT_FOUND, id);
+            }
+            return detail;
+        }
     }
 
-    private Course getCourseById(Long id, int retryCount) {
+    private CourseDetailVO getWithMutex(Long id, int retryCount) {
         String key = CACHE_PREFIX + id;
 
-        // ── 第 1 步：先查缓存 ──
         String json = redisTemplate.opsForValue().get(key);
         if (json != null) {
-            // 命中「空值缓存」：说明 DB 里根本没这 id，直接返回 null，别再打 DB（防穿透）
-            return NULL_MARK.equals(json) ? null : readJson(json, Course.class);
+            return NULL_MARK.equals(json) ? null : readJson(key, json);
         }
 
-        // ── 第 2 步：缓存未命中，尝试加互斥锁（防击穿）──
         String lockKey = LOCK_PREFIX + id;
-        if (!tryLock(lockKey)) {
-            // 没抢到锁 = 别的线程正在回源重建缓存
-            if (retryCount >= 3) {
-                // 重试 3 次仍拿不到：降级直接查库，避免请求无限堆积
-                log.warn("获取缓存锁失败，降级直查 DB，courseId={}", id);
-                return courseMapper.selectById(id);
+        String lockToken = tryLock(lockKey);
+        if (lockToken == null) {
+            if (retryCount >= MAX_RETRY) {
+                // 热点重建期间宁可快速失败，也不要让所有请求一起打穿数据库。
+                throw new BizException(ErrorCode.SERVICE_UNAVAILABLE);
             }
-            sleep(50);                       // 等 50ms，让抢到锁的线程先把缓存建好
-            return getCourseById(id, retryCount + 1);
+            sleep(50);
+            return getWithMutex(id, retryCount + 1);
         }
 
         try {
-            // ── 第 3 步：抢到锁后 double-check ──
-            // 防止「上一把锁的持有者刚建好缓存释放锁，下一批线程又进来重复回源」
+            // 抢到锁后必须 double-check，避免重复回源。
             json = redisTemplate.opsForValue().get(key);
             if (json != null) {
-                return NULL_MARK.equals(json) ? null : readJson(json, Course.class);
+                return NULL_MARK.equals(json) ? null : readJson(key, json);
             }
 
-            // ── 第 4 步：查数据库 ──
-            Course course = courseMapper.selectById(id);
-            if (course == null) {
-                // 穿透：DB 里没有 → 缓存一个空值标记，过期时间设短（60s）
-                // 这样 60s 内恶意请求都打在 Redis 上，不再穿透到 DB
-                redisTemplate.opsForValue().set(key, NULL_MARK, CACHE_NULL_TTL_SECONDS, TimeUnit.SECONDS);
+            CourseDetailVO detail = courseMapper.selectCourseWithTeacher(id);
+            if (detail == null) {
+                redisTemplate.opsForValue().set(key, NULL_MARK, Duration.ofSeconds(60));
                 return null;
             }
 
-            // ── 第 5 步：回写缓存，过期时间加随机值（防雪崩）──
-            // 30~39 分钟随机：避免大量 key 在同一分钟集体过期、请求瞬间全砸向 DB
             long ttlMinutes = CACHE_TTL_MINUTES + ThreadLocalRandom.current().nextInt(10);
-            redisTemplate.opsForValue().set(key, writeJson(course), ttlMinutes, TimeUnit.MINUTES);
-            return course;
+            redisTemplate.opsForValue().set(
+                    key, writeJson(detail), Duration.ofMinutes(ttlMinutes));
+            return detail;
         } finally {
-            releaseLock(lockKey);   // 无论成功失败，都要释放锁，否则别的线程会一直等
+            releaseLock(lockKey, lockToken);
         }
     }
 
-    /**
-     * 加互斥锁：SETNX（setIfAbsent）只有 key 不存在时才设置成功，
-     * 天然原子，保证并发下只有一个线程拿到锁。带 10s 过期，防止线程崩溃锁永远不释放。
-     */
-    private boolean tryLock(String lockKey) {
-        return Boolean.TRUE.equals(
-                redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 10, TimeUnit.SECONDS));
+    private String tryLock(String lockKey) {
+        String token = UUID.randomUUID().toString();
+        Boolean success = redisTemplate.opsForValue()
+                .setIfAbsent(lockKey, token, Duration.ofSeconds(10));
+        return Boolean.TRUE.equals(success) ? token : null;
     }
 
-    private void releaseLock(String lockKey) {
-        redisTemplate.delete(lockKey);
+    private void releaseLock(String lockKey, String token) {
+        redisTemplate.execute(UNLOCK_SCRIPT, List.of(lockKey), token);
     }
 
     private void sleep(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();   // 恢复中断标记，不吞异常
+            Thread.currentThread().interrupt();
+            throw new BizException(ErrorCode.SERVICE_UNAVAILABLE);
         }
     }
 
@@ -299,15 +208,17 @@ public class CourseCacheService {
         try {
             return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "对象序列化失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
     }
 
-    private <T> T readJson(String json, Class<T> clazz) {
+    private CourseDetailVO readJson(String key, String json) {
         try {
-            return objectMapper.readValue(json, clazz);
+            return objectMapper.readValue(json, CourseDetailVO.class);
         } catch (JsonProcessingException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "缓存反序列化失败");
+            // 删除坏缓存，让后续请求可以重新构建。
+            redisTemplate.delete(key);
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
         }
     }
 }
@@ -321,118 +232,106 @@ public class CourseCacheService {
 **一句话**：空值缓存本质是把「这个 id 不存在」这个结论临时存起来，如果设太长，一旦该数据**后来真的被创建了**（比如运营新增了 id=999 的课程），前台会一直拿到「不存在」的旧结论。设短（60s）就是「防住瞬时穿透」和「及时纠正」之间的平衡。布隆过滤器是另一种方案（见文末追问）。
 :::
 
-### 步骤 6：一致性 —— 更新时删缓存 + 延迟双删
+### 步骤 6：一致性 —— 事务提交后再删缓存
 
-缓存和 DB 的数据可能不一致，核心就一条：**先改数据库，再删缓存**（Cache Aside 模式），再加「延迟双删」兜底。
+缓存使用 Cache Aside：读时按需加载，写时先提交数据库，再删除缓存。关键是**不能在数据库事务尚未提交时删除**，否则并发读可能读取旧库值并重新写回缓存。
 
-在 `CourseCacheService` 里继续加：
+建立领域事件 `CourseChangedEvent.java`：
 
 ```java
-    /**
-     * 更新课程：保证缓存和数据库一致
-     */
-    @Transactional   // 改库要加事务（Day 10 会细讲事务）
-    public void updateCourse(Course course) {
-        // 1. 先改数据库
-        courseMapper.updateById(course);
+package com.mall.course.event;
 
-        // 2. 再删缓存（顺序不能反，见下面面试题）
-        deleteCache(course.getId());
-
-        // 3. 延迟双删：500ms 后再删一次，兜底并发窗口里「旧值被读线程写回缓存」
-        //    生产上要用专门线程池异步做，这里用 CompletableFuture 演示
-        CompletableFuture.runAsync(() -> {
-            sleep(500);
-            deleteCache(course.getId());
-        });
-    }
-
-    private void deleteCache(Long id) {
-        redisTemplate.delete(CACHE_PREFIX + id);
-    }
+public record CourseChangedEvent(Long courseId) {
+}
 ```
 
-::: tip 💡 面试题：为什么「先改数据库、再删缓存」，顺序不能反？
-**一句话**：如果**先删缓存再改库**，删完到改库成功之间有个窗口，这窗口里来的读请求会查到**旧库值**并把它写回缓存 → 脏数据。反过来「先改库再删缓存」窗口小得多，而且即使删缓存失败，最坏结果是缓存旧到自然过期，还能靠 TTL 兜底。所以主流是 **Cache Aside：读按需缓存、写先更库后删缓存**。详见 [Redis](/learn_database/Redis)。
-:::
-
-::: tip 💡 面试题：「延迟双删」到底在删什么？为什么删两次？
-**一句话**：极端并发下「先更库后删缓存」也有极小窗口——线程 A 读到旧库值 → 线程 B 更库删缓存 → 线程 A 把旧值写回缓存，脏数据就出现了。**延迟双删**在更库删缓存之后，再**延迟一小段时间删第二次**，把这种「旧值写回」的脏数据再清掉一次。彻底解决靠 **Canal 监听 binlog** 异步刷缓存（Day 26）。
-:::
-
-### 步骤 7：Controller + 启动验证
-
-新建 `E:\course-mall\mall-course\src\main\java\com\mall\course\controller\CourseController.java`：
+在 Day06 的 `CourseServiceImpl` 注入 `ApplicationEventPublisher`，并在新增、修改、删除成功后发布：
 
 ```java
-package com.mall.course.controller;
+private final ApplicationEventPublisher eventPublisher;
 
-import com.mall.common.result.ErrorCode;
-import com.mall.common.result.Result;
-import com.mall.course.entity.Course;
-import com.mall.course.service.CourseCacheService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+// create：save 成功并拿到主键后发布，清除之前可能缓存的 NULL。
+eventPublisher.publishEvent(new CourseChangedEvent(course.getId()));
 
-@RestController
-@RequestMapping("/api/course")
-public class CourseController {
+// update / delete：数据库操作成功后发布。
+eventPublisher.publishEvent(new CourseChangedEvent(id));
+```
 
-    @Autowired
-    private CourseCacheService courseCacheService;
+在 `CourseCacheService` 增加监听器：
 
-    // 查详情：走缓存（穿透/击穿/雪崩都在这条链路里处理）
-    @GetMapping("/{id}")
-    public Result<Course> getById(@PathVariable Long id) {
-        Course course = courseCacheService.getCourseById(id);
-        if (course == null) {
-            return Result.fail(ErrorCode.NOT_FOUND.getCode(), ErrorCode.NOT_FOUND.getMessage());
-        }
-        return Result.ok(course);
-    }
-
-    // 更新课程：更库后删缓存，保证一致性
-    @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @RequestBody Course course) {
-        course.setId(id);   // 用路径里的 id 覆盖，防止被请求体篡改
-        courseCacheService.updateCourse(course);
-        return Result.ok();
+```java
+@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+public void evictAfterCommit(CourseChangedEvent event) {
+    try {
+        redisTemplate.delete(CACHE_PREFIX + event.courseId());
+    } catch (RedisConnectionFailureException e) {
+        // 数据库已经提交，缓存删除失败必须告警；TTL 最终会使旧值失效。
+        log.error("课程缓存删除失败，courseId={}", event.courseId(), e);
     }
 }
 ```
 
-> 前台「是否上架（status=1）」的判断 Day 6 已经处理，这里聚焦缓存，不重复。
+需要导入：
 
-**启动验证**（在 `E:\course-mall\` 根目录）：
+```java
+import com.mall.course.event.CourseChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+```
+
+这种方式把“提交数据库”和“删缓存”的先后关系写进框架回调，不需要用公共线程池 `CompletableFuture.runAsync` 猜一个 500ms 延迟。若要进一步保证删缓存消息绝不丢失，可在 Day21/26 使用 MQ、Outbox 或 Canal。
+
+::: tip 💡 面试题：为什么要在 `AFTER_COMMIT` 删除缓存？
+事务内执行 `UPDATE` 并不等于其他连接已经能看到新值。若提交前先删缓存，并发读会回源读到旧值再写回。`AFTER_COMMIT` 保证数据库新值先对外可见，再让下一次读重新构建缓存。
+:::
+
+### 步骤 7：Controller + 启动验证
+
+不要再新建第二个 `CourseController`。把 Day07 公开详情接口的依赖和实现改为：
+
+```java
+private final CourseCacheService courseCacheService;
+
+@GetMapping("/{id}")
+public Result<CourseDetailVO> detail(
+        @Positive(message = "{common.id-required}") @PathVariable Long id) {
+    return Result.ok(courseCacheService.getPublishedDetail(id));
+}
+```
+
+后台修改仍使用 Day06 的 `PUT /api/admin/courses/{id}`：它已有 `@Valid`、`@PreAuthorize("hasAuthority('course:edit')")` 和事务，成功后由本日事件监听器清缓存。
+
+**启动验证**（在 `E:\CourseMall\` 根目录）：
 
 ```bash
-mvn clean install -DskipTests
-mvn -pl mall-course spring-boot:run
+mvn clean verify -DskipTests
+mvn -pl mall-user -am spring-boot:run
 ```
 
 ```bash
 # 1. 正常查询（种子数据 id=1 存在）
-curl http://localhost:8081/api/course/1
+curl http://localhost:8080/api/courses/1
 
 # 2. 穿透验证：查一个不存在的 id=99999
-curl http://localhost:8081/api/course/99999
+curl http://localhost:8080/api/courses/99999
 #    返回 404，然后用 redis-cli 看：空值标记已经缓存了
-redis-cli get course:detail:99999
+redis-cli get course:detail:v1:99999
 #    → 返回 "NULL"（说明没穿透到 DB）
 ```
 
 ```bash
 # 3. 看缓存是否写入 + 过期时间是否随机（雪崩验证）
-redis-cli keys "course:detail:*"
-redis-cli ttl course:detail:1    # 应该在 1800~2340 秒之间（30~39分钟随机）
+redis-cli --scan --pattern "course:detail:v1:*"
+redis-cli ttl course:detail:v1:1    # 应该在 1800~2340 秒之间（30~39分钟随机）
 ```
 
 **击穿验证**（手动比较难复现，用并发压测看 SQL 日志）：
 
 ```bash
 # 先删掉 key 模拟「过期」，再开多个并发同时查同一个 id
-redis-cli del course:detail:1
-# 用 ab / JMeter 并发打 curl http://localhost:8081/api/course/1
+redis-cli del course:detail:v1:1
+# 用 JMeter 并发请求 http://localhost:8080/api/courses/1
 # 看控制台 SQL 日志：只有一条 SELECT ... FROM course WHERE id=1，其余请求都等锁后命中缓存
 ```
 
@@ -443,25 +342,26 @@ redis-cli del course:detail:1
 | Redis 缓存穿透/击穿/雪崩、SETNX、TTL | [Redis](/learn_database/Redis) |
 | StringRedisTemplate、序列化、Jackson | [Redis](/learn_database/Redis) |
 | MyBatis-Plus `BaseMapper`、逻辑删除 | [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus) |
-| `@Transactional` 事务、延迟双删 | [Spring](/learn_backend/java/基础/Spring) |
-| `CompletableFuture` 异步 | [并发编程](/learn_backend/java/Java核心/并发编程) |
+| `@TransactionalEventListener(AFTER_COMMIT)` | [Spring](/learn_backend/java/基础/Spring) |
+| 唯一 token + Lua 原子释放互斥锁 | [Redis](/learn_database/Redis) |
 | 缓存一致性、Cache Aside 模式 | [分布式基础](/learn_backend/java/微服务/分布式基础) |
 
 ## 五、✅ 完成后回填
 
 - [ ] 完成时间：`____年__月__日`
-- [ ] `mall-course` 启动成功，`curl /api/course/1` 返回课程 JSON：是 / 否
-- [ ] `redis-cli keys "course:detail:*"` 能看到缓存 key：是 / 否
-- [ ] 查不存在的 id，`course:detail:99999` 缓存了 `NULL`，且第二次请求不再打 DB：是 / 否
+- [ ] 只启动 `mall-user`，`GET /api/courses/1` 返回课程详情：是 / 否
+- [ ] `redis-cli --scan --pattern "course:detail:v1:*"` 能看到缓存 key：是 / 否
+- [ ] 查不存在的 id，`course:detail:v1:99999` 缓存了 `NULL`，且第二次请求不再打 DB：是 / 否
 - [ ] 多个 key 的 `ttl` 不一样（随机过期生效）：是 / 否
-- [ ] 更新课程后，缓存被删除（`redis-cli get` 返回空）：是 / 否
+- [ ] ADMIN 更新课程且事务提交后，缓存被删除：是 / 否
+- [ ] 普通用户调用后台更新接口得到 403：是 / 否
 - [ ] 踩坑记录（Redis 连不上、序列化报错、LocalDateTime 反序列化失败等）：
 - [ ] 疑问（有就写，我来答）：
 
 ## 六、我下次会追问的问题（做完先自己想想）
 
 1. 缓存穿透、击穿、雪崩分别是什么？触发场景有什么不同？分别用什么方案解决？
-2. `setIfAbsent`（SETNX）为什么能实现互斥锁？这个锁有什么缺陷？（提示：锁是谁加的都分不清，释放时可能误删别人的锁——Day 19 会讲如何用 Lua/Redisson 解决）
-3. 为什么「先改数据库、再删缓存」而不是反过来？「延迟双删」解决的是什么极端的并发窗口？
+2. `setIfAbsent`（SETNX）为什么能实现互斥锁？为什么锁值要用唯一 token，并用 Lua 比较后删除？
+3. 为什么缓存要等数据库事务 `AFTER_COMMIT` 后再删除？如果删除失败，系统靠什么最终恢复？
 4. 空值缓存防穿透，为什么过期时间必须设短？如果换成布隆过滤器，和空值缓存比各有什么优缺点？
 5. 为什么缓存过期时间要加随机值？除了加随机值，雪崩还有哪些缓解手段？（提示：缓存预热、多级缓存、熔断降级）

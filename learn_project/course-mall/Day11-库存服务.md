@@ -1,19 +1,19 @@
 # Day 11 · 库存服务（扣减/回补 + 防超卖 + 乐观锁）
 
-> **今天目标**：新建 `mall-stock` 库存服务模块，实现「库存扣减 / 回补」两个核心接口，并用**乐观锁**解决「多个人同时下单时库存被扣成负数」的超卖问题。这是全项目第一个真正碰**并发**的日子。
+> **今天目标**：把 Day10 临时放在订单模块里的库存 SQL抽成 `mall-stock` 领域模块：订单内部调用原子扣减/回补，后台只开放有权限的库存查询/调整；同时用 `@Version` 学习乐观锁。
 
 ## 一、前置条件
 
 - 已完成 **Day 01**（Maven 多模块骨架：`Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler` 都在 `mall-common`）
-- 已完成 **Day 02**（11 张表已建好，`course` 表存在）
+- 已完成 **Day 02**（17 张表已建好，`course.stock/version` 已存在）
 - **MySQL 已启动**，能连上 `course_mall` 库
-- Day 10（订单服务）下单时会「内联地扣一下库存」，但那是**没有并发保护的写法**——今天就是要把它升级成专业的库存服务
+- Day10 下单已经使用 `UPDATE ... WHERE stock > 0` 防超卖；今天做的是**职责拆分、批量数量校验、乐观锁管理和并发验证**
 
 ## 二、今天完成后你会得到什么
 
-1. `course` 表多出 `stock`（库存）和 `version`（乐观锁版本号）两个字段
-2. 一个独立的 `mall-stock` 模块，跑在 `8082` 端口
-3. 三个接口：查库存 / 扣减库存 / 回补库存
+1. 一个普通 jar 模块 `mall-stock`，由 `mall-user` 加载
+2. 订单模块通过 Java 方法调用库存能力，同享本地事务
+3. 后台接口：查库存 / 按版本调整库存（分别受 `stock:view`、`stock:adjust` 保护）
 4. 一个**并发测试**：200 个线程同时抢 100 件库存，最后库存恰好是 0、成功恰好 100 次（证明不超卖）
 
 ## 三、先搞懂：为什么会「超卖」？
@@ -25,7 +25,7 @@
 public void deductNaive(Long courseId, Integer count) {
     CourseStock stock = courseStockMapper.selectById(courseId);  // 1. 查：stock = 1
     if (stock.getStock() < count) {
-        throw new BizException(400, "库存不足");
+        throw new BizException(ErrorCode.STOCK_INSUFFICIENT);
     }
     stock.setStock(stock.getStock() - count);                    // 2. 改：stock = 0
     courseStockMapper.updateById(stock);                         // 3. 写回
@@ -49,26 +49,16 @@ public void deductNaive(Long courseId, Integer count) {
 
 ## 四、步骤
 
-### 步骤 1：给 `course` 表加 `stock` + `version` 字段
+### 步骤 1：核对 `stock` + `version` 字段
 
-库存放在哪？Day 02 的 11 张表里没有独立的库存表，而 `course`（课程）就是「可售卖的商品」，把库存挂在课程上最自然。**不另建表**，给 `course` 加两个字段即可。
+Day02 已把库存和版本号放进 `course`。只在旧数据库缺列时执行一次 Day10 的迁移，不要在 Day10、Day11 重复 `ALTER`。
 
 > 如果你 Day 02 的 `schema.sql` 还没执行，直接把下面两列加进 `CREATE TABLE course` 的定义里；如果已经建好表了，执行 `ALTER`：
 
 ```sql
--- 方式一：表已建好 → 直接 ALTER（推荐，Day02 已完成就用这个）
-ALTER TABLE `course`
-    ADD COLUMN `stock`   INT NOT NULL DEFAULT 0 COMMENT '库存：可售数量。默认0=无库存，需手动设置',
-    ADD COLUMN `version` INT NOT NULL DEFAULT 0 COMMENT '版本号：乐观锁用，每次扣减/回补 +1';
-
--- 给已有的 3 门课设置库存，方便测试
-UPDATE `course` SET `stock` = 100 WHERE `id` IN (1, 2, 3);
-```
-
-```sql
--- 方式二：表还没建 → 在 CREATE TABLE course 里加上这两列（放在 status 附近即可）
---   `stock`         INT  NOT NULL DEFAULT 0 COMMENT '库存：可售数量',
---   `version`       INT  NOT NULL DEFAULT 0 COMMENT '版本号：乐观锁',
+SHOW COLUMNS FROM course LIKE 'stock';
+SHOW COLUMNS FROM course LIKE 'version';
+UPDATE course SET stock = 100, version = 0 WHERE id = 1;
 ```
 
 **为什么 `version` 能当乐观锁？**

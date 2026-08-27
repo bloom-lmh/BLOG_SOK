@@ -125,6 +125,8 @@ CREATE TABLE `course` (
     `cover`          VARCHAR(255)   DEFAULT NULL            COMMENT '封面 URL',
     `price`          DECIMAL(10,2)  NOT NULL DEFAULT 0.00   COMMENT '售价（元）。金额必须用 DECIMAL，不能用 float/double，否则精度丢失',
     `original_price` DECIMAL(10,2)  DEFAULT NULL            COMMENT '原价，用于展示划线价/秒杀对比',
+    `stock`          INT            NOT NULL DEFAULT 100    COMMENT '日常可售库存（Day10/11 原子扣减与并发控制）',
+    `version`        INT            NOT NULL DEFAULT 0      COMMENT '乐观锁版本号（Day11 使用）',
     `description`    TEXT                                   COMMENT '课程详情（富文本）',
     `status`         TINYINT        NOT NULL DEFAULT 0      COMMENT '状态：1已上架 0下架',
     `view_count`     INT            NOT NULL DEFAULT 0      COMMENT '浏览量（读多写多，可放 Redis 异步回写）',
@@ -187,6 +189,7 @@ DROP TABLE IF EXISTS `orders`;
 CREATE TABLE `orders` (
     `id`           BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     `order_no`     VARCHAR(64)   NOT NULL                COMMENT '订单号（唯一，对用户可见，如 20260819...）',
+    `request_id`   VARCHAR(64)   NOT NULL                COMMENT '客户端幂等键，同一用户重复提交时保持不变',
     `user_id`      BIGINT        NOT NULL                COMMENT '下单用户（逻辑外键 → user.id）',
     `total_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00   COMMENT '订单总金额',
     `status`       TINYINT       NOT NULL DEFAULT 0      COMMENT '订单状态机：0待支付 1已支付 2已取消 3已退款',
@@ -197,7 +200,8 @@ CREATE TABLE `orders` (
     `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_order_no` (`order_no`),               -- 唯一索引：订单号不能重复，也防重复下单
+    UNIQUE KEY `uk_order_no` (`order_no`),               -- 订单号不能重复
+    UNIQUE KEY `uk_user_request` (`user_id`, `request_id`), -- 数据库兜底防重复提交
     KEY `idx_user_id` (`user_id`)                        -- 「我的订单」按用户查
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单主表';
 
@@ -625,7 +629,7 @@ INSERT INTO `menu` (`id`, `parent_id`, `name`, `path`, `icon`, `sort`, `type`, `
     (6,  5, '课程列表',   '/course/list',  'list',   1, 1, 'course:list'),
     (7,  5, '分类管理',   '/course/category', 'category', 2, 1, 'category:list'),
     (8,  0, '订单管理',   '/order',     'order',  3, 0, NULL),
-    (9,  8, '订单列表',   '/order/list',    'list',   1, 1, 'order:list');
+    (9,  8, '订单列表',   '/order/list',    'list',   1, 1, 'order:view');
 
 -- 插入权限（编码作为后端鉴权点，如 @PreAuthorize("hasAuthority('course:create')")）
 INSERT INTO `permission` (`id`, `name`, `code`, `type`, `parent_id`) VALUES
@@ -640,9 +644,49 @@ INSERT INTO `permission` (`id`, `name`, `code`, `type`, `parent_id`) VALUES
     (9,  '课程编辑',   'course:edit',  2, 6),
     (10, '课程删除',   'course:delete', 2, 6),
     (11, '订单管理',   'order',        0, 0),
-    (12, '订单查询',   'order:view',   1, 11),
-    (13, '订单退款',   'order:refund', 2, 11);
+    (12, '订单查询',   'order:view',      1, 11),
+    (13, '订单退款',   'order:refund',    2, 11),
+    (14, '角色查询',   'role:list',       1, 1),
+    (15, '菜单查询',   'menu:list',       1, 1),
+    (16, '分配角色',   'user:role',       2, 1),
+    (17, '分类查询',   'category:list',   1, 6),
+    (18, '分类维护',   'category:edit',   2, 6),
+    (19, '讲师查询',   'teacher:list',    1, 6),
+    (20, '讲师维护',   'teacher:edit',    2, 6),
+    (21, '文件管理',   'file',            0, 0),
+    (22, '文件上传',   'file:upload',     2, 21),
+    (23, '库存管理',   'stock',           0, 0),
+    (24, '库存查询',   'stock:view',      1, 23),
+    (25, '库存调整',   'stock:adjust',    2, 23),
+    (26, '支付管理',   'payment',         0, 0),
+    (27, '支付查询',   'payment:view',    1, 26),
+    (28, '支付退款',   'payment:refund',  2, 26),
+    (29, '秒杀管理',   'seckill',         0, 0),
+    (30, '秒杀维护',   'seckill:manage',  2, 29),
+    (31, '搜索管理',   'search',          0, 0),
+    (32, '索引同步',   'search:sync',     2, 31),
+    (33, '直播管理',   'live',            0, 0),
+    (34, '直播维护',   'live:manage',     2, 33),
+    (35, '工作流管理', 'workflow',        0, 0),
+    (36, '任务审批',   'workflow:approve', 2, 35);
+
+-- 权限必须分配给角色，只有 permission 数据而没有 role_permission 关联时，
+-- Day04 虽然能登录，但 Authentication 中的权限集合为空，所有 @PreAuthorize 都会返回 403。
+INSERT INTO `role_permission` (`role_id`, `permission_id`)
+SELECT 1, id FROM `permission`;  -- ADMIN：全部权限
+
+INSERT INTO `role_permission` (`role_id`, `permission_id`) VALUES
+    (2, 7), (2, 8), (2, 9), (2, 17), (2, 19), (2, 22), (2, 34),
+    (3, 7), (3, 9), (3, 17), (3, 18), (3, 19), (3, 20),
+    (3, 22), (3, 30), (3, 32), (3, 36);
+
+-- 注册用户后，把实际用户 ID 替换到这里再执行；一个用户可以同时拥有多个角色。
+-- INSERT INTO `user_role` (`user_id`, `role_id`) VALUES (1, 1);
 ```
+
+::: warning 权限联调前必须做
+`@PreAuthorize("hasAuthority('course:create')")` 比较的是字符串。数据库里必须存在完全相同的 `permission.code`，并且当前用户要通过 `user_role → role_permission` 获得它。只插权限表、不建立角色关联，是“登录成功但所有后台接口都 403”的最常见原因。
+:::
 
 ## 七、执行方式
 

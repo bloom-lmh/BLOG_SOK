@@ -4,7 +4,7 @@
 
 ## 一、前置条件
 
-- 已完成 Day 01（`mall-common` / `mall-user` 骨架、`Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler` 已就位，`scanBasePackages = "com.mall"`）
+- 已完成 Day 01（包括末尾的六位错误码 + i18n 演进；`BizException` 只保存 `ErrorCode` 和消息参数）
 - 已完成 Day 02（`course_mall` 库、`user` 表已建好，`uk_username` 唯一索引已生效）
 - MySQL 可连（本机 `8.4.7`），记好 root 密码
 
@@ -31,7 +31,7 @@ E:\course-mall\
 │     │  └─ vo/UserVO.java                    # 新增：查询出参（不含密码）
 │     └─ resources/application.yml    # 修改：加数据源 + SQL 日志
 └─ mall-common/
-   └─ .../exception/GlobalExceptionHandler.java  # 修改：加参数校验异常处理
+   └─ .../web/advice/GlobalExceptionHandler.java  # 修改：加参数校验异常处理
 ```
 
 ## 三、步骤
@@ -153,6 +153,7 @@ mybatis-plus:
 package com.mall.user.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -177,10 +178,10 @@ public class User {
     private String email;
     private Integer status;    // 1 启用 0 禁用
 
-    // @TableLogic 逻辑删除：MP 把 delete 自动改成 update deleted=1，
-    // 把 select/selectCount 自动拼上 where deleted=0，不用手写
-    @TableLogic
-    private Integer deleted;
+    // Day02 使用 deleted_at：null 表示正常，删除时写入数据库当前时间。
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 
     private LocalDateTime createTime;   // 数据库 DEFAULT CURRENT_TIMESTAMP 自动填
     private LocalDateTime updateTime;
@@ -188,7 +189,7 @@ public class User {
 ```
 
 ::: tip 💡 面试题：`@TableLogic` 逻辑删除做了什么？它对应 Day 02 的哪个字段？
-**一句话**：它把「删数据」变成「改 `deleted` 标记」，并且**查询自动过滤 `deleted=1` 的记录**。这就是 Day 02 设计里 `deleted TINYINT` 字段的作用——数据可恢复、历史订单可追溯。MyBatis-Plus 在 Day 6 会详细展开。
+**一句话**：它把物理删除改写成 `UPDATE user SET deleted_at = now()`，查询自动追加 `deleted_at IS NULL`。时间戳方案不仅能区分是否删除，还能记录删除时间；实体、表结构和 MP 的逻辑删除配置必须使用同一种方案。
 :::
 
 ### 步骤 3：Mapper `UserMapper`
@@ -226,22 +227,23 @@ import lombok.Data;
 @Data
 public class UserRegisterDTO {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 20, message = "用户名长度须在 3~20 之间")
-    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "用户名只能包含字母、数字、下划线")
+    @NotBlank(message = "{validation.user.username.not-blank}")
+    @Size(min = 3, max = 20, message = "{validation.user.username.size}")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "{validation.user.username.pattern}")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度须在 6~20 之间")
+    @NotBlank(message = "{validation.user.password.not-blank}")
+    @Size(min = 6, max = 20, message = "{validation.user.password.size}")
     private String password;
 
-    @NotBlank(message = "昵称不能为空")
+    @NotBlank(message = "{validation.user.nickname.not-blank}")
+    @Size(max = 30, message = "{validation.user.nickname.size}")
     private String nickname;
 
-    @Email(message = "邮箱格式不正确")
+    @Email(message = "{validation.user.email.invalid}")
     private String email;
 
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "{validation.user.phone.invalid}")
     private String phone;
 }
 ```
@@ -265,7 +267,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-// 只定义允许返回给前端的字段，故意不包含 password、deleted 等内部字段
+// 只定义允许返回给前端的字段，故意不包含 password、deletedAt 等内部字段
 @Data
 public class UserVO {
     private Long id;
@@ -301,7 +303,7 @@ public interface UserConverter {
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "avatar", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "deleted", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     User toEntity(UserRegisterDTO dto);
@@ -408,7 +410,7 @@ public class UserServiceImpl implements UserService {
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         if (count > 0) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
+            throw new BizException(ErrorCode.USERNAME_EXISTS);
         }
 
         // ② MapStruct 复制普通字段；密码被转换器显式忽略，必须单独哈希
@@ -421,7 +423,7 @@ public class UserServiceImpl implements UserService {
         try {
             userMapper.insert(user);
         } catch (DuplicateKeyException e) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "用户名已存在");
+            throw new BizException(ErrorCode.USERNAME_EXISTS);
         }
         return user.getId();   // insert 后 MP 已把自增 id 回填进 user
     }
@@ -430,7 +432,7 @@ public class UserServiceImpl implements UserService {
     public UserVO getById(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "用户不存在");
+            throw new BizException(ErrorCode.USER_NOT_FOUND, id);
         }
         // MapStruct 在编译期生成转换代码；UserVO 无 password，敏感字段不会返回
         return userConverter.toVO(user);
@@ -603,14 +605,18 @@ public class MallUserApplication {
 
 Day 01 的 `GlobalExceptionHandler` 已经能处理 `BizException` 和兜底 `Exception`。今天要补上「参数校验失败」的出口——校验异常如果不处理，会返回 Spring 默认的 400 错误体，而不是我们的统一 `Result` 结构。
 
-改 `com/mall/common/exception/GlobalExceptionHandler.java`，**在类里追加**两个方法：
+改 `com/mall/common/web/advice/GlobalExceptionHandler.java`。这里同时展示业务异常、请求体校验、Query/Path 校验三个出口，避免继续使用已经废弃的 `BizException(code, message)`：
 
 ```java
-package com.mall.common.exception;
+package com.mall.common.web.advice;
 
+import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
 import com.mall.common.result.Result;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -625,38 +631,44 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public Result<Void> handleBiz(BizException e) {
-        log.warn("业务异常: {}", e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
+        log.warn("业务异常: code={}, key={}",
+                e.getErrorCode().getCode(),
+                e.getErrorCode().getMessageKey());
+        return Result.fail(e.getErrorCode(), e.getMessageArgs());
     }
 
-    // ===== 下面两个是今天新增：参数校验失败的统一出口 =====
-
-    // @RequestBody + @Valid 校验失败抛这个（body 里是 JSON）
+    // @Valid @RequestBody 校验失败：取第一条字段错误，保持响应简洁稳定。
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<Void> handleValid(MethodArgumentNotValidException e) {
-        // 把所有字段错误拼成一条提示，多个错误时用分号隔开
-        String msg = e.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
-                .collect(Collectors.joining("; "));
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
+    public Result<Void> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .orElse(ErrorCode.PARAM_ERROR.getMessageKey());
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 
-    // 表单提交 / Query 参数（@ModelAttribute 或方法参数直接 @Valid）校验失败抛这个
+    // 表单或 Query 对象绑定失败时可合并多个字段错误。
     @ExceptionHandler(BindException.class)
     public Result<Void> handleBind(BindException e) {
-        String msg = e.getBindingResult().getFieldErrors().stream()
+        String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 
-    @ExceptionHandler(Exception.class)
-    public Result<Void> handleOther(Exception e) {
-        log.error("系统异常", e);
-        return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMessage());
+    // Controller 标注 @Validated 后，单个 @RequestParam/@PathVariable 约束失败走这里。
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Result<Void> handleConstraintViolation(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(ConstraintViolation::getMessage)
+                .orElse(ErrorCode.PARAM_ERROR.getMessageKey());
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), message);
     }
 }
 ```
+
+这里拿到的 `defaultMessage` 可能是已经解析好的中文/英文，也可能是消息键。统一返回的 `ResultMessageAdvice` 会在 JSON 序列化前做最后一次解析，因此 Controller 和异常处理器都不需要注入 `MessageSource`。
 
 ::: tip 💡 面试题：为什么 `@RequestBody` 校验失败抛 `MethodArgumentNotValidException`，而表单/Query 参数抛 `BindException`？
 **一句话**：`@RequestBody` 是先做 JSON 反序列化，再对对象做校验，失败抛的是 `MethodArgumentNotValidException`（`BindException` 的子类）；表单/Query 参数是 MVC 数据绑定时边绑定边校验，失败直接抛 `BindException`。所以两者都要接，漏一个就会有一类校验失败返回默认错误体。
@@ -704,16 +716,16 @@ curl -X POST http://localhost:8080/api/user/register \
   -d '{"username":"ab","password":"123","nickname":"张三"}'
 ```
 
-预期（400，提示拼在一起）：
+预期（只返回第一条失败规则；字段校验顺序不应作为业务契约）：
 
 ```json
-{ "code": 400, "message": "用户名长度须在 3~20 之间; 密码长度须在 6~20 之间", "data": null }
+{ "code": 400, "message": "用户名长度必须在 3 到 20 个字符之间", "data": null }
 ```
 
 **③ 用户名重复**（再注册一次 `zhangsan`）：
 
 ```json
-{ "code": 400, "message": "用户名已存在", "data": null }
+{ "code": 409101, "message": "用户名已存在", "data": null }
 ```
 
 **④ 按 id 查询**（注意：返回里**没有 password 字段**）：
@@ -750,7 +762,7 @@ curl http://localhost:8080/api/user/999
 预期：
 
 ```json
-{ "code": 404, "message": "用户不存在", "data": null }
+{ "code": 404101, "message": "用户 999 不存在", "data": null }
 ```
 
 > 到这一步，去数据库 `SELECT id, username, password FROM user;` 看一眼：`password` 应该以 `{bcrypt}$2a$10$...` 开头，而不是 `123456`。这既验证了“明文不落库”，也验证了 `DelegatingPasswordEncoder` 已加入算法前缀。

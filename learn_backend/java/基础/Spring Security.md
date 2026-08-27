@@ -321,7 +321,119 @@ public class SecurityConfig {
 }
 ```
 
-#### 1.1 `formLogin` 如何使用 `UsernamePasswordAuthenticationFilter`
+#### 1.1 先对比旧版：`WebSecurityConfigurerAdapter` 已被移除
+
+Spring Security 5.x 及以前的主流写法是**继承 `WebSecurityConfigurerAdapter` 重写 `configure` 方法**；6.x 把这个类彻底移除了。看老项目时你可能遇到旧代码：
+
+```java
+// ❌ 旧版写法（已移除，读懂即可，新项目禁止模仿）
+@Configuration
+public class OldSecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http
+            .authorizeRequests()                       // 旧 API，如今叫 authorizeHttpRequests
+                .antMatchers("/public/**").permitAll() // antMatchers 已删除，统一为 requestMatchers
+                .anyRequest().authenticated()
+                .and()                                 // 旧写法要靠 and() 跳回上一级继续配
+            .formLogin();
+    }
+}
+```
+
+| 要做的事     | 旧版（5.x）                                       | 新版（6.x）                                  |
+| ------------ | ------------------------------------------------- | --------------------------------------------- |
+| 配置载体     | 继承 Adapter 类，重写 `configure(HttpSecurity)`    | 声明一个 `SecurityFilterChain` Bean            |
+| 书写风格     | 链式 + `and()` 来回跳                             | Lambda 分组：`.formLogin(form -> form.xxx)`，无需 `and()` |
+| URL 匹配方法 | `antMatchers()` / `mvcMatchers()`                 | 统一为 `requestMatchers()`                     |
+| 提供用户来源 | 重写 `configure(AuthenticationManagerBuilder)`     | 注册一个 `UserDetailsService` Bean 即可        |
+| 方法级安全   | `@EnableGlobalMethodSecurity`                      | 改名 `@EnableMethodSecurity`（默认启用 prePost）|
+
+新版代码就是本节开头的 `filterChain` 那一段，配置项全部通过「Lambda + 子配置对象」组织，每块 `{}` 收尾后自动回到 `http` 层级。
+
+::: tip 和你学过的自定义 Starter 自动装配是同一个套路
+引入 starter 后之所以「啥都没配也全接口要登录」，是因为 Boot 的自动装配在你**没有声明任何 `SecurityFilterChain` Bean** 时才提供默认链——本质上还是条件注解的「你没配我才配」。所以一旦你定义了自己的 `filterChain`，随机密码不再打印、默认规则全部失效，安全策略由你的 Bean 全面接管。
+:::
+
+#### 1.2 `HttpSecurity` 可用配置项总览
+
+Lambda DSL 里每个 `http.xxx(cfg -> cfg ...)` 就是独立的一块配置开关，先有个全景认知，后面小节逐个拆：
+
+| 配置项                  | 干什么用                                   | 默认状态                    | 本文档详讲处 |
+| ----------------------- | ------------------------------------------ | ---------------------------- | ------------- |
+| `authorizeHttpRequests` | URL 级授权规则                             | 必须显式配置                 | 本文 1.3      |
+| `formLogin`             | 表单登录（会加入认证过滤器）               | 未自定义链时默认开启         | 本文 1.4      |
+| `logout`                | 退出登录处理                               | 有默认行为                   | 本文 1.5      |
+| `sessionManagement`     | Session 创建策略 / 并发登录 / 会话固定防护 | 默认 `IF_REQUIRED`           | 本文 1.6      |
+| `headers`               | 写入系列安全响应头                         | 默认写入多个安全头           | 本文 1.7      |
+| `addFilterBefore/After/At` | 插入自定义过滤器到指定位置              | —                            | 本文 1.8      |
+| 多条链 `securityMatcher` + `@Order` | 一个应用配置多条过滤器链       | 不配则接管所有请求           | 本文 1.9      |
+| `csrf`                  | CSRF Token 校验                            | 默认开启                     | 第 6.1 节     |
+| `cors`                  | 过滤器链内的跨域处理                       | 默认关闭                     | 第 6.2 节     |
+| `exceptionHandling`     | 401 / 403 时交给哪个处理器                 | 有默认行为                   | 第 7 节       |
+| `httpBasic`             | HTTP Basic 弹框认证                        | 未自定义链时默认开启         | 第 2 节       |
+| `oauth2ResourceServer`  | 标准 Bearer JWT 校验                       | 关闭                         | 第 4.1 节     |
+| `rememberMe`            | 「记住我」免登录                           | 关闭                         | 第 8 节       |
+| `anonymous`             | 匿名认证兜底                               | 默认开启                     | 原理篇 1.2    |
+
+> 记忆方式：**与「能不能访问」相关的就三块——授权规则、认证方式、异常出口；其余都是增强件。**
+
+#### 1.3 `authorizeHttpRequests`：授权规则的三个关键点
+
+**关键点一：规则自上而下匹配，命中即止**
+
+```java
+http.authorizeHttpRequests(auth -> auth
+    // ✅ 正确示范：最具体的放最上面，最通用的兜底放最后
+    .requestMatchers("/api/order/detail").permitAll()   // 精确路径优先
+    .requestMatchers("/api/order/**").hasRole("ADMIN")  // 更宽的前缀排后面
+    .anyRequest().authenticated()                       // 兜底规则必须是最后一条
+);
+```
+
+经典翻车现场：把 `.anyRequest().authenticated()` 写在最前面，后面的 `permitAll` 永远轮不到执行——表现为「明明配了放行还是要登录」，八成就是这个顺序问题。
+
+**关键点二：通配符怎么写**
+
+| 通配符 | 代表什么           | 示例                                |
+| ------ | ------------------ | ------------------------------------ |
+| `?`    | 单个字符           | `/user?` → 匹配 `/userA`            |
+| `*`    | 一层路径内任意字符 | `/goods/*/detail` → `/goods/1/detail`（不能跨多层） |
+| `**`   | 任意多层路径       | `/api/**` → `/api/a/b/c` 全中        |
+
+还可以限定请求方法（同一个 URL，读和写的权限分开控制）：
+
+```java
+.requestMatchers(HttpMethod.POST, "/goods").hasAuthority("goods:write")   // 只有 POST /goods 才要求该权限
+.requestMatchers(GET, "/goods/**").permitAll()                             // 商品浏览直接放开
+```
+
+**关键点三：权限判断方法全家桶**
+
+| 写法                          | 说明                                 | 场景                       |
+| ----------------------------- | ------------------------------------ | -------------------------- |
+| `.permitAll()`                | 无条件放行                           | 登录页、注册页、静态资源   |
+| `.authenticated()`            | 只要登录即可（不限角色）             | 需要登录才能看的页面       |
+| `.hasRole("ADMIN")`           | 必须拥有 `ROLE_ADMIN` 权限           | 管理员后台                 |
+| `.hasAnyRole("ADMIN","USER")` | 拥有任一角色即可                     | 多角色共享页面             |
+| `.hasAuthority("order:read")` | 拥有指定权限（**不带** ROLE\_ 前缀） | 细粒度权限点               |
+| `.hasAnyAuthority(...)`       | 拥有任一权限即可                     | 多个权限点                 |
+| `.denyAll()`                  | 全部拒绝                             | 临时封禁某接口             |
+| `.anonymous()`                | 只允许匿名（未登录）访问             | 已经登录了反而不能进登录页 |
+| `.rememberMe()`               | 允许「记住我」登录的用户             | 依赖记住我功能             |
+| `.access(authz)`              | 交给自定义决策器或 SpEL 组合表达式   | 复杂组合条件               |
+
+组合多个条件的复杂授权用 `access` + 表达式管理器：
+
+```java
+// org.springframework.security.web.access.expression.WebExpressionAuthorizationManager
+.requestMatchers("/vip/**").access(
+        new WebExpressionAuthorizationManager("hasRole('VIP') and hasAuthority('report:read')"))
+// 含义：既要 VIP 角色，又要报表查看权限，两者同时满足
+```
+
+#### 1.4 `formLogin`：表单登录配置详解
 
 普通的用户名密码登录不需要我们手动创建 `UsernamePasswordAuthenticationFilter`。只要配置了 `.formLogin(...)`，Spring Security 就会把它加入当前过滤器链。
 
@@ -356,6 +468,36 @@ POST /login
 </form>
 ```
 
+**`formLogin` 全部配置项一览**：
+
+| 配置项                          | 说明                                                       | 默认值               |
+| ------------------------------- | ----------------------------------------------------------- | --------------------- |
+| `loginPage(String)`             | 你自己的登录页地址；配了它必须自己提供对应 GET Controller   | 框架自带的 `/login` 页 |
+| `loginProcessingUrl(String)`    | 过滤器拦截的「提交」地址，**不需要写 Controller**           | `/login`              |
+| `usernameParameter(String)`     | 表单用户名字段名                                            | `username`            |
+| `passwordParameter(String)`     | 表单密码字段名                                              | `password`            |
+| `defaultSuccessUrl(url)`        | 成功去处；优先跳回「当初被拦截想去的那个页面」              | —                     |
+| `defaultSuccessUrl(url, true)`  | 第二参传 `true` 表示无条件固定跳 url                        | —                     |
+| `successHandler(handler)`       | 成功回调（前后端分离在这里返回 JSON）                       | —                     |
+| `failureUrl(url)` / `failureHandler(...)` | 失败去向 / 失败回调                               | —                     |
+| `permitAll()`                   | 一键放行登录页与提交地址等资源                              | 不放行会死循环重定向  |
+
+```java
+// 前后端分离时代的 successHandler 写法示例
+.formLogin(form -> form
+    .loginProcessingUrl("/doLogin")
+    .successHandler((req, res, auth) -> {          // 认证成功后框架自动调用，auth 里已有当前用户
+        res.setContentType("application/json;charset=UTF-8");
+        res.getWriter().write("{\"code\":0,\"msg\":\"登录成功\"}");
+    })
+    .failureHandler((req, res, ex) -> {
+        res.setContentType("application/json;charset=UTF-8");
+        res.setStatus(401);
+        res.getWriter().write("{\"code\":401,\"msg\":\"用户名或密码错误\"}");
+    })
+)
+```
+
 过滤器内部大致做三件事：
 
 1. 从请求参数中取出用户名和密码；
@@ -364,21 +506,186 @@ POST /login
 
 真正的查用户和比对密码由后面的 `DaoAuthenticationProvider`、`UserDetailsService` 和 `PasswordEncoder` 完成。也就是说，`UsernamePasswordAuthenticationFilter` 主要负责**拦截登录请求和启动认证流程**，不是自己查数据库。
 
+::: warning 前后端分离时的一个坑
+`UsernamePasswordAuthenticationFilter` 默认只解析**表单参数**（`x-www-form-urlencoded`）。前端用 axios 发 JSON 登录时它取不到参数，会一直表现为「认证失败」。两条出路：① 自己写 `POST /login` 接口手动调 `authenticationManager.authenticate(...)`，认证成功签发 Token（JWT 项目常用，正是第 4.2 节的做法）；② 自定义一个读 JSON 的过滤器替换它。
+:::
+
 如果只是普通表单登录，不要手动 `new UsernamePasswordAuthenticationFilter()`；只有验证码、特殊请求头等场景，才需要额外编写自定义过滤器。
 
-**`requestMatchers` 常用匹配规则一览**：
+#### 1.5 `logout`：退出登录配置详解
 
-| 写法                          | 说明                                 | 场景                       |
-| ----------------------------- | ------------------------------------ | -------------------------- |
-| `.permitAll()`                | 无条件放行                           | 登录页、注册页、静态资源   |
-| `.authenticated()`            | 只要登录即可（不限角色）             | 需要登录才能看的页面       |
-| `.hasRole("ADMIN")`           | 必须拥有 `ROLE_ADMIN` 权限           | 管理员后台                 |
-| `.hasAnyRole("ADMIN","USER")` | 拥有任一角色即可                     | 多角色共享页面             |
-| `.hasAuthority("order:read")` | 拥有指定权限（**不带** ROLE\_ 前缀） | 细粒度权限点               |
-| `.hasAnyAuthority(...)`       | 拥有任一权限即可                     | 多个权限点                 |
-| `.denyAll()`                  | 全部拒绝                             | 临时封禁某接口             |
-| `.anonymous()`                | 只允许匿名（未登录）访问             | 已经登录了反而不能进登录页 |
-| `.rememberMe()`               | 允许「记住我」登录的用户             | 依赖记住我功能             |
+退出登录是框架内置的一段逻辑（由 `LogoutFilter` 负责），触发后会自动做四件事：**使 Session 失效、清理 `SecurityContext`、删除指定 Cookie、按配置做跳转或回调**。
+
+Spring Security 6 有一个容易踩坑的行为变化：**因为 CSRF 默认开启，退出登录必须是 `POST /logout`**。写成 `<a href="/logout">` 这种 GET 方式会被拒绝。
+
+```java
+// 传统页面项目：跳转风格
+.logout(logout -> logout
+    .logoutUrl("/logout")               // 触发退出的地址（默认 POST /logout）
+    .logoutSuccessUrl("/login?logout")  // 退出成功后的去处
+    .invalidateHttpSession(true)        // 使 Session 失效（默认 true）
+    .deleteCookies("JSESSIONID", "remember-me")  // 顺手删掉的 Cookie
+    .permitAll()
+);
+
+// 前后端分离：返回 JSON，不跳转
+.logout(logout -> logout
+    .logoutUrl("/logout")
+    .logoutSuccessHandler((req, res, auth) -> {  // 自定义回调，配了它就不要再配 logoutSuccessUrl
+        res.setContentType("application/json;charset=UTF-8");
+        res.setStatus(200);
+        res.getWriter().write("{\"code\":0,\"msg\":\"退出成功\"}");
+    })
+);
+```
+
+| 配置项                        | 说明                                                     | 默认值          |
+| ----------------------------- | -------------------------------------------------------- | --------------- |
+| `logoutUrl(String)`           | 触发退出的地址                                           | `POST /logout`  |
+| `logoutSuccessUrl(String)`    | 退出成功后的跳转页                                       | `/login?logout` |
+| `logoutSuccessHandler(...)`   | 退出成功回调（API 返回 JSON 在这里写）                   | —               |
+| `invalidateHttpSession(boolean)` | 使 Session 失效                                       | `true`          |
+| `deleteCookies(String...)`    | 退出时删除的 Cookie 名（名字必须一字不差，否则删不掉）   | —               |
+| `clearAuthentication(boolean)` | 清理当前身份上下文                                      | `true`          |
+| `addLogoutHandler(...)`       | 追加退出时的收尾动作（例如清掉 Redis 里缓存的 Token）    | —               |
+
+::: tip 💡 面试题：为什么 Spring Security 6 要求退出登录用 POST？
+CSRF 攻击可以直接借 `<img src="/logout">`、`<link href="/logout">` 这类浏览器自动发起 GET 的标签悄悄把人「踢下线」。而 HTML 无法用一个简单标签发起跨站 POST，所以把登出改成 POST 后，攻击者就没法构造这种静默请求了。本质是用 CSRF 防护顺手加固了「登出」这个高危操作。
+:::
+
+#### 1.6 `sessionManagement`：会话管理配置详解
+
+这块管三件事：**Session 什么时候创建**、**同一账号能不能多处登录**、**会话固定攻击怎么防**。
+
+**① Session 创建策略（`sessionCreationPolicy`）**
+
+| 策略            | 行为                                     | 典型场景                    |
+| --------------- | ---------------------------------------- | --------------------------- |
+| `ALWAYS`        | 每个请求都确保存在 Session               | 几乎不用                    |
+| `IF_REQUIRED`（默认） | 需要时才创建（比如登录成功要存身份时）   | 表单登录的传统页面应用      |
+| `NEVER`         | 框架不创建，但请求已有的 Session 不排斥  | Session 由别的组件统一管理  |
+| `STATELESS`     | 不创建、不使用、不查任何 Session         | 前后端分离 + Bearer JWT API |
+
+一句话区分 `NEVER` 和 `STATELESS`：**NEVER 是「我不建但别人建的我照用」，STATELESS 是「跟我完全无关」**。JWT 项目必须选 `STATELESS`，这样每个请求都靠 Token 自证身份，服务端零状态，才能水平扩展。
+
+**② 并发登录控制**
+
+```java
+@Bean
+public HttpSessionEventPublisher httpSessionEventPublisher() {
+    // 并发控制需要感知「Session 被 Tomcat 销毁」这一事件，
+    // 这个 Bean 就是负责把 Servlet 容器的 Session 事件转成 Spring 事件的翻译官，
+    // 少了它踢下线的判断不准
+    return new HttpSessionEventPublisher();
+}
+```
+
+```java
+http.sessionManagement(sm -> sm
+    .maximumSessions(1)                  // 同一账号最多 1 人在线
+    .maxSessionsPreventsLogin(false)     // false（默认）：后来的把前面的挤下线
+                                         // true：后来者直接被告知「账号已在别处登录」
+);
+```
+
+**③ 会话固定攻击（Session Fixation）防护**
+
+一句话原理：攻击者先从网站领到一个 sessionId，诱导受害者**在这个指定的 sessionId 上完成登录**，之后攻击者用同一个 id 就能冒充受害者。
+
+防御思路很朴素：**登录成功那一刻换一个全新的 sessionId**，旧 id 作废。这个保护默认就是开启的：
+
+```java
+http.sessionManagement(sm -> sm
+    .sessionFixation(sf -> sf.migrateSession())  // 默认行为：换新 id，但保留登录属性
+    // 其他选项：newSession() 全部重来；none() 显式关闭保护（千万别在生产这么干）
+);
+```
+
+#### 1.7 `headers` / `cors` / `csrf`：三个「全局开箱件」
+
+**headers —— 默认就在帮你写一堆安全响应头**（很多人不知道这些头是 Spring Security 加的）：
+
+| 默认响应头                          | 干什么用                                     |
+| ----------------------------------- | -------------------------------------------- |
+| `Cache-Control: no-cache, no-store...` | 敏感页面不允许被浏览器/代理缓存          |
+| `X-Content-Type-Options: nosniff`   | 禁止浏览器猜文件类型（防 MIME 嗅探攻击）     |
+| `Strict-Transport-Security (HSTS)`  | 通知浏览器后续强制走 HTTPS                   |
+| `X-Frame-Options: DENY`             | 别人的网页不能 iframe 嵌套你的站（防点击劫持） |
+| `Referrer-Policy`                   | 限制页面跳转时暴露多少来源信息               |
+
+```java
+// 需要调整时的常见写法
+http.headers(headers -> headers
+    .frameOptions(frame -> frame.sameOrigin())   // 后台系统要嵌 iframe 图表时，放宽为允许同源
+    .contentSecurityPolicy(csp ->
+        csp.policyDirectives("script-src 'self'")) // CSP：只允许加载本站脚本，防注入
+    .cacheControl(cache -> cache.disable())          // 个别场景反而想让浏览器缓存页面时关掉
+);
+```
+
+另外两个的开关闭合在本文档其他地方已经详细讲过，这里只给一行记忆点：
+
+```java
+.cors(cors -> {})               // 打开跨域支持：自动去找容器里的 CorsConfigurationSource（见第 6.2 节）
+.csrf(csrf -> csrf.disable());  // 只有纯 Bearer Token API 才能关，怎么判断见第 6.1 节
+```
+
+#### 1.8 自定义过滤器的插入位置：`addFilterBefore` / `After` / `At`
+
+当你有自己的过滤器（比如第 4.2 节的 JWT 过滤器），需要告诉框架「插到队伍哪个位置」：
+
+| 方法                                  | 含义                         | 典型用法                                              |
+| ------------------------------------- | ---------------------------- | ----------------------------------------------------- |
+| `addFilterBefore(filter, X.class)`    | 插在参照过滤器 X **之前**    | JWT 过滤器放在 `UsernamePasswordAuthenticationFilter` 前 |
+| `addFilterAfter(filter, X.class)`     | 插在 X **之后**              | 操作日志过滤器放在 `AuthorizationFilter` 后（确认合法再记） |
+| `addFilterAt(filter, X.class)`        | 和 X 排在同一「槽位」        | 需要平替位置的补充过滤器                              |
+
+两个易错点：
+
+1. `addFilterAt` **不是替换** X，而是两家并列同槽位、都会被执行，它们之间的相对顺序未定义，别依赖。
+2. 自定义过滤器无论哪种情况都必须在末尾调用 `filterChain.doFilter(request, response)` 放行，不写的话整条链到此中断。
+
+#### 1.9 多条过滤器链：`@Order` + `securityMatcher`
+
+真实项目经常是一半管理后台（表单 + Session）、一半开放 API（JWT 无状态），硬塞进一条链会很拧巴。Spring Security 支持**多条 `SecurityFilterChain` 共存**，各自划片管辖：
+
+```java
+@Configuration
+@EnableWebSecurity
+public class MultiChainConfig {
+
+    // 1️⃣ API 链：只管 /api/**，无状态
+    @Bean
+    @Order(1)                                        // 数字越小，越优先被尝试匹配
+    public SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/api/**")              // ★ 声明本条链的地盘
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/public/**").permitAll()
+                .anyRequest().authenticated())
+            .httpBasic(Customizer.withDefaults());
+        return http.build();
+    }
+
+    // 2️⃣ 页面链：没被上面的链认领的请求都归它
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webChain(HttpSecurity http) throws Exception {
+        http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/", "/login", "/error").permitAll()
+                .anyRequest().authenticated())
+            .formLogin(form -> form.permitAll());
+        return http.build();
+    }
+}
+```
+
+工作方式：`FilterChainProxy` 手里握着一个**按 `@Order` 排好的链条列表**，请求进来后按序用每条链的 `securityMatcher` 试探，**命中第一条就只走这条链**，后面的链不会再参与，也不会「穿透合并」。所以地盘划分越精确的链，`@Order` 要越小、排得越靠前。
+
+打个比方：这就像高速公路的分流匝道——货车（API 请求）上 1 号匝道走无称重通道（无状态校验），私家车（页面请求）走 2 号匝道过人工收费站（表单登录），上了哪条道就走到底，中途不并线。
 
 ### 2. 认证方式全景：表单登录、HTTP Basic、Token
 
@@ -826,18 +1133,13 @@ http.rememberMe(remember -> remember
 
 Remember Me 只负责恢复“你是谁”，恢复后仍然要经过 `hasRole`、`hasAuthority` 等授权判断。JWT 无状态 API 通常不使用 Remember Me；它们一般使用短期 Access Token 和 Refresh Token。
 
-Session 策略只先记这两个：
-
-| 策略 | 含义 | 常见场景 |
-| ---- | ---- | ---- |
-| `IF_REQUIRED` | 需要时创建 Session，表单登录常用 | Web 页面、Remember Me |
-| `STATELESS` | 不创建也不使用 Session 保存认证 | Bearer JWT API |
-
-表单登录和 Remember Me 使用 Cookie/Session；Bearer JWT API 使用 `STATELESS`。初学时不要把两种认证方式硬塞进同一条过滤器链。
+Session 创建策略的完整对照（`ALWAYS` / `IF_REQUIRED` / `NEVER` / `STATELESS`）见上文 **1.6 sessionManagement**。同一份业务不要把表单登录和 Bearer JWT 硬塞进同一条过滤器链——按客户端形态拆成多条链更清晰（配置方式见 1.9）。
 
 ### 9. 高级篇小结
 
 - 核心配置就是 `SecurityFilterChain` Bean，Lambda 链式 API 串联 CSRF、授权、登录、退出、会话。
+- 一个应用允许多条 `SecurityFilterChain` 共存：`securityMatcher` 划分管辖范围，`@Order` 决定谁先被匹配，命中一条后只走这一条。
+- 授权规则自上而下命中即止，最具体的放最上、`anyRequest()` 兜底放最后；默认安全响应头和会话固定防护都是框架默默替你做的。
 - 前后端分离的常见方案是**无状态 API + Bearer Token**；标准 JWT 优先使用 Resource Server，非标准 Token 才考虑自定义过滤器。
 - CSRF 与 CORS 是两码事，一个防伪造、一个解决跨域，别混淆。
 - 异常处理要自定义成 JSON 返回，才能适配前后端分离。

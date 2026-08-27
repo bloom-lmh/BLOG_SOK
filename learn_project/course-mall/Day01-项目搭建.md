@@ -2,6 +2,10 @@
 
 > **今天目标**：把「课程商城」的 Maven 多模块骨架搭起来，跑通一个接口，并建立「统一返回体」和「全局异常处理」两个基建。这两个基建后面每个模块都要用。
 
+::: warning 阶段性代码
+本篇前半段用“业务码 + 直接文案”的最小版本帮助你先跑通骨架；完成本篇后，请继续应用“三·补充”的六位错误码与 i18n 演进。Day03 以后统一使用 `BizException(ErrorCode, args)`、`Result.fail(ErrorCode, args)` 和 `com.mall.common.web.advice.GlobalExceptionHandler`，不要再复制旧的 `(code, message)` 构造器。
+:::
+
 ## 一、前置检查（先确认环境）
 
 ```bash
