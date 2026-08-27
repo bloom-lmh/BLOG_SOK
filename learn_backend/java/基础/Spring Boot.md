@@ -1694,7 +1694,138 @@ public Result save(@Valid @RequestBody UserDTO user) {
 }
 ```
 
-#### 4.3 分组校验
+#### 4.3 如何提取校验错误
+
+`@Valid @RequestBody` 校验失败时，Spring MVC 会抛出
+`MethodArgumentNotValidException`。在全局异常处理器中通过
+`BindingResult` 取得错误：
+
+```java
+@ExceptionHandler(MethodArgumentNotValidException.class)
+public Result<Void> handleMethodArgumentNotValid(
+        MethodArgumentNotValidException e) {
+
+    String message = e.getBindingResult()
+            .getFieldErrors()
+            .stream()
+            .findFirst()
+            .map(DefaultMessageSourceResolvable::getDefaultMessage)
+            .orElse(ErrorCode.PARAM_ERROR.getMessageKey());
+
+    return Result.fail(
+            ErrorCode.PARAM_ERROR.getCode(),
+            message);
+}
+```
+
+这段代码的执行顺序：
+
+```text
+e.getBindingResult()     获取本次参数绑定、校验的完整结果
+    ↓
+getFieldErrors()         获取所有字段错误：List<FieldError>
+    ↓
+stream().findFirst()     只取第一个错误：Optional<FieldError>
+    ↓
+map(...)                 取出 FieldError 的 defaultMessage
+    ↓
+orElse(...)              没有字段错误时使用“参数错误”消息 key
+```
+
+方法引用：
+
+```java
+DefaultMessageSourceResolvable::getDefaultMessage
+```
+
+等价于：
+
+```java
+fieldError -> fieldError.getDefaultMessage()
+```
+
+`FieldError` 继承了 `DefaultMessageSourceResolvable`，所以能够调用
+`getDefaultMessage()`。
+
+如果暂时不熟悉 Stream，可以写成完全等价的普通代码：
+
+```java
+FieldError firstError =
+        e.getBindingResult().getFieldError();
+
+String message;
+if (firstError != null) {
+    message = firstError.getDefaultMessage();
+} else {
+    message = ErrorCode.PARAM_ERROR.getMessageKey();
+}
+
+return Result.fail(
+        ErrorCode.PARAM_ERROR.getCode(),
+        message);
+```
+
+假设 DTO 是：
+
+```java
+public class UserRegisterDTO {
+
+    @NotBlank(
+            message = "{validation.user.username.not-blank}")
+    private String username;
+}
+```
+
+请求传入空用户名后，生成的 `FieldError` 大致是：
+
+```text
+FieldError {
+    objectName: "userRegisterDTO",
+    field: "username",
+    rejectedValue: "",
+    bindingFailure: false,
+    codes: [
+        "NotBlank.userRegisterDTO.username",
+        "NotBlank.username",
+        "NotBlank.java.lang.String",
+        "NotBlank"
+    ],
+    arguments: [...],
+    defaultMessage: "用户名不能为空"
+}
+```
+
+常用数据：
+
+| 方法 | 得到什么 |
+| --- | --- |
+| `getObjectName()` | 被校验的 DTO 名称 |
+| `getField()` | 出错字段，例如 `username` |
+| `getRejectedValue()` | 用户提交但被拒绝的值 |
+| `getCodes()` | Spring 生成的错误代码候选数组 |
+| `getDefaultMessage()` | 最终提示，例如“用户名不能为空” |
+| `isBindingFailure()` | 是否属于类型转换失败，而不是注解校验失败 |
+
+如果校验注解写的是：
+
+```java
+@NotBlank(
+        message = "{validation.user.username.not-blank}")
+```
+
+并且 Validator 已连接 `MessageSource`，那么
+`getDefaultMessage()` 通常拿到的是已经翻译后的“用户名不能为空”，不是
+`{validation.user.username.not-blank}`。
+
+::: warning 不要直接把整个 FieldError 返回给前端
+`rejectedValue` 可能包含密码、手机号等敏感信息。接口通常只返回
+`field` 和 `defaultMessage`，CourseMall 当前只返回第一个
+`defaultMessage`。
+:::
+
+官方数据结构：[Spring FieldError](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/validation/FieldError.html)
+
+#### 4.4 分组校验
 
 **解决的问题：** 同一个 DTO 在不同接口中校验规则不同。比如新增用户时 id 必须为空（由数据库自增），更新用户时 id 不能为空。
 
@@ -1737,7 +1868,7 @@ public Result update(@Validated(UpdateGroup.class) @RequestBody UserDTO user) {
 
 **注意：** 用 `@Validated` 指定分组后，**没写 `groups` 的字段（即 Default 分组）不会被校验**。所以如果既有分组字段又有通用字段，要在通用字段上加 `groups = {AddGroup.class, Default.class}`。
 
-#### 4.4 嵌套校验
+#### 4.5 嵌套校验
 
 **解决的问题：** 一个 DTO 里嵌套了另一个对象，需要递归校验子对象的字段。
 
@@ -1827,7 +1958,7 @@ public Result update(@Validated(UpdateGroup.class) @RequestBody OrderDTO order) 
 | 嵌套校验 | ✅ 支持（递归触发子对象）    | ❌ 不触发嵌套           |
 | 来源     | Jakarta Bean Validation 规范 | Spring 的注解           |
 
-#### 4.5 自定义校验注解
+#### 4.6 自定义校验注解
 
 当内置注解不够用时（如校验手机号、身份证、枚举值），可以自定义：
 
@@ -1880,7 +2011,7 @@ public class UserDTO {
 | 敏感词   | 遍历黑名单列表                  |
 | 金额精度 | 检查小数点后不超过 2 位         |
 
-#### 4.6 小结
+#### 4.7 小结
 
 参数校验把「非法参数」挡在业务逻辑之外，`@Valid`（单层）+ `@Validated`（分组/嵌套）+ 自定义注解 + 全局异常处理器组合使用是标准姿势。
 
@@ -1948,11 +2079,11 @@ public class WebConfig implements WebMvcConfigurer {
 
 **InterceptorRegistry 配置项（registry 的链式调用）：**
 
-| 方法 | 作用 | 示例 |
-| --- | --- | --- |
-| `addPathPatterns("/**")` | 拦截哪些路径 | `addPathPatterns("/api/**", "/admin/**")` |
-| `excludePathPatterns("/login")` | 排除哪些路径（不拦截） | `excludePathPatterns("/login", "/register", "/css/**")` |
-| `order(1)` | 多个拦截器时的执行顺序，数字越小越先执行 | `order(0)` 最先执行 |
+| 方法                            | 作用                                     | 示例                                                    |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------------- |
+| `addPathPatterns("/**")`        | 拦截哪些路径                             | `addPathPatterns("/api/**", "/admin/**")`               |
+| `excludePathPatterns("/login")` | 排除哪些路径（不拦截）                   | `excludePathPatterns("/login", "/register", "/css/**")` |
+| `order(1)`                      | 多个拦截器时的执行顺序，数字越小越先执行 | `order(0)` 最先执行                                     |
 
 #### 5.3 小结
 
@@ -1988,14 +2119,14 @@ public class CorsConfig implements WebMvcConfigurer {
 
 **CorsRegistry 配置项：**
 
-| 方法 | 作用 | 示例 |
-| --- | --- | --- |
-| `addMapping("/**")` | 允许哪些路径跨域 | `addMapping("/api/**")` |
-| `allowedOriginPatterns("*")` | 允许哪些来源域名 | `allowedOriginPatterns("http://localhost:5173", "https://admin.com")` |
-| `allowedMethods("GET", "POST")` | 允许哪些 HTTP 方法 | `allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")` |
-| `allowedHeaders("*")` | 允许哪些请求头 | `allowedHeaders("token", "Content-Type")` |
-| `allowCredentials(true)` | 是否允许携带 Cookie | 需要 Cookie 时设 true，且不能和 `allowedOrigins("*")` 同时用 |
-| `maxAge(3600)` | 预检请求缓存时间（秒），减少 OPTIONS 请求 | `maxAge(3600)` 一小时内不发 OPTIONS |
+| 方法                            | 作用                                      | 示例                                                                  |
+| ------------------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| `addMapping("/**")`             | 允许哪些路径跨域                          | `addMapping("/api/**")`                                               |
+| `allowedOriginPatterns("*")`    | 允许哪些来源域名                          | `allowedOriginPatterns("http://localhost:5173", "https://admin.com")` |
+| `allowedMethods("GET", "POST")` | 允许哪些 HTTP 方法                        | `allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")`           |
+| `allowedHeaders("*")`           | 允许哪些请求头                            | `allowedHeaders("token", "Content-Type")`                             |
+| `allowCredentials(true)`        | 是否允许携带 Cookie                       | 需要 Cookie 时设 true，且不能和 `allowedOrigins("*")` 同时用          |
+| `maxAge(3600)`                  | 预检请求缓存时间（秒），减少 OPTIONS 请求 | `maxAge(3600)` 一小时内不发 OPTIONS                                   |
 
 **方式二：Controller 级别（精准控制）**
 
@@ -2107,36 +2238,37 @@ public class TaskJob {
 
 **特殊字符：**
 
-| 符号 | 含义 | 示例 |
-| --- | --- | --- |
-| `*` | 任意值（每） | `*` 在「分」位 = 每分钟 |
-| `?` | 不指定（日和周互斥时用） | 日期里写 `?` 表示不关心日期，让「周」来控制 |
-| `-` | 范围 | `10-15` 在「时」位 = 10点到15点 |
-| `,` | 枚举 | `1,3,5` 在「周」位 = 周一三五 |
-| `/` | 步长 | `0/5` 在「分」位 = 从0分开始每5分钟 |
-| `L` | 最后（Last） | `L` 在「日」位 = 当月最后一天，`6L` 最后周五 |
-| `W` | 最近工作日 | `15W` 在「日」位 = 15号最近的周一到周五那天 |
-| `#` | 第几个 | `3#2` 在「周」位 = 当月第2个周三 |
+| 符号 | 含义                     | 示例                                         |
+| ---- | ------------------------ | -------------------------------------------- |
+| `*`  | 任意值（每）             | `*` 在「分」位 = 每分钟                      |
+| `?`  | 不指定（日和周互斥时用） | 日期里写 `?` 表示不关心日期，让「周」来控制  |
+| `-`  | 范围                     | `10-15` 在「时」位 = 10点到15点              |
+| `,`  | 枚举                     | `1,3,5` 在「周」位 = 周一三五                |
+| `/`  | 步长                     | `0/5` 在「分」位 = 从0分开始每5分钟          |
+| `L`  | 最后（Last）             | `L` 在「日」位 = 当月最后一天，`6L` 最后周五 |
+| `W`  | 最近工作日               | `15W` 在「日」位 = 15号最近的周一到周五那天  |
+| `#`  | 第几个                   | `3#2` 在「周」位 = 当月第2个周三             |
 
 **常用示例速查：**
 
-| 表达式 | 含义 |
-| --- | --- |
-| `0 0 2 * * ?` | 每天凌晨 2 点 |
-| `0 0 2 * * 1-5` | 工作日（周一到周五）凌晨 2 点 |
-| `0 0/5 * * * ?` | 每 5 分钟 |
-| `0 0 */2 * * ?` | 每 2 小时 |
-| `0 0 9-18 * * ?` | 每天 9 点到 18 点每小时整点 |
-| `0 30 9 * * 1-5` | 工作日每天 9:30 |
-| `0 0 0 1 * ?` | 每月 1 号凌晨 0 点 |
-| `0 0 3 ? * 1` | 每周一凌晨 3 点 |
-| `0 0 1 1 * ?` | 每年 1 月 1 日凌晨 1 点 |
-| `0 0/30 9-17 * * ?` | 每天 9-17 点之间每 30 分钟 |
-| `0 15 10 L * ?` | 每月最后一天 10:15 |
-| `0 0 2 ? * 6L` | 每月最后一个周五凌晨 2 点 |
-| `0 0 2 ? * 3#1` | 每月第一个周三凌晨 2 点 |
+| 表达式              | 含义                          |
+| ------------------- | ----------------------------- |
+| `0 0 2 * * ?`       | 每天凌晨 2 点                 |
+| `0 0 2 * * 1-5`     | 工作日（周一到周五）凌晨 2 点 |
+| `0 0/5 * * * ?`     | 每 5 分钟                     |
+| `0 0 */2 * * ?`     | 每 2 小时                     |
+| `0 0 9-18 * * ?`    | 每天 9 点到 18 点每小时整点   |
+| `0 30 9 * * 1-5`    | 工作日每天 9:30               |
+| `0 0 0 1 * ?`       | 每月 1 号凌晨 0 点            |
+| `0 0 3 ? * 1`       | 每周一凌晨 3 点               |
+| `0 0 1 1 * ?`       | 每年 1 月 1 日凌晨 1 点       |
+| `0 0/30 9-17 * * ?` | 每天 9-17 点之间每 30 分钟    |
+| `0 15 10 L * ?`     | 每月最后一天 10:15            |
+| `0 0 2 ? * 6L`      | 每月最后一个周五凌晨 2 点     |
+| `0 0 2 ? * 3#1`     | 每月第一个周三凌晨 2 点       |
 
 **注意：**
+
 - `日` 和 `周` 不能同时指定，必须一个写 `?`。比如 `0 0 2 1 * ?` 表示每月1号2点，周写 `?`；`0 0 2 ? * 1` 表示每周一2点，日写 `?`。
 - 写错了不会报错，但任务不执行，日志里也看不到错误——这是最坑的地方。
 
@@ -2316,15 +2448,15 @@ public class LogService {
 }
 ```
 
-| 传播行为 | 含义 | 场景 |
-| --- | --- | --- |
-| `REQUIRED`（默认） | 有事务就加入，没有就新建 | 普通业务方法 |
-| `REQUIRES_NEW` | 挂起当前事务，新建一个独立事务 | 操作日志（日志不能随主业务回滚） |
-| `NESTED` | 在嵌套事务中执行（JDBC savepoint） | 批量处理中的部分回滚 |
-| `SUPPORTS` | 有事务就加入，没有就非事务执行 | 查询方法 |
-| `NOT_SUPPORTED` | 以非事务方式执行 | 不关心事务的方法 |
-| `MANDATORY` | 必须已有事务，否则抛异常 | 严格要求有事务的方法 |
-| `NEVER` | 必须没有事务，否则抛异常 | 测试用 |
+| 传播行为           | 含义                               | 场景                             |
+| ------------------ | ---------------------------------- | -------------------------------- |
+| `REQUIRED`（默认） | 有事务就加入，没有就新建           | 普通业务方法                     |
+| `REQUIRES_NEW`     | 挂起当前事务，新建一个独立事务     | 操作日志（日志不能随主业务回滚） |
+| `NESTED`           | 在嵌套事务中执行（JDBC savepoint） | 批量处理中的部分回滚             |
+| `SUPPORTS`         | 有事务就加入，没有就非事务执行     | 查询方法                         |
+| `NOT_SUPPORTED`    | 以非事务方式执行                   | 不关心事务的方法                 |
+| `MANDATORY`        | 必须已有事务，否则抛异常           | 严格要求有事务的方法             |
+| `NEVER`            | 必须没有事务，否则抛异常           | 测试用                           |
 
 **`REQUIRES_NEW` 最典型的场景：** 操作日志。你下单失败回滚了，但「下单失败」这个日志本身必须记录，不能跟着回滚。
 
@@ -2332,18 +2464,18 @@ public class LogService {
 
 **解决的问题：** 多个事务并发操作同一行数据时，可能出现的问题。
 
-| 问题 | 含义 | 能否避免 |
-| --- | --- | --- |
-| 脏读 | 读到另一个事务未提交的数据 | `READ_COMMITTED` 可避免 |
-| 不可重复读 | 同一个事务两次读同一行，结果不一样 | `REPEATABLE_READ` 可避免 |
-| 幻读 | 同一个事务两次查询范围数据，行数不一样 | `SERIALIZABLE` 可避免 |
+| 问题       | 含义                                   | 能否避免                 |
+| ---------- | -------------------------------------- | ------------------------ |
+| 脏读       | 读到另一个事务未提交的数据             | `READ_COMMITTED` 可避免  |
+| 不可重复读 | 同一个事务两次读同一行，结果不一样     | `REPEATABLE_READ` 可避免 |
+| 幻读       | 同一个事务两次查询范围数据，行数不一样 | `SERIALIZABLE` 可避免    |
 
-| 隔离级别 | 脏读 | 不可重复读 | 幻读 | 性能 |
-| --- | --- | --- | --- | --- |
-| `READ_UNCOMMITTED` | ❌ 可能 | ❌ 可能 | ❌ 可能 | 最好 |
-| `READ_COMMITTED` | ✅ 避免 | ❌ 可能 | ❌ 可能 | 较好 |
-| `REPEATABLE_READ`（MySQL 默认） | ✅ 避免 | ✅ 避免 | ❌ 可能 | 中等 |
-| `SERIALIZABLE` | ✅ 避免 | ✅ 避免 | ✅ 避免 | 最差 |
+| 隔离级别                        | 脏读    | 不可重复读 | 幻读    | 性能 |
+| ------------------------------- | ------- | ---------- | ------- | ---- |
+| `READ_UNCOMMITTED`              | ❌ 可能 | ❌ 可能    | ❌ 可能 | 最好 |
+| `READ_COMMITTED`                | ✅ 避免 | ❌ 可能    | ❌ 可能 | 较好 |
+| `REPEATABLE_READ`（MySQL 默认） | ✅ 避免 | ✅ 避免    | ❌ 可能 | 中等 |
+| `SERIALIZABLE`                  | ✅ 避免 | ✅ 避免    | ✅ 避免 | 最差 |
 
 ```java
 @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -2356,10 +2488,10 @@ public void updatePrice(Long id, BigDecimal price) {
 
 #### 12.4 声明式事务 vs 编程式事务
 
-| 方式 | 写法 | 优点 | 缺点 |
-| --- | --- | --- | --- |
-| **声明式**（推荐） | 加 `@Transactional` 注解 | 最简洁，声明即生效 | 控制粒度不够细 |
-| **编程式** | `TransactionTemplate` 显式调用 | 精细控制，适合复杂事务 | 代码多 |
+| 方式               | 写法                           | 优点                   | 缺点           |
+| ------------------ | ------------------------------ | ---------------------- | -------------- |
+| **声明式**（推荐） | 加 `@Transactional` 注解       | 最简洁，声明即生效     | 控制粒度不够细 |
+| **编程式**         | `TransactionTemplate` 显式调用 | 精细控制，适合复杂事务 | 代码多         |
 
 ```java
 // 声明式——简单，日常够用
@@ -2399,15 +2531,15 @@ public class OrderService {
 
 #### 12.5 @Transactional 失效的七种场景
 
-| 场景 | 原因 | 解决 |
-| --- | --- | --- |
-| ① 同类内部自调用 | `this.method()` 绕过了代理对象，AOP 切面不触发 | 注入自己 `@Autowired OrderService self`，用 `self.method()` |
-| ② 方法不是 public | `@Transactional` 只对 public 方法生效 | 改成 public |
-| ③ 异常被 try-catch 吞掉 | 没抛出去，事务管理器不知道有异常 | 不要吞异常，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
-| ④ 抛的是受检异常 | 默认只回滚 RuntimeException，受检异常（如 `FileNotFoundException`）不回滚 | 加 `rollbackFor = Exception.class` |
-| ⑤ 存储引擎不支持事务 | MyISAM 不支持事务，MySQL 用 InnoDB | 检查 `ENGINE=InnoDB` |
-| ⑥ 方法被 final 修饰 | 动态代理无法重写 final 方法 | 去掉 final |
-| ⑦ 不同线程里的事务 | 事务和线程绑定，新线程没有原事务的 Connection | 事务内不要开新线程 |
+| 场景                    | 原因                                                                      | 解决                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| ① 同类内部自调用        | `this.method()` 绕过了代理对象，AOP 切面不触发                            | 注入自己 `@Autowired OrderService self`，用 `self.method()`                                |
+| ② 方法不是 public       | `@Transactional` 只对 public 方法生效                                     | 改成 public                                                                                |
+| ③ 异常被 try-catch 吞掉 | 没抛出去，事务管理器不知道有异常                                          | 不要吞异常，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()` |
+| ④ 抛的是受检异常        | 默认只回滚 RuntimeException，受检异常（如 `FileNotFoundException`）不回滚 | 加 `rollbackFor = Exception.class`                                                         |
+| ⑤ 存储引擎不支持事务    | MyISAM 不支持事务，MySQL 用 InnoDB                                        | 检查 `ENGINE=InnoDB`                                                                       |
+| ⑥ 方法被 final 修饰     | 动态代理无法重写 final 方法                                               | 去掉 final                                                                                 |
+| ⑦ 不同线程里的事务      | 事务和线程绑定，新线程没有原事务的 Connection                             | 事务内不要开新线程                                                                         |
 
 **自调用问题的解决方案：**
 
@@ -2471,6 +2603,7 @@ public Order getById(Long id) {
 ```
 
 **readOnly 的实际作用：**
+
 - MySQL：不需要加行锁，查询更快
 - JPA：FlushMode 设为 MANUAL，不触发自动 flush
 - JDBC：部分数据库驱动有优化
@@ -2942,230 +3075,355 @@ public class OrderEventListeners {
 
 ### 16. 国际化 i18n
 
-#### 16.1 定义
+#### 16.1 i18n 是什么
 
-国际化（Internationalization，i18n）让应用根据**浏览器语言**或**请求参数**返回不同语言的提示信息。Spring Boot 基于 `MessageSource` 实现。
+i18n 就是：**同一个消息 key，根据请求语言返回不同文字。**
 
-#### 16.2 资源文件
+例如客户端发送：
 
-**命名规范：** `basename_language_country.properties`
-
-```
-src/main/resources/
-├── messages.properties              ← 默认（找不到对应语言时的兜底）
-├── messages_zh_CN.properties        ← 中文（简体）
-├── messages_zh_TW.properties        ← 中文（繁体）
-├── messages_en_US.properties        ← 英文（美国）
-└── messages_ja_JP.properties        ← 日文
+```http
+Accept-Language: zh-CN
 ```
 
-**命名规则：** `language` 是 [ISO 639](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) 语言码，`country` 是 [ISO 3166](https://en.wikipedia.org/wiki/ISO_3166-1) 国家码。
+返回“用户名已存在”；发送：
 
-| 文件 | 对应的 Locale | 什么时候生效 |
-| --- | --- | --- |
-| `messages.properties` | 无 | 兜底，找不到对应语言时用 |
-| `messages_zh_CN.properties` | 中文简体 | 浏览器语言 = zh-CN |
-| `messages_en_US.properties` | 英文美国 | 浏览器语言 = en-US |
-| `messages_zh.properties` | 中文（不区分地区） | 浏览器语言 = zh（任意中文地区） |
-
-**查找优先级：** `messages_zh_CN` → `messages_zh` → `messages`（兜底）
-
-**文件内容示例：**
-
-::: code-group
-
-```properties [messages.properties]
-# 默认（英文兜底）
-user.notfound=User not found
-order.success=Order created successfully
-order.fail=Order creation failed
-validation.notblank=This field cannot be blank
-validation.range=Length must be between {min} and {max}
-payment.timeout=Payment timeout for order {0}
+```http
+Accept-Language: en-US
 ```
 
-```properties [messages_zh_CN.properties]
-# 中文简体
-user.notfound=用户不存在
-order.success=订单创建成功
-order.fail=订单创建失败
-validation.notblank=该字段不能为空
-validation.range=长度必须在 {min} 到 {max} 之间
-payment.timeout=订单 {0} 支付超时
+返回“Username already exists”。
+
+Spring 中的核心只有三个：
+
+```text
+Accept-Language
+      ↓
+LocaleResolver 解析当前语言
+      ↓
+MessageSource 从对应 properties 文件读取消息
 ```
 
-```properties [messages_ja_JP.properties]
-# 日文
-user.notfound=ユーザーが見つかりません
-order.success=注文が正常に作成されました
-order.fail=注文の作成に失敗しました
-validation.notblank=このフィールドは必須です
-validation.range=長さは {min} から {max} までにする必要があります
-payment.timeout=注文 {0} の支払いがタイムアウトしました
+#### 16.2 第一步：准备语言文件
+
+CourseMall 的语言文件放在 `mall-common/src/main/resources`：
+
+```text
+messages.properties          # 默认兜底，CourseMall 使用中文
+messages_zh_CN.properties    # 简体中文
+messages_en.properties       # 英文，也能匹配 en-US、en-GB
 ```
 
-:::
+`messages.properties`：
 
-**占位符规则：** `{0}` 是第一个参数，`{1}` 是第二个，`{min}` 和 `{max}` 是命名参数（用于校验注解）。
+```properties
+common.success=操作成功
+user.username.exists=用户名已存在
+course.not-found=课程 {0} 不存在
+```
 
-#### 16.3 配置
+`messages_en.properties`：
+
+```properties
+common.success=Success
+user.username.exists=Username already exists
+course.not-found=Course {0} does not exist
+```
+
+注意：
+
+- 每种语言必须使用相同的 key。
+- `{0}` 表示第一个动态参数，`{1}` 表示第二个。
+- 必须保留默认的 `messages.properties`，不能只有带语言后缀的文件。
+
+#### 16.3 第二步：配置 Spring Boot
+
+`application.yml`：
 
 ```yaml
 spring:
   messages:
-    # 资源文件基础名（默认就是 messages）
+    # 对应 messages.properties 这个基础文件名
     basename: messages
-    # 也可以指定多个基础名，逗号分隔
-    # basename: messages, errors, labels
-
-    # 编码（必须 UTF-8，否则中文乱码）
     encoding: UTF-8
-
-    # 找不到对应语言时，用系统默认语言（true = 兜底）
-    fallback-to-system-locale: true
-
-    # 开发环境关闭缓存，方便实时看效果（默认永久缓存）
-    cache-duration: 0
-    # 生产环境用 -1 永久缓存，避免每次请求都解析文件
-    # cache-duration: -1
+    # 不使用服务器操作系统的语言，避免本地和线上结果不同
+    fallback-to-system-locale: false
 ```
 
-#### 16.4 代码中使用（MessageSource）
+如果语言文件放在 `resources/i18n` 目录中，则写：
 
-```java
-@RestController
-@RequestMapping("/api/order")
-public class OrderController {
-
-    @Autowired
-    private MessageSource messageSource;
-
-    @GetMapping("/message")
-    public String getMessage(HttpServletRequest request) {
-        // 从请求头 Accept-Language 自动解析当前语言
-        Locale locale = RequestContextUtils.getLocale(request);
-
-        // 不带参数
-        String msg1 = messageSource.getMessage("user.notfound", null, locale);
-        // → "用户不存在"
-
-        // 带位置参数（{0} 替换为订单号）
-        String msg2 = messageSource.getMessage("payment.timeout", new Object[]{"ORD-001"}, locale);
-        // → "订单 ORD-001 支付超时"
-
-        return msg1;
-    }
-}
+```yaml
+spring:
+  messages:
+    basename: i18n/messages
 ```
 
-**更简单的方式——用 LocaleContextHolder 获取当前语言：**
+CourseMall 的文件就在 `resources` 根目录，所以使用 `messages` 即可。
 
-```java
-// 不用传 Locale，自动从当前线程取
-Locale locale = LocaleContextHolder.getLocale();
-String msg = messageSource.getMessage("user.notfound", null, locale);
-```
+#### 16.4 第三步：确定当前请求的语言
 
-#### 16.5 在全局异常和校验中使用
-
-**校验注解中引用国际化消息：**
-
-```java
-public class UserDTO {
-    // 不再写死 message = "姓名不能为空"，而是引用国际化 key
-    @NotBlank(message = "{validation.notblank}")
-    @Size(min = 2, max = 20, message = "{validation.range}")
-    private String name;
-}
-```
-
-**全局异常处理器中使用：**
-
-```java
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @Autowired
-    private MessageSource messageSource;
-
-    // 校验失败
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<Void> handleValid(MethodArgumentNotValidException e) {
-        // 拿到校验注解的国际化 key
-        String defaultMessage = e.getBindingResult().getFieldError().getDefaultMessage();
-        // 如果 key 是 {validation.notblank}，解析成实际文本
-        // 框架会自动做这一步，你也可以手动调 messageSource
-        return Result.fail(400, defaultMessage);
-    }
-}
-```
-
-#### 16.6 三种语言解析方式
-
-**方式一：Accept-Language 请求头（默认，最常用）**
-
-```
-浏览器自动发送:
-  Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
-
-Spring 自动解析，选择权重最高的语言
-不需要写任何代码
-```
-
-**方式二：URL 参数（手动切换）**
+前后端分离项目推荐使用 `Accept-Language`：
 
 ```java
 @Configuration
-public class LocaleConfig implements WebMvcConfigurer {
+public class I18nConfig implements WebMvcConfigurer {
 
-    @Override
-    public void addInterceptors(InterceptorRegistry registry) {
-        // 拦截 ?lang=zh_CN 参数，自动切换语言
-        LocaleChangeInterceptor interceptor = new LocaleChangeInterceptor();
-        interceptor.setParamName("lang");    // 默认就是 lang
-        registry.addInterceptor(interceptor).addPathPatterns("/**");
+    private final MessageSource messageSource;
+
+    public I18nConfig(MessageSource messageSource) {
+        this.messageSource = messageSource;
     }
 
     @Bean
     public LocaleResolver localeResolver() {
-        // Session 存储用户选择的语言（刷新后不丢）
-        SessionLocaleResolver resolver = new SessionLocaleResolver();
+        AcceptHeaderLocaleResolver resolver =
+                new AcceptHeaderLocaleResolver();
+
+        // 请求没有 Accept-Language 时，默认使用简体中文
         resolver.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
         return resolver;
+    }
+
+    @Bean
+    public LocalValidatorFactoryBean validator() {
+        LocalValidatorFactoryBean validator =
+                new LocalValidatorFactoryBean();
+
+        // 让 @Valid 也读取上面的 messages 文件
+        validator.setValidationMessageSource(messageSource);
+        return validator;
+    }
+
+    @Override
+    public Validator getValidator() {
+        return validator();
     }
 }
 ```
 
-```bash
-# 通过 URL 参数切换
-GET /api/users?lang=zh_CN    # 中文
-GET /api/users?lang=en_US    # 英文
-GET /api/users?lang=ja_JP    # 日文
-```
-
-**方式三：Cookie 存储（记住用户偏好）**
+之后 Spring 会自动把当前请求语言放进：
 
 ```java
-@Bean
-public LocaleResolver localeResolver() {
-    // Cookie 存储语言，用户下次打开浏览器仍然生效
-    CookieLocaleResolver resolver = new CookieLocaleResolver("lang");
-    resolver.setDefaultLocale(Locale.SIMPLIFIED_CHINESE);
-    resolver.setCookieMaxAge(Duration.ofDays(365));  // 一年
-    return resolver;
+Locale locale = LocaleContextHolder.getLocale();
+```
+
+通常不需要自己读取 `HttpServletRequest`。
+
+#### 16.5 最基础的读取方式
+
+`MessageSource` 的用法是：
+
+```java
+@Component
+public class I18nMessageService {
+
+    private final MessageSource messageSource;
+
+    public I18nMessageService(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+    public String get(String key, Object... args) {
+        return messageSource.getMessage(
+                key,
+                args,
+                LocaleContextHolder.getLocale());
+    }
 }
 ```
 
-**三种方式对比：**
+调用：
 
-| 方式 | 存储位置 | 有效期 | 适用场景 |
-| --- | --- | --- | --- |
-| Accept-Language | 浏览器请求头 | 每次请求 | 默认方案，国际化网站 |
-| URL 参数 | URL 查询参数 | 单次请求 | 手动切换、测试 |
-| Session | 服务端 Session | 会话期间 | 登录后记住语言 |
-| Cookie | 浏览器 Cookie | 可配置 | 记住用户偏好，跨会话 |
+```java
+String message1 = i18nMessageService.get(
+        "user.username.exists");
 
----
+String message2 = i18nMessageService.get(
+        "course.not-found",
+        88L);
+```
+
+结果：
+
+```text
+中文：用户名已存在
+英文：Username already exists
+
+中文：课程 88 不存在
+英文：Course 88 does not exist
+```
+
+这就是 i18n 最核心的使用方法。
+
+#### 16.6 CourseMall 中实际怎么使用
+
+CourseMall 已经封装好了统一翻译，你平时写业务代码时不需要每次手动调用
+`MessageSource`。
+
+新增一个业务错误只做四步。
+
+**第一步：增加消息 key**
+
+```java
+public static final class Course {
+    public static final String NOT_FOUND = "course.not-found";
+}
+```
+
+**第二步：在中英文文件中增加文本**
+
+```properties
+# messages.properties
+course.not-found=课程 {0} 不存在
+
+# messages_en.properties
+course.not-found=Course {0} does not exist
+```
+
+**第三步：加入 ErrorCode**
+
+```java
+COURSE_NOT_FOUND(
+        404201,
+        MessageKeys.Course.NOT_FOUND
+)
+```
+
+**第四步：业务中抛异常**
+
+```java
+Course course = courseMapper.selectById(courseId);
+
+if (course == null) {
+    throw new BizException(
+            ErrorCode.COURSE_NOT_FOUND,
+            courseId);
+}
+```
+
+CourseMall 会在返回 JSON 前自动把 `course.not-found` 翻译为当前语言：
+
+```json
+{
+  "code": 404201,
+  "message": "课程 88 不存在",
+  "data": null
+}
+```
+
+所以你只需记住：
+
+> **增加 key → 写中英文 → 绑定 ErrorCode → 抛 BizException。**
+
+#### 16.7 参数校验怎么国际化
+
+校验注解中的 key 要加 `{}`：
+
+```java
+public class UserRegisterDTO {
+
+    @NotBlank(
+            message = "{validation.user.username.not-blank}")
+    @Size(
+            min = 3,
+            max = 20,
+            message = "{validation.user.username.size}")
+    private String username;
+}
+```
+
+语言文件：
+
+```properties
+# messages.properties
+validation.user.username.not-blank=用户名不能为空
+validation.user.username.size=用户名长度必须在 3 到 20 个字符之间
+
+# messages_en.properties
+validation.user.username.not-blank=Username is required
+validation.user.username.size=Username must contain 3 to 20 characters
+```
+
+这里要区分：
+
+```java
+// 参数校验：key 外面要有 {}
+@NotBlank(message = "{validation.user.username.not-blank}")
+
+// 业务异常：直接使用 ErrorCode，不写 {}
+throw new BizException(ErrorCode.USERNAME_EXISTS);
+```
+
+#### 16.8 如何测试
+
+中文：
+
+```bash
+curl -H "Accept-Language: zh-CN" \
+     http://localhost:8080/api/test
+```
+
+英文：
+
+```bash
+curl -H "Accept-Language: en-US" \
+     http://localhost:8080/api/test
+```
+
+Flutter 中可以在 Dio 拦截器里统一设置：
+
+```dart
+options.headers['Accept-Language'] =
+    currentLocale.toLanguageTag();
+```
+
+#### 16.9 现在只需要记住这些
+
+1. 文本写在 `messages*.properties`，Java 代码不要直接写中文提示。
+2. 中英文文件的 key 必须一致。
+3. 客户端通过 `Accept-Language` 决定语言。
+4. 普通动态参数使用 `{0}`、`{1}`。
+5. 校验注解写 `message = "{key}"`。
+6. CourseMall 业务中直接抛 `BizException(ErrorCode, 参数)`。
+
+::: tip 面试一句话
+Spring MVC 通过 `LocaleResolver` 解析 `Accept-Language`，
+`MessageSource` 根据 Locale 读取对应语言文件；CourseMall 将稳定的
+ErrorCode 和消息 key 保留在业务层，在返回响应时统一翻译。
+:::
+
+官方参考：[Spring Boot 国际化](https://docs.spring.io/spring-boot/docs/3.2.5/reference/html/features.html#features.internationalization)
+
+#### 16.10 本节完整总结
+
+先记住完整执行链：
+
+```text
+Accept-Language
+    → LocaleResolver 解析 Locale
+    → Spring MVC 保存到 LocaleContextHolder
+
+业务抛出 BizException（ErrorCode + messageKey + 参数）
+    → GlobalExceptionHandler 转成 Result
+    → ResultMessageAdvice 在返回 JSON 前统一翻译
+    → I18nMessageService 调用 MessageSource
+    → 从对应的 messages.properties 取得最终文本
+```
+
+各个类的职责：
+
+1. `MessageSource` 是 Spring 的消息源。Spring Boot 根据
+   `spring.messages.basename` 加载 `messages*.properties`，并将
+   `MessageSource` 注册成 Bean。
+2. `MessageKeys` 只是保存消息 key 常量，避免到处手写字符串，不是 Spring 必需组件。
+3. `I18nMessageService` 是对 `MessageSource` 的项目级封装，统一处理当前 Locale、参数和默认值；它类似工具类，但作为 Bean 使用。
+4. `LocaleResolver` 负责从 `Accept-Language` 解析 Locale；Spring MVC 再把结果绑定到 `LocaleContextHolder`，供当前请求使用。
+5. `LocalValidatorFactoryBean` 负责创建并适配 Validator，使
+   `@Valid`、`@Validated`、`@NotBlank` 等校验能够使用
+   `MessageSource` 中的国际化提示。Spring Boot 通常已经自动配置，只有需要定制时才显式声明。
+6. `ErrorCode` 保存稳定的业务码和 messageKey；`BizException` 携带错误码、messageKey 和占位参数，不直接保存某一种语言。
+7. `GlobalExceptionHandler` 只负责把各种异常转换成统一的 `Result`。当然可以在
+   `handleBiz()` 中翻译，但那只能覆盖业务异常，其他异常和正常响应还要重复处理。
+8. `ResultMessageAdvice` 会在 Controller 或异常处理器执行完成后、Jackson 写出 JSON 前拦截所有 `Result`，因此适合作为统一翻译出口。
 
 ## 源码篇
 
@@ -3360,11 +3618,11 @@ protected List<String> getCandidateConfigurations(
 
 ##### 版本差异：`spring.factories` 和 `AutoConfiguration.imports`
 
-| Spring Boot 版本 | 自动配置候选类位置 | 格式 |
-| --- | --- | --- |
-| 2.6 及以前 | `META-INF/spring.factories` | 一个 key 对应多个类，用逗号分隔 |
-| 2.7 | 开始支持 `AutoConfiguration.imports` | 每行一个类 |
-| 3.x | 主要使用 `AutoConfiguration.imports` | 每行一个类 |
+| Spring Boot 版本 | 自动配置候选类位置                   | 格式                            |
+| ---------------- | ------------------------------------ | ------------------------------- |
+| 2.6 及以前       | `META-INF/spring.factories`          | 一个 key 对应多个类，用逗号分隔 |
+| 2.7              | 开始支持 `AutoConfiguration.imports` | 每行一个类                      |
+| 3.x              | 主要使用 `AutoConfiguration.imports` | 每行一个类                      |
 
 旧格式：
 
@@ -3436,15 +3694,15 @@ selectImports()
 
 候选配置类通常会标注各种条件注解。条件注解的底层都是 Spring 的 `@Conditional`：
 
-| 条件注解 | 生效条件 | 常见用途 |
-| --- | --- | --- |
-| `@ConditionalOnClass` | classpath 中存在指定类 | 引入 Redis、MyBatis 等依赖时才启用配置 |
-| `@ConditionalOnMissingClass` | classpath 中不存在指定类 | 避免与某些依赖冲突 |
-| `@ConditionalOnBean` | 容器中已经有指定 Bean | 基于已有 Bean 继续配置 |
-| `@ConditionalOnMissingBean` | 容器中没有指定 Bean | 用户没配置时提供默认 Bean |
-| `@ConditionalOnProperty` | 配置文件中的属性满足条件 | 通过开关控制功能 |
-| `@ConditionalOnWebApplication` | 当前是 Web 应用 | Web 场景专用配置 |
-| `@ConditionalOnExpression` | SpEL 表达式为 `true` | 复杂条件判断 |
+| 条件注解                       | 生效条件                 | 常见用途                               |
+| ------------------------------ | ------------------------ | -------------------------------------- |
+| `@ConditionalOnClass`          | classpath 中存在指定类   | 引入 Redis、MyBatis 等依赖时才启用配置 |
+| `@ConditionalOnMissingClass`   | classpath 中不存在指定类 | 避免与某些依赖冲突                     |
+| `@ConditionalOnBean`           | 容器中已经有指定 Bean    | 基于已有 Bean 继续配置                 |
+| `@ConditionalOnMissingBean`    | 容器中没有指定 Bean      | 用户没配置时提供默认 Bean              |
+| `@ConditionalOnProperty`       | 配置文件中的属性满足条件 | 通过开关控制功能                       |
+| `@ConditionalOnWebApplication` | 当前是 Web 应用          | Web 场景专用配置                       |
+| `@ConditionalOnExpression`     | SpEL 表达式为 `true`     | 复杂条件判断                           |
 
 条件可以放在配置类上，也可以放在 `@Bean` 方法上：
 
@@ -3549,11 +3807,11 @@ public RedisTemplate<String, Object> redisTemplate() {
 
 前面需要区分两个概念：
 
-| 阶段 | 做的事情 | 结果 |
-| --- | --- | --- |
-| 选择阶段 | 找到并过滤自动配置类 | 得到配置类名称 |
-| 解析阶段 | 处理 `@Configuration`、`@Import`、条件注解 | 注册 BeanDefinition |
-| 实例化阶段 | 创建单例 Bean、注入依赖、执行后置处理器 | 得到真正的 Bean 对象 |
+| 阶段       | 做的事情                                   | 结果                 |
+| ---------- | ------------------------------------------ | -------------------- |
+| 选择阶段   | 找到并过滤自动配置类                       | 得到配置类名称       |
+| 解析阶段   | 处理 `@Configuration`、`@Import`、条件注解 | 注册 BeanDefinition  |
+| 实例化阶段 | 创建单例 Bean、注入依赖、执行后置处理器    | 得到真正的 Bean 对象 |
 
 结合 `SpringApplication.run()`，主链路是：
 
@@ -3754,10 +4012,11 @@ Spring Boot 3.2.5 源码：
 - [`RedisAutoConfiguration`](https://github.com/spring-projects/spring-boot/blob/v3.2.5/spring-boot-project/spring-boot-autoconfigure/src/main/java/org/springframework/boot/autoconfigure/data/redis/RedisAutoConfiguration.java)
 
 ::: tip 💡 最容易混淆的三句话
+
 1. `Starter` 主要负责引入依赖；自动配置类负责写配置逻辑。
 2. `AutoConfigurationImportSelector` 负责选择配置类，不是直接创建所有 Bean。
 3. `@ConditionalOnMissingBean` 是「默认配置可被用户覆盖」的关键。
-:::
+   :::
 
 ---
 

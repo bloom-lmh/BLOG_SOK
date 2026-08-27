@@ -380,6 +380,60 @@ Spring Boot 项目打包可执行 jar 的关键（`repackage` 把依赖也塞进
 </build>
 ```
 
+#### annotationProcessorPaths：Lombok 与 MapStruct 的编译协作
+
+**问题背景**：Lombok 和 MapStruct 都是编译期工具，且 MapStruct 依赖 Lombok 的产物——Lombok 先生成 getter/setter，MapStruct 再用它们生成转换器实现类（`UserConverterImpl`）。如果处理器的顺序/可见性不对，编译就报错。
+
+**标准配置**（Spring Boot 3 + MapStruct 的推荐姿势）：
+
+```xml
+<build>
+    <plugins>
+        <!-- Lombok 先生成 getter/setter，MapStruct 再据此生成转换实现 -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>${lombok.version}</version>
+                    </path>
+                    <path>
+                        <groupId>org.mapstruct</groupId>
+                        <artifactId>mapstruct-processor</artifactId>
+                        <version>${mapstruct.version}</version>
+                    </path>
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok-mapstruct-binding</artifactId>
+                        <version>0.2.0</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+**`annotationProcessorPaths` 做什么**：
+
+1. **显式指定处理器 jar 从哪来**——不再让 javac 从 classpath 里瞎翻注解处理器，而是明确给出三个 jar。
+2. **顺序有讲究**——Provider（Lombok，产 getter/setter）在前，Consumer（MapStruct，消费它们）在后，配合 binding 桥接。
+
+**严格说不是"线性两阶段"**：javac 的注解处理是**轮次制（round-based）**，同一轮多个 processor 一起被调用、产出新源码再触发下一轮，循环直到没有新东西。但方向没错——MapStruct 必须等到 Lombok 的 getter/setter 存在才能干活，这是事实上的依赖关系。
+
+**`lombok-mapstruct-binding` 是最容易被漏的一环**：只有 Lombok + MapStruct 两个 jar 时，MapStruct 的 processor 去「读」被注解的类找可映射的属性，但它**默认看不到 Lombok 生成的 getter/setter**（那些是编译中间产物），于是报经典错误：
+
+```
+error: Unknown property "username" in result type User
+```
+
+`lombok-mapstruct-binding` 就是这座桥：让 MapStruct 的 processor 感知 Lombok 生成的产物，把 `@Data` 类里的字段当成可用属性。**没有它，顺序再对也白搭。**
+
+> 旧写法是把 Lombok 放 `<dependencies>` + `<scope>provided</scope>`，让 javac 从 classpath 自动发现处理器——但那样顺序不可控、容易踩坑。用 `annotationProcessorPaths` 显式声明是当前推荐做法（对应 Day03 的 `mall-user/pom.xml`）。
+
 ### 10. 聚合与继承（多模块项目）
 
 真实项目大多是**多模块**的，靠聚合和继承组织，两者职责不同但常一起用：

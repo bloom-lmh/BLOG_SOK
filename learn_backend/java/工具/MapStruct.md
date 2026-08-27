@@ -19,7 +19,8 @@
   - [2. 基础映射](#2-基础映射)
   - [3. 多个对象合并](#3-多个对象合并)
   - [4. 集合转换](#4-集合转换)
-  - [5. 自定义类型转换](#5-自定义类型转换)
+  - [5. 自定义填值：`default` 与 `expression`](#5-自定义填值default-与-expression)
+- [6. `unmappedTargetPolicy`：未映射字段的编译级别](#6-unmappedtargetpolicy未映射字段的编译级别)
 - [四、MapStruct + Lombok 配合](#四mapstruct--lombok-配合)
 - [五、项目中的典型用法](#五项目中的典型用法)
 - [六、小结](#六小结)
@@ -232,7 +233,11 @@ public interface UserConverter {
 }
 ```
 
-### 5. 自定义类型转换（如加密密码）
+### 5. 自定义填值：`default` 与 `expression`
+
+普通字段靠 MapStruct **自动映射**；需要特殊逻辑的字段，有两种「让 converter 自己填」的方式：`default` 方法（按类型自动调用）和 `expression`（按字段精确取值）。
+
+#### 5.1 `default`：自定义转换方法（按类型自动调用）
 
 ```java
 @Mapper(componentModel = "spring")
@@ -247,6 +252,87 @@ public interface UserConverter {
     }
 }
 ```
+
+> ⚠️ **注意上面的写法有隐患**：`componentModel = "spring"` 的接口里，`default` 方法无法注入 `PasswordEncoder`（接口里不能有字段）。要真正注入依赖，得用 `abstract class`（见 5.2 的例子）。而且 `password` 如果同时标的 `ignore=true`，这个 `default` 方法根本不会被调用（见第 6 节「unmappedTargetPolicy 与 ignore」）。
+
+**`default` 的触发规则（重点）**：它按**类型**匹配——只要「源类型 → 目标类型」对得上，MapStruct 就会自动插入调用。所以 `default String encodePassword(String s)` 会影响**所有 String→String 的字段**（除非某字段有更精确的 `@Mapping`）。优点是一次定义全部复用；坑是**可能误伤**别的类型相同的字段。
+
+#### 5.2 `expression`：表达式填值（按字段精确取值）
+
+`expression` 让某个目标字段**不靠自动映射，而是执行一段 Java 代码来取值**。适合「转换器内部就能直接算出值」的场景（如当前时间、拼接、格式化）。
+
+```java
+@Mapper(componentModel = "spring")
+public abstract class UserConverter {   // 用 abstract class，不是 interface
+
+    protected final PasswordEncoder passwordEncoder;
+
+    public UserConverter(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    // expression：把 this 对象作为目标源，表达式里可直接调方法
+    @Mapping(target = "createTime", expression = "java(LocalDateTime.now())")
+    @Mapping(target = "password",   expression = "java(passwordEncoder.encode(dto.getPassword()))")
+    public abstract UserPO toPO(UserDTO dto);
+}
+```
+
+**`expression` 的规则（务必注意）**：
+
+1. **必须 `java(...)` 包裹**，且**括号内不能有分号 `;`**——只能是单个表达式。
+2. 表达式里**能访问**：源对象参数名（如 `dto`）、`this`（所以能调 converter 里的方法/字段，如上面的 `passwordEncoder`）。
+3. 表达式里**不能访问**：局部变量、未 `import` 的类（`LocalDateTime` 需在类里 import）。
+4. 适合「**一句话能算出来的值**」；逻辑复杂就提取成 `default` 方法再在 `expression` 里调用。
+
+**两种方式的区别**：
+
+| | `default` 方法 | `expression = "java(...)"` |
+| --- | --- | --- |
+| 怎么触发 | **隐式、按类型自动** | **显式、按字段精确指定** |
+| 作用范围 | 所有「源 & 目标类型」匹配的字段 | 只作用于 `@Mapping` 指定的那个字段 |
+| 优点 | 写一次，全类型复用 | 指哪打哪，不会误伤 |
+| 坑 | 可能误伤其他同类型字段 | 一个字段一行，字段多了啰嗦 |
+
+**和 `ignore` + 外部手写对比（项目实际方案）**：
+
+| 方式 | 谁填 | 适用 |
+| --- | --- | --- |
+| `expression = "java(...)"` | **converter 自己**（转换内算出来） | createTime 想用 `now()`、密码在转换里加密 |
+| `default` 自定义方法 | converter 内部，但依赖注入受限 | 简单、无需依赖的计算 |
+| `ignore = true` + 业务层手动 set | **外部代码**（Service / 数据库） | createTime 让数据库 `DEFAULT` 填、密码在业务层加密 |
+
+项目选 `ignore` + Service 手写的原因：converter 保持「纯字段拷贝器」，`password`/`status` 归业务层、`createTime`/`id` 归数据库，特殊字段靠 `@Mapping(ignore=true)` 显式声明「谁填」而不是塞进 converter。
+
+### 6. `unmappedTargetPolicy`：未映射字段的编译级别
+
+**`unmapped`** = 目标类里有、但源里找不到对应字段的属性。比如 `UserPO` 有 `password`、`createTime`，而 `UserDTO` 没有——这些就是 "unmapped target fields"（未被映射的目标字段）。
+
+`unmappedTargetPolicy` 决定对这些字段，编译时报什么：
+
+| 值 | 效果 | 场景 |
+| --- | --- | --- |
+| `IGNORE`（默认） | 静默跳过，不报错不警告 | 宽松，但漏字段看不出 |
+| `WARN` | 打印警告，不中断编译 | 提醒但不阻塞 |
+| **`ERROR`** | **编译直接失败**，强制你显式处理 | 最严格，安全敏感场景 |
+
+```java
+// 项目里推荐 ERROR：目标字段漏处理 → 编译失败，而不是悄悄留 null
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+public interface UserConverter {
+    // 因 ERROR，凡是下面没显式 ignore、DTO 里也没有的字段，编译必失败
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    UserPO toPO(UserDTO dto);
+}
+```
+
+**`ignore` 与 `unmappedTargetPolicy` 的配合（重点）**：
+
+- `ignore = true` 的含义是「**这个字段我自己处理**」（转成目标后保持零值/空，由数据库或业务代码另填），见 [Day03](/learn_project/course-mall/Day03-用户服务) 的 `UserConverter`。
+- 有了 `ERROR`，**每个不想映射的字段都必须显式 `@Mapping(ignore=true)`**，否则编译失败。这就是用「编译期强制报错」逼你把字段处理写清楚，防止「新增了敏感字段却悄悄漏映射」。
+
+> 💡 `unmappedTargetPolicy` 只管**目标类**的字段。如果目标类里**根本没有**某个字段（比如 `UserVO` 没有 `password`），那不叫 unmapped，MapStruct 不会报错——所以 `toVO` 那边不用管 password。
 
 ---
 

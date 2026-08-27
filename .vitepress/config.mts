@@ -357,6 +357,7 @@ export default defineConfig({
           items: [
             { text: 'Lombok', link: '/learn_backend/java/工具/Lombok' },
             { text: 'MapStruct', link: '/learn_backend/java/工具/MapStruct' },
+            { text: 'Knife4j', link: '/learn_backend/java/工具/Knife4j' },
             { text: 'Quartz', link: '/learn_backend/java/工具/Quartz' },
           ],
         },
@@ -393,11 +394,11 @@ export default defineConfig({
               link: '/learn_project/course-mall/Day03-用户服务',
             },
             {
-              text: 'Day04 登录鉴权',
+              text: 'Day04 登录认证与授权',
               link: '/learn_project/course-mall/Day04-登录鉴权',
             },
             {
-              text: 'Day05 验证码',
+              text: 'Day05 验证码与会话续期',
               link: '/learn_project/course-mall/Day05-验证码',
             },
             {
@@ -531,6 +532,10 @@ export default defineConfig({
             {
               text: 'Day38 工作流实战',
               link: '/learn_project/course-mall/Day38-工作流实战',
+            },
+            {
+              text: 'Day39 OAuth2与OIDC',
+              link: '/learn_project/course-mall/Day39-OAuth2与OIDC第三方登录',
             },
           ],
         },

@@ -1,355 +1,205 @@
-# Day 05 · 验证码
+# Day 05 · 验证码与会话续期（Redis + Refresh Token）
 
-> **今天目标**：给注册/登录加上「图形验证码 + 短信验证码」，并把登录态刷新（refresh token）和登出也一并做了。三个功能的共同点是——**都靠 Redis 存储**：验证码有有效期、refresh token 要能随时吊销。今天彻底搞懂「什么数据该放 Redis、key 怎么设计、TTL 怎么定」。
+> **今天目标**：在 Day04 的认证授权基础上完成两条安全链路：图形验证码保护短信发送，短信验证码保护注册；短期 accessToken 搭配可吊销、可轮换的 refreshToken，实现刷新和登出。
 
-## 一、前置条件
+## 一、先看最终链路
 
-- 已完成 Day 01（Maven 多模块骨架 + 统一返回 + 全局异常）
-- 已完成 Day 02（`user` 表已建好）
-- 已完成 Day 03（用户服务：注册/查询、`@Valid` 参数校验）
-- 已完成 Day 04（登录鉴权：JWT 生成/解析、登录接口返回 accessToken）
-- Redis 已装（本机 `localhost:6379` ✅，Windows 可用 Docker 或 `memurai`，Linux 直接 `apt install redis`）
+```text
+【注册验证码】
+获取图形验证码 → Redis（5 分钟）
+  → 图形验证码校验通过
+  → 60 秒短信限频
+  → 短信验证码写入 Redis（5 分钟）
+  → 注册时原子校验并消费短信验证码
 
-> ⚠️ 今天的「登录态刷新/登出」是 Day 04 JWT 的延伸。Day 04 的登录接口返回时，**要多存一个 refreshToken 到 Redis**（步骤 5 会讲），否则刷新接口拿不到可校验的 refreshToken。
+【登录与续期】
+账号密码登录 → accessToken（30 分钟）+ refreshToken（7 天）
+  → accessToken 访问业务接口
+  → accessToken 过期后，用 refreshToken 换一对新令牌
+  → 旧 refreshToken 同时失效（rotation）
+  → 登出时删除当前 refreshToken
+```
 
-## 二、为什么验证码要存 Redis？（先想清楚再写）
+今天有三个边界先说清楚：
 
-验证码本质是「一段临时、会过期、用完作废的短字符串」。存哪？
+- 密码登录**不强制短信验证码**。短信验证码用于注册；登录验证码通常由连续失败次数或风控策略触发。
+- refreshToken 是高价值凭证。本文面向后续 Flutter 客户端，暂时通过 JSON 传输，客户端必须放入安全存储。
+- 删除 refreshToken 不能让已签发的 accessToken 立刻消失；它最多继续存活 30 分钟。
 
-| 方案 | 问题 |
-|---|---|
-| 存 `HttpSession` | ① 无状态 + 分布式下 session 不共享，两台机器间验证码对不上；② 依赖 Tomcat 的 session，微服务拆开后失效 |
-| 存 MySQL | 杀鸡用牛刀：验证码生命周期只有几分钟，写库还要手动清理过期数据，IO 开销大 |
-| 存 Redis ✅ | 天生带 **TTL（过期时间）**，写进去设 5 分钟自动删；内存读写快；多实例共享同一份 |
+## 二、前置条件
 
-::: tip 💡 面试题：为什么验证码存 Redis 而不是 HttpSession 或 MySQL？
-**一句话**：Redis 有原生 TTL（过期自动删），读写快、多实例共享；HttpSession 在分布式/无状态下会失效，MySQL 存几分钟就过期的数据是浪费还要手动清理。详见 [Redis](/learn_database/Redis)。
-:::
+- Day04 登录、JWT 过滤器和 RBAC 授权已经跑通。
+- 本机 Redis 可连接。你现在的 Redis 3.x 也能运行本文 Lua 脚本；正式环境应使用仍在维护的 Redis 版本。
+- `mall-common` 已有 `ErrorCode`、`MessageKeys`、`ResultMessageAdvice` 和中英文 `messages*.properties`。
 
-另外注意验证码的两条铁律：
+## 三、需要新增或修改的文件
 
-1. **一定要设 TTL** —— 不设就是永久 Key，Redis 会被垃圾数据撑爆（内存泄漏）。
-2. **一次性使用** —— 校验通过或过期就该删，否则同一个验证码能被反复拿来爆破。
+```text
+mall-user/src/main/java/com/mall/user/
+├─ config/properties/
+│  ├─ CaptchaProperties.java
+│  └─ TokenProperties.java
+├─ controller/
+│  ├─ CaptchaController.java
+│  ├─ LoginController.java          # 修改登录响应
+│  └─ TokenController.java
+├─ dto/
+│  ├─ RefreshTokenRequest.java
+│  ├─ SmsCaptchaRequest.java
+│  └─ UserRegisterDTO.java          # 增加 smsCode
+├─ service/
+│  ├─ CaptchaService.java
+│  ├─ SmsSender.java
+│  └─ TokenService.java
+├─ service/impl/
+│  ├─ LoggingSmsSender.java
+│  └─ UserServiceImpl.java          # 注册时消费短信验证码
+└─ vo/
+   ├─ ImageCaptchaVO.java
+   └─ LoginVO.java                  # 增加 refreshToken
+```
 
-## 三、步骤
+## 四、实现步骤
 
-### 步骤 1：加 Redis 依赖 + 配置
+### 步骤 1：只增加 Day05 新依赖
 
-`mall-user/pom.xml`（在 Day 01 基础上新增三个依赖，完整版如下）：
+不要用一份不完整的 POM 覆盖 Day04。只在 `mall-user/pom.xml` 的 `dependencies` 末尾追加：
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<!-- ==================== 第 4 次：Day05 验证码与会话续期 ==================== -->
 
-    <parent>
-        <groupId>com.mall</groupId>
-        <artifactId>course-mall</artifactId>
-        <version>1.0.0</version>
-    </parent>
+<!-- Redis：保存验证码、发送限频和 refreshToken -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-redis</artifactId>
+</dependency>
 
-    <artifactId>mall-user</artifactId>
-
-    <dependencies>
-        <dependency>
-            <groupId>com.mall</groupId>
-            <artifactId>mall-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-
-        <!-- Redis 启动器：自动装配 StringRedisTemplate，验证码/登录态都存 Redis -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-
-        <!-- 参数校验：@Valid + @NotBlank/@Pattern，发短信前校验入参 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-
-        <!-- JWT：Day04 已引入；今天 refresh 时要重新生成 accessToken -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>0.12.5</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>0.12.5</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.5</version>
-            <scope>runtime</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-</project>
 ```
 
-`mall-user/src/main/resources/application.yml`（在 Day 01 基础上加 Redis 和自定义配置）：
+JJWT、Security、Validation 都已经由 Day03/Day04 引入，不要重复添加，也不要把 JJWT 从 `0.12.6` 改回 `0.12.5`。
+
+如果以后要让自定义配置生成完整的 IDE 元数据，可以再把
+`spring-boot-configuration-processor` 加入现有
+`maven-compiler-plugin.annotationProcessorPaths`；它不是运行所必需的依赖。
+
+在 `application.yml` 中追加 Redis 和业务配置，并把 Day04 的 accessToken 调整为 30 分钟：
 
 ```yaml
-server:
-  port: 8080
-
 spring:
-  application:
-    name: mall-user
   data:
     redis:
-      host: localhost          # Redis 地址
-      port: 6379
-      # password:              # 如果 Redis 设了密码就填
-      timeout: 3s              # 连接超时
-      lettuce:                 # lettuce 是默认客户端（底层 Netty，线程安全）
-        pool:
-          max-active: 8        # 连接池最大连接数（commons-pool2 生效，可加依赖）
-          max-idle: 8
-          min-idle: 0
+      host: ${COURSE_MALL_REDIS_HOST:127.0.0.1}
+      port: ${COURSE_MALL_REDIS_PORT:6379}
+      password: ${COURSE_MALL_REDIS_PASSWORD:}
+      database: 0
+      timeout: 3s
 
-# 自定义配置（用 @Value 读，避免魔法数字散落在代码里）
-mall:
-  jwt:
-    # 密钥必须 >= 32 字节（HS256 要求），生产环境放环境变量，别硬编码进代码
-    secret: course-mall-jwt-secret-key-change-me-in-prod-0123456789abcdef
-    expire: 1800               # accessToken 有效期 30 分钟（秒）
+jwt:
+  # secret 沿用 Day04，这里不重复写
+  expire-seconds: 1800
+
+captcha:
+  image-ttl: 5m
+  sms-ttl: 5m
+  sms-send-interval: 60s
+  max-verify-attempts: 5
+
+auth:
+  token:
+    refresh-ttl: 7d
 ```
 
-::: tip 💡 面试题：`StringRedisTemplate` 和 `RedisTemplate` 有什么区别？什么时候用哪个？
-**一句话**：`StringRedisTemplate` 是 `RedisTemplate<String, String>` 的特例，key/value 都用字符串序列化，**存验证码、token 这种纯字符串刚刚好**；`RedisTemplate` 默认用 JDK 序列化（存对象会变一坨二进制、不可读），想存对象要自定义 JSON 序列化器。今天全部用 String，所以用 `StringRedisTemplate` 最省事。详见 [Redis](/learn_database/Redis)。
-:::
+`jwt.expire-seconds` 是修改 Day04 已有值，不要在 YAML 中再创建第二个同名
+`jwt:` 节点。
 
-### 步骤 2：图形验证码
+不要配置 Lettuce 连接池却漏掉 `commons-pool2`。当前学习阶段先使用默认连接管理；需要调优时再同时加入连接池依赖和参数。
 
-返回给前端一张 base64 图片 + 一个 `uuid`。前端把图片显示出来，用户照着输入，提交时把 `uuid` + 用户输入一起传回来，后端去 Redis 里比对。
+#### 使用类型安全的配置对象
 
-VO `ImageCaptchaVO.java`（`com/mall/user/vo/ImageCaptchaVO.java`）：
+`CaptchaProperties.java`：
+
+```java
+package com.mall.user.config.properties;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import java.time.Duration;
+
+/**
+ * 验证码有效期与限流配置。
+ */
+@Validated
+@ConfigurationProperties(prefix = "captcha")
+public record CaptchaProperties(
+        @NotNull Duration imageTtl,
+        @NotNull Duration smsTtl,
+        @NotNull Duration smsSendInterval,
+        @Min(1) int maxVerifyAttempts) {
+}
+```
+
+`TokenProperties.java`：
+
+```java
+package com.mall.user.config.properties;
+
+import jakarta.validation.constraints.NotNull;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+import java.time.Duration;
+
+/**
+ * 登录令牌配置。
+ */
+@Validated
+@ConfigurationProperties(prefix = "auth.token")
+public record TokenProperties(@NotNull Duration refreshTtl) {
+}
+```
+
+启动类增加 `@ConfigurationPropertiesScan`：
+
+```java
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+
+@SpringBootApplication(scanBasePackages = "com.mall")
+@ConfigurationPropertiesScan("com.mall.user.config.properties")
+@MapperScan("com.mall.user.mapper")
+public class MallUserApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MallUserApplication.class, args);
+    }
+}
+```
+
+相比到处写 `@Value`，配置类能集中管理字段、支持 `Duration`，IDE 也能提示配置项。
+
+### 步骤 2：验证码 DTO、VO 与短信发送抽象
+
+`ImageCaptchaVO.java`：
 
 ```java
 package com.mall.user.vo;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 
-// VO：返回给前端的展示对象，字段只留前端需要的（uuid + 图片），不暴露内部细节
-@Data
+/**
+ * 图形验证码响应。
+ */
+@Getter
 @AllArgsConstructor
 public class ImageCaptchaVO {
-    private String uuid;   // 验证码唯一标识，前端提交时带回来，后端据此去 Redis 找答案
-    private String image;  // base64 图片，前端 <img :src="image"> 直接显示
+    private String uuid;
+    private String image;
 }
 ```
 
-服务 `CaptchaService.java`（`com/mall/user/service/CaptchaService.java`）：
-
-```java
-package com.mall.user.service;
-
-import com.mall.common.exception.BizException;
-import com.mall.common.result.ErrorCode;
-import com.mall.user.dto.SmsCaptchaRequest;
-import com.mall.user.vo.ImageCaptchaVO;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-@Slf4j
-@Service
-// @RequiredArgsConstructor：给 final 字段自动生成构造器，替代手写 @Autowired 构造注入
-@RequiredArgsConstructor
-public class CaptchaService {
-
-    private static final String IMAGE_KEY      = "captcha:image:";        // 图形验证码 key 前缀
-    private static final String SMS_KEY        = "captcha:sms:";          // 短信验证码 key 前缀
-    private static final String SMS_LIMIT_KEY  = "captcha:sms:limit:";    // 短信发送频率限制 key
-    // 去掉易混淆的 I / O / 0 / 1，避免用户看不清楚反复输错
-    private static final String CODE_CHARS     = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    private final StringRedisTemplate stringRedisTemplate;
-
-    /**
-     * 生成图形验证码：随机 4 位字符 → 存 Redis（带 TTL）→ 画成图片返回
-     */
-    public ImageCaptchaVO generateImageCaptcha() {
-        String code = randomCode(4);
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-
-        // 存 Redis：key 带 uuid，5 分钟过期。TTL 是关键——不设就会变成永久垃圾数据
-        stringRedisTemplate.opsForValue().set(IMAGE_KEY + uuid, code, 5, TimeUnit.MINUTES);
-
-        String base64 = drawImage(code);
-        return new ImageCaptchaVO(uuid, base64);
-    }
-
-    /**
-     * 发送短信验证码：先校验图形验证码（防脚本直刷短信接口）→ 限频 → 生成 6 位数字存 Redis
-     */
-    public void sendSmsCaptcha(SmsCaptchaRequest req) {
-        // ① 校验图形验证码：短信是花钱/有成本的，必须先过图形验证码挡住机器
-        String imageCode = stringRedisTemplate.opsForValue().get(IMAGE_KEY + req.getUuid());
-        if (imageCode == null) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "图形验证码已过期，请刷新");
-        }
-        if (!imageCode.equalsIgnoreCase(req.getImageCode())) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "图形验证码错误");
-        }
-        // 图形验证码一次性使用，用完即删
-        stringRedisTemplate.delete(IMAGE_KEY + req.getUuid());
-
-        // ② 频率限制：setIfAbsent 只在 key 不存在时才写入成功（等价 Redis SETNX）
-        //    返回 false 说明 60 秒内已经发过一次了，直接拒绝
-        Boolean first = stringRedisTemplate.opsForValue()
-                .setIfAbsent(SMS_LIMIT_KEY + req.getPhone(), "1", 60, TimeUnit.SECONDS);
-        if (Boolean.FALSE.equals(first)) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "发送太频繁，请稍后再试");
-        }
-
-        // ③ 生成 6 位数字验证码存 Redis，5 分钟过期
-        String code = randomNumCode(6);
-        stringRedisTemplate.opsForValue().set(SMS_KEY + req.getPhone(), code, 5, TimeUnit.MINUTES);
-
-        // ④ 真实项目这里接阿里云/腾讯云短信 SDK，今天是 mock：打日志代替真实发送
-        log.info("【mock短信】向 {} 发送验证码：{}", req.getPhone(), code);
-    }
-
-    /**
-     * 校验短信验证码（注册/登录接口里调用）。只读不删，删除交给业务方调用 clearSmsCaptcha
-     */
-    public boolean verifySmsCaptcha(String phone, String code) {
-        String saved = stringRedisTemplate.opsForValue().get(SMS_KEY + phone);
-        return saved != null && saved.equals(code);
-    }
-
-    /** 校验通过后删除，防止同一个验证码被反复使用 */
-    public void clearSmsCaptcha(String phone) {
-        stringRedisTemplate.delete(SMS_KEY + phone);
-    }
-
-    // ---------- 私有工具方法 ----------
-
-    private String randomCode(int len) {
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < len; i++) {
-            sb.append(CODE_CHARS.charAt(random.nextInt(CODE_CHARS.length())));
-        }
-        return sb.toString();
-    }
-
-    private String randomNumCode(int len) {
-        SecureRandom random = new SecureRandom();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < len; i++) {
-            sb.append(random.nextInt(10));
-        }
-        return sb.toString();
-    }
-
-    /** 用 JDK 自带的 AWT 画一张带干扰线的验证码图，转 base64（省一个第三方验证码依赖） */
-    private String drawImage(String code) {
-        int width = 120, height = 40;
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = image.createGraphics();
-        Random random = new Random();
-
-        g.setColor(Color.WHITE);                 // 白色背景
-        g.fillRect(0, 0, width, height);
-
-        for (int i = 0; i < 6; i++) {            // 干扰线：增加机器识别难度
-            g.setColor(new Color(random.nextInt(255), random.nextInt(255), random.nextInt(255)));
-            g.drawLine(random.nextInt(width), random.nextInt(height),
-                       random.nextInt(width), random.nextInt(height));
-        }
-
-        g.setFont(new Font("Arial", Font.BOLD, 28));
-        for (int i = 0; i < code.length(); i++) {
-            g.setColor(new Color(random.nextInt(150), random.nextInt(150), random.nextInt(150)));
-            g.drawString(String.valueOf(code.charAt(i)), 20 + i * 22, 28 + random.nextInt(5));
-        }
-        g.dispose();
-
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            ImageIO.write(image, "png", bos);
-            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bos.toByteArray());
-        } catch (IOException e) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR);
-        }
-    }
-}
-```
-
-::: tip 💡 面试题：生成随机验证码为什么用 `SecureRandom` 而不是 `Random`？
-**一句话**：`Random` 是可预测的线性同余伪随机数，攻击者收集几个输出就能推出后面的值、预测验证码；`SecureRandom` 用系统熵源（加密强度随机），不可预测。**凡是安全相关（验证码、token、盐）都用 `SecureRandom`**。详见 [并发编程](/learn_backend/java/Java核心/并发编程)。
-:::
-
-控制器 `CaptchaController.java`（`com/mall/user/controller/CaptchaController.java`）：
-
-```java
-package com.mall.user.controller;
-
-import com.mall.common.result.Result;
-import com.mall.user.dto.SmsCaptchaRequest;
-import com.mall.user.service.CaptchaService;
-import com.mall.user.vo.ImageCaptchaVO;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-
-@RestController
-@RequestMapping("/api/captcha")
-@RequiredArgsConstructor
-public class CaptchaController {
-
-    private final CaptchaService captchaService;
-
-    /** 获取图形验证码 */
-    @GetMapping("/image")
-    public Result<ImageCaptchaVO> image() {
-        return Result.ok(captchaService.generateImageCaptcha());
-    }
-
-    /** 发送短信验证码（需先通过图形验证码） */
-    @PostMapping("/sms")
-    public Result<Void> sms(@RequestBody @Valid SmsCaptchaRequest req) {
-        captchaService.sendSmsCaptcha(req);
-        return Result.ok();
-    }
-}
-```
-
-### 步骤 3：短信验证码入参 + 参数校验异常处理
-
-DTO `SmsCaptchaRequest.java`（`com/mall/user/dto/SmsCaptchaRequest.java`）：
+`SmsCaptchaRequest.java`：
 
 ```java
 package com.mall.user.dto;
@@ -358,222 +208,641 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
-// DTO：接收前端入参。校验注解在「进门」时就把非法请求挡住，Service 里只处理合法数据
+/**
+ * 发送短信验证码请求。
+ */
 @Data
 public class SmsCaptchaRequest {
-    @NotBlank(message = "手机号不能为空")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式错误")   // 大陆手机号正则
+
+    @NotBlank(message = "{validation.user.phone.invalid}")
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "{validation.user.phone.invalid}")
     private String phone;
 
-    @NotBlank(message = "uuid 不能为空")
-    private String uuid;          // 图形验证码的标识，用来去 Redis 找答案
+    @NotBlank(message = "{validation.captcha.uuid.not-blank}")
+    private String uuid;
 
-    @NotBlank(message = "图形验证码不能为空")
-    private String imageCode;     // 用户照着图片输入的字符
+    @NotBlank(message = "{validation.captcha.code.not-blank}")
+    private String imageCode;
 }
 ```
 
-Day 01 的 `GlobalExceptionHandler` 只处理了 `BizException` 和兜底 `Exception`。`@Valid` 校验失败会抛 `MethodArgumentNotValidException`，如果没接住会被兜底当成 500。给它补一个 handler（`com/mall/common/exception/GlobalExceptionHandler.java` 里加）：
+校验注解保存的是 `{message.key}`。`LocalValidatorFactoryBean` 负责解析它，异常处理器拿到的已经是当前语言文本。
+
+真实短信供应商不要直接写死在 `CaptchaService` 中，先抽象接口：
+
+`SmsSender.java`：
 
 ```java
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+package com.mall.user.service;
 
-    // 参数校验失败（@Valid 注解触发）：取第一条错误提示返回给前端，而不是笼统的 500
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<Void> handleValid(MethodArgumentNotValidException e) {
-        String msg = e.getBindingResult().getFieldErrors().stream()
-                .map(FieldError::getDefaultMessage)
-                .findFirst()
-                .orElse(ErrorCode.PARAM_ERROR.getMessage());
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
-    }
-```
+/**
+ * 短信发送端口。
+ */
+public interface SmsSender {
 
-> 如果 Day 03 已经加过这个 handler，跳过即可，别重复加。
-
-::: tip 💡 面试题：`@Valid` 校验失败抛的异常为什么必须单独处理，不能走兜底？
-**一句话**：校验失败是「用户输错了」，应该返回 400 + 具体哪错了；走兜底会变成 500「系统繁忙」，既误导用户又不算业务异常。所以异常处理要「越具体的异常越优先匹配」，兜底放最后。详见 [Spring MVC](/learn_backend/java/基础/Spring MVC)。
-:::
-
-### 步骤 4：把验证码校验接进注册/登录（复用，不重复造轮子）
-
-Day 03 的注册、Day 04 的登录接口里，在真正落库/发 token 之前，先校验短信验证码：
-
-```java
-// 在注册/登录接口里，拿到 phone + smsCode 后：
-if (!captchaService.verifySmsCaptcha(req.getPhone(), req.getSmsCode())) {
-    throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "短信验证码错误或已过期");
+    /**
+     * 发送验证码。
+     *
+     * @param phone 手机号
+     * @param code  验证码
+     */
+    void sendVerificationCode(String phone, String code);
 }
-// ... 业务处理成功后：
-captchaService.clearSmsCaptcha(req.getPhone());   // 用完删掉，防重复使用
 ```
 
-> `verifySmsCaptcha` 和 `clearSmsCaptcha` 拆成两步，是因为「读」和「删」分属不同时刻：校验通过到业务成功之间可能还有别的逻辑，成功后才该删。如果校验一通过就删，业务失败后用户得重发一条，体验差。
-
-::: tip 💡 面试题：验证码「一次性使用」为什么要用 `GETDEL`（读并删）而不是「先 GET 再 DEL」？
-**一句话**：`GET` 和 `DEL` 是两条命令、中间有间隙，并发下两个请求可能同时读到同一个验证码、都校验通过；Redis 6.2+ 的 `GETDEL` 是原子命令，读的同时就删了，第二个请求读到的必然是 null。Spring Data Redis 里是 `opsForValue().getAndDelete(key)`。详见 [Redis](/learn_database/Redis)。
-:::
-
-### 步骤 5：登录态刷新（refresh token 存 Redis）
-
-**为什么需要刷新？** accessToken 是 JWT、无状态、过期只能重登。为了「既安全又不用频繁登录」，业界用**双 token**：
-
-- `accessToken`：短（30 分钟），无状态 JWT，每次请求都带，过期了不去改它。
-- `refreshToken`：长（7 天），一个随机字符串，**存 Redis**，专门用来换新的 accessToken。
-
-accessToken 短，即使泄露影响窗口小；refreshToken 长且能随时从 Redis 删除（吊销），泄露了服务端能主动作废。
-
-JWT 工具 `JwtUtil.java`（`com/mall/user/util/JwtUtil.java`，Day 04 已有，这里列出完整版方便对照）：
+`LoggingSmsSender.java`：
 
 ```java
-package com.mall.user.util;
+package com.mall.user.service.impl;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import com.mall.user.service.SmsSender;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
+/**
+ * 非生产环境短信模拟器。
+ */
+@Slf4j
+@Service
+@Profile("!prod")
+public class LoggingSmsSender implements SmsSender {
 
-@Component
-public class JwtUtil {
-
-    @Value("${mall.jwt.secret}")
-    private String secret;
-
-    @Value("${mall.jwt.expire}")
-    private long expire;   // 秒
-
-    private SecretKey key() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
-    /** 生成 accessToken（登录、刷新时都用它） */
-    public String generateAccessToken(Long userId) {
-        return Jwts.builder()
-                .subject(String.valueOf(userId))                        // 把 userId 放进 sub 声明
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + expire * 1000))
-                .signWith(key())                                        // HS256 签名，防篡改
-                .compact();
-    }
-
-    /** 解析 token 拿 userId（Day04 的鉴权拦截器里用） */
-    public Long parseUserId(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(key())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return Long.valueOf(claims.getSubject());
+    @Override
+    public void sendVerificationCode(String phone, String code) {
+        // 仅本地学习允许打印验证码；生产环境必须接短信供应商且禁止记录明文验证码。
+        log.info("[mock-sms] phone={}, code={}", phone, code);
     }
 }
 ```
 
-刷新/登出的服务 `TokenService.java`（`com/mall/user/service/TokenService.java`）：
+生产环境没有 `SmsSender` Bean 会直接启动失败，这是好事：它强迫你先实现供应商适配器，避免误把 mock 带上线。
+
+### 步骤 3：验证码服务——TTL、限频与原子消费
+
+`CaptchaService.java`：
 
 ```java
 package com.mall.user.service;
 
 import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
-import com.mall.user.util.JwtUtil;
+import com.mall.user.config.properties.CaptchaProperties;
+import com.mall.user.dto.SmsCaptchaRequest;
+import com.mall.user.vo.ImageCaptchaVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.List;
+import java.util.UUID;
 
+/**
+ * 图形验证码与短信验证码服务。
+ */
 @Service
 @RequiredArgsConstructor
-public class TokenService {
+public class CaptchaService {
 
-    private static final String REFRESH_KEY = "login:refresh:";   // refreshToken -> userId
-    private static final long REFRESH_TTL_DAYS = 7;               // 7 天
+    private static final String IMAGE_PREFIX = "course-mall:captcha:image:";
+    private static final String IMAGE_ATTEMPT_PREFIX = "course-mall:captcha:image-attempt:";
+    private static final String SMS_PREFIX = "course-mall:captcha:sms:";
+    private static final String SMS_ATTEMPT_PREFIX = "course-mall:captcha:sms-attempt:";
+    private static final String SMS_LIMIT_PREFIX = "course-mall:captcha:sms-limit:";
 
-    private final StringRedisTemplate stringRedisTemplate;
-    private final JwtUtil jwtUtil;
+    private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /**
-     * 登录成功后调用（Day04 的登录接口里补一行）：把 refreshToken 存 Redis。
-     * refreshToken 是随机串，不存 JWT（JWT 无法主动失效），存 Redis 才能随时删。
+     * 返回值：1=校验成功并删除；0=错误；-1=不存在或已过期。
+     *
+     * <p>校验、错误次数累加和成功删除都在 Redis 内一次完成，兼容 Redis 3.x。</p>
      */
-    public void storeRefreshToken(Long userId, String refreshToken) {
-        stringRedisTemplate.opsForValue().set(
-                REFRESH_KEY + refreshToken, userId.toString(), REFRESH_TTL_DAYS, TimeUnit.DAYS);
+    private static final DefaultRedisScript<Long> VERIFY_AND_CONSUME_SCRIPT =
+            new DefaultRedisScript<>("""
+                    local code = redis.call('GET', KEYS[1])
+                    if not code then
+                        return -1
+                    end
+
+                    if string.upper(code) == string.upper(ARGV[1]) then
+                        redis.call('DEL', KEYS[1])
+                        redis.call('DEL', KEYS[2])
+                        return 1
+                    end
+
+                    local attempts = redis.call('INCR', KEYS[2])
+                    if attempts == 1 then
+                        local ttl = redis.call('TTL', KEYS[1])
+                        if ttl < 1 then ttl = 300 end
+                        redis.call('EXPIRE', KEYS[2], ttl)
+                    end
+
+                    if attempts >= tonumber(ARGV[2]) then
+                        redis.call('DEL', KEYS[1])
+                        redis.call('DEL', KEYS[2])
+                    end
+                    return 0
+                    """, Long.class);
+
+    private final StringRedisTemplate redisTemplate;
+    private final CaptchaProperties properties;
+    private final SmsSender smsSender;
+
+    /**
+     * 生成四位图形验证码。
+     *
+     * @return uuid 与 Base64 图片
+     */
+    public ImageCaptchaVO generateImageCaptcha() {
+        String uuid = UUID.randomUUID().toString().replace("-", "");
+        String code = randomTextCode(4);
+
+        redisTemplate.opsForValue().set(
+                IMAGE_PREFIX + uuid,
+                code,
+                properties.imageTtl());
+
+        return new ImageCaptchaVO(uuid, drawImage(code));
     }
 
     /**
-     * 刷新登录态：前端带 refreshToken 来，校验 Redis 里有 → 生成新的 accessToken。
+     * 图形验证码通过后发送短信验证码。
+     *
+     * @param request 请求参数
      */
-    public String refreshAccessToken(String refreshToken) {
-        String userId = stringRedisTemplate.opsForValue().get(REFRESH_KEY + refreshToken);
-        if (userId == null) {
-            throw new BizException(ErrorCode.UNAUTHORIZED);   // Redis 里没有 = 已登出/已过期
+    public void sendSmsCaptcha(SmsCaptchaRequest request) {
+        String limitKey = SMS_LIMIT_PREFIX + request.getPhone();
+        // 先做一次快速检查，避免明显处于冷却期时还消耗用户刚输入的图形验证码。
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(limitKey))) {
+            throw new BizException(ErrorCode.SMS_CAPTCHA_TOO_FREQUENT);
         }
-        // 滑动过期：每次成功刷新都把有效期续回 7 天，活跃用户不用重新登录
-        stringRedisTemplate.expire(REFRESH_KEY + refreshToken, REFRESH_TTL_DAYS, TimeUnit.DAYS);
-        return jwtUtil.generateAccessToken(Long.valueOf(userId));
+
+        consumeCode(
+                IMAGE_PREFIX + request.getUuid(),
+                IMAGE_ATTEMPT_PREFIX + request.getUuid(),
+                request.getImageCode(),
+                ErrorCode.IMAGE_CAPTCHA_EXPIRED,
+                ErrorCode.IMAGE_CAPTCHA_INVALID);
+
+        Boolean firstRequest = redisTemplate.opsForValue().setIfAbsent(
+                limitKey,
+                "1",
+                properties.smsSendInterval());
+        if (!Boolean.TRUE.equals(firstRequest)) {
+            throw new BizException(ErrorCode.SMS_CAPTCHA_TOO_FREQUENT);
+        }
+
+        String code = randomNumberCode(6);
+        String codeKey = SMS_PREFIX + request.getPhone();
+        String attemptKey = SMS_ATTEMPT_PREFIX + request.getPhone();
+
+        redisTemplate.delete(attemptKey);
+        redisTemplate.opsForValue().set(codeKey, code, properties.smsTtl());
+
+        try {
+            smsSender.sendVerificationCode(request.getPhone(), code);
+        } catch (RuntimeException e) {
+            // 供应商发送失败时回滚验证码和限频键，允许用户立即重试。
+            redisTemplate.delete(List.of(
+                    codeKey,
+                    limitKey));
+            throw new BizException(ErrorCode.OPERATION_FAILED);
+        }
     }
 
     /**
-     * 登出：删掉 Redis 里的 refreshToken。之后它再想刷新就换不了新 accessToken 了。
+     * 注册时校验并消费短信验证码。
+     *
+     * @param phone 手机号
+     * @param code  用户提交的验证码
      */
-    public void logout(String refreshToken) {
-        stringRedisTemplate.delete(REFRESH_KEY + refreshToken);
+    public void consumeSmsCaptcha(String phone, String code) {
+        consumeCode(
+                SMS_PREFIX + phone,
+                SMS_ATTEMPT_PREFIX + phone,
+                code,
+                ErrorCode.SMS_CAPTCHA_EXPIRED,
+                ErrorCode.SMS_CAPTCHA_INVALID);
+    }
+
+    private void consumeCode(
+            String codeKey,
+            String attemptKey,
+            String submittedCode,
+            ErrorCode expiredError,
+            ErrorCode invalidError) {
+        Long result = redisTemplate.execute(
+                VERIFY_AND_CONSUME_SCRIPT,
+                List.of(codeKey, attemptKey),
+                submittedCode,
+                String.valueOf(properties.maxVerifyAttempts()));
+
+        if (result == null) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+        if (result == -1L) {
+            throw new BizException(expiredError);
+        }
+        if (result != 1L) {
+            throw new BizException(invalidError);
+        }
+    }
+
+    private String randomTextCode(int length) {
+        StringBuilder value = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            value.append(CODE_CHARS.charAt(
+                    SECURE_RANDOM.nextInt(CODE_CHARS.length())));
+        }
+        return value.toString();
+    }
+
+    private String randomNumberCode(int length) {
+        StringBuilder value = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            value.append(SECURE_RANDOM.nextInt(10));
+        }
+        return value.toString();
+    }
+
+    private String drawImage(String code) {
+        int width = 120;
+        int height = 40;
+        BufferedImage image =
+                new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = image.createGraphics();
+
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, width, height);
+
+            for (int i = 0; i < 6; i++) {
+                graphics.setColor(randomColor(180));
+                graphics.drawLine(
+                        SECURE_RANDOM.nextInt(width),
+                        SECURE_RANDOM.nextInt(height),
+                        SECURE_RANDOM.nextInt(width),
+                        SECURE_RANDOM.nextInt(height));
+            }
+
+            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
+            for (int i = 0; i < code.length(); i++) {
+                graphics.setColor(randomColor(140));
+                graphics.drawString(
+                        String.valueOf(code.charAt(i)),
+                        18 + i * 24,
+                        29 + SECURE_RANDOM.nextInt(4));
+            }
+        } finally {
+            graphics.dispose();
+        }
+
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            if (!ImageIO.write(image, "png", output)) {
+                throw new IOException("PNG writer is unavailable");
+            }
+            return "data:image/png;base64,"
+                    + Base64.getEncoder().encodeToString(output.toByteArray());
+        } catch (IOException e) {
+            throw new BizException(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+
+    private Color randomColor(int upperBound) {
+        return new Color(
+                SECURE_RANDOM.nextInt(upperBound),
+                SECURE_RANDOM.nextInt(upperBound),
+                SECURE_RANDOM.nextInt(upperBound));
     }
 }
 ```
 
-控制器 `TokenController.java`（`com/mall/user/controller/TokenController.java`）：
+为什么不用“先 `GET`、成功后再 `DEL`”？因为两个并发请求可能同时读到同一个验证码并都通过。Lua 脚本把读取、判断、计数和删除变成一次原子操作，同时兼容你本机的 Redis 3.x。
+
+::: tip 💡 面试题：为什么验证码用 SecureRandom？
+`SecureRandom` 的输出不可预测，适合验证码和令牌；`Random` 只适合普通模拟数据。安全随机数不能用时间戳、UUID 截断或 `Math.random()` 代替。
+:::
+
+### 步骤 4：验证码接口
+
+`CaptchaController.java`：
 
 ```java
 package com.mall.user.controller;
 
 import com.mall.common.result.Result;
-import com.mall.user.dto.RefreshRequest;
-import com.mall.user.service.TokenService;
+import com.mall.user.dto.SmsCaptchaRequest;
+import com.mall.user.service.CaptchaService;
+import com.mall.user.vo.ImageCaptchaVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-
+@Tag(name = "验证码")
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/captcha")
 @RequiredArgsConstructor
-public class TokenController {
+public class CaptchaController {
 
-    private final TokenService tokenService;
+    private final CaptchaService captchaService;
 
-    /** 刷新登录态：用 refreshToken 换新 accessToken */
-    @PostMapping("/refresh")
-    public Result<Map<String, String>> refresh(@RequestBody @Valid RefreshRequest req) {
-        String accessToken = tokenService.refreshAccessToken(req.getRefreshToken());
-        // HashMap：这里只临时组装返回，key 无序无影响；要保序可用 LinkedHashMap
-        Map<String, String> data = new HashMap<>();
-        data.put("accessToken", accessToken);
-        return Result.ok(data);
+    @Operation(summary = "获取图形验证码")
+    @GetMapping("/image")
+    public Result<ImageCaptchaVO> image() {
+        return Result.ok(captchaService.generateImageCaptcha());
     }
 
-    /** 登出：吊销 refreshToken */
-    @PostMapping("/logout")
-    public Result<Void> logout(@RequestBody @Valid RefreshRequest req) {
-        tokenService.logout(req.getRefreshToken());
+    @Operation(summary = "发送短信验证码")
+    @PostMapping("/sms")
+    public Result<Void> sms(@Valid @RequestBody SmsCaptchaRequest request) {
+        captchaService.sendSmsCaptcha(request);
         return Result.ok();
     }
 }
 ```
 
-DTO `RefreshRequest.java`（`com/mall/user/dto/RefreshRequest.java`）：
+### 步骤 5：只在注册时消费短信验证码
+
+Day02 目前只有用户名唯一索引。手机号开始承担验证码身份后，也必须由数据库兜底唯一性；
+确认现有数据没有重复后执行一次：
+
+```sql
+ALTER TABLE `user`
+    ADD UNIQUE KEY `uk_phone` (`phone`),
+    ADD UNIQUE KEY `uk_email` (`email`);
+```
+
+MySQL 唯一索引允许多个 `NULL`，所以可选邮箱仍然可以为空。
+
+在 Day03 的 `UserRegisterDTO` 增加手机号必填和短信验证码：
+
+```java
+@NotBlank(message = "{validation.user.phone.invalid}")
+@Pattern(regexp = "^1[3-9]\\d{9}$", message = "{validation.user.phone.invalid}")
+private String phone;
+
+@NotBlank(message = "{validation.sms.code.not-blank}")
+private String smsCode;
+```
+
+在 `UserServiceImpl` 注入 `CaptchaService`：
+
+```java
+private final CaptchaService captchaService;
+```
+
+完成用户名唯一性检查后，再检查手机号；否则 Day03 把所有
+`DuplicateKeyException` 都翻译为 `USERNAME_EXISTS`，手机号冲突时文案会错误：
+
+```java
+Long phoneCount = userMapper.selectCount(
+        new LambdaQueryWrapper<User>()
+                .eq(User::getPhone, dto.getPhone()));
+if (phoneCount > 0) {
+    throw new BizException(ErrorCode.PHONE_EXISTS);
+}
+```
+
+然后在写数据库之前消费验证码：
+
+```java
+captchaService.consumeSmsCaptcha(dto.getPhone(), dto.getSmsCode());
+
+User user = userConverter.toEntity(dto);
+if (!StringUtils.hasText(user.getEmail())) {
+    // 唯一索引下应把“未填写”统一存成 NULL，避免多个空字符串互相冲突。
+    user.setEmail(null);
+}
+user.setPassword(passwordEncoder.encode(dto.getPassword()));
+user.setStatus(1);
+userMapper.insert(user);
+```
+
+上面需要导入 `org.springframework.util.StringUtils`。
+
+验证码采用“验证成功立即作废”的安全语义。即使后续数据库写入失败，也不能让同一个验证码再次使用；用户需要重新获取验证码。
+
+唯一索引仍是并发下的最终保障。生产代码可根据约束名
+`uk_username`、`uk_phone`、`uk_email` 映射成对应错误码；
+不要把所有唯一索引冲突都固定返回“用户名已存在”。
+
+> 密码登录仍然只校验账号和密码。若要防撞库，应记录失败次数，达到阈值后再要求图形验证码，而不是每次登录都强制短信验证。
+
+### 步骤 6：refreshToken 轮换服务
+
+先把 Day04 的 `LoginVO` 替换为双令牌响应：
+
+```java
+package com.mall.user.vo;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+/**
+ * 登录或刷新成功后的双令牌响应。
+ */
+@Getter
+@AllArgsConstructor
+public class LoginVO {
+    private String accessToken;
+    private String refreshToken;
+    private String tokenType;
+    private long expiresIn;
+}
+```
+
+`TokenService.java`：
+
+```java
+package com.mall.user.service;
+
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.user.config.properties.TokenProperties;
+import com.mall.user.entity.User;
+import com.mall.user.mapper.UserMapper;
+import com.mall.user.util.JwtUtil;
+import com.mall.user.vo.LoginVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Service;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.HexFormat;
+import java.util.List;
+
+/**
+ * accessToken 与 refreshToken 生命周期管理。
+ */
+@Service
+@RequiredArgsConstructor
+public class TokenService {
+
+    private static final String REFRESH_PREFIX = "course-mall:auth:refresh:";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /**
+     * 原子读取并删除 refreshToken，保证同一令牌并发刷新时只有一个请求成功。
+     */
+    private static final DefaultRedisScript<String> GET_AND_DELETE_SCRIPT =
+            new DefaultRedisScript<>("""
+                    local value = redis.call('GET', KEYS[1])
+                    if value then
+                        redis.call('DEL', KEYS[1])
+                    end
+                    return value
+                    """, String.class);
+
+    private final StringRedisTemplate redisTemplate;
+    private final UserMapper userMapper;
+    private final JwtUtil jwtUtil;
+    private final TokenProperties properties;
+
+    /**
+     * 登录成功后签发一对令牌。
+     *
+     * @param user 已认证用户
+     * @return 双令牌
+     */
+    public LoginVO issue(User user) {
+        String accessToken =
+                jwtUtil.generateToken(user.getId(), user.getUsername());
+        String refreshToken = randomRefreshToken();
+
+        // Redis 只保存 refreshToken 的 SHA-256 摘要，避免 Redis 泄露时直接暴露原令牌。
+        redisTemplate.opsForValue().set(
+                refreshKey(refreshToken),
+                user.getId().toString(),
+                properties.refreshTtl());
+
+        return new LoginVO(
+                accessToken,
+                refreshToken,
+                "Bearer",
+                jwtUtil.getExpireSeconds());
+    }
+
+    /**
+     * 消费旧 refreshToken，并轮换出一对新令牌。
+     *
+     * @param refreshToken 旧 refreshToken
+     * @return 新双令牌
+     */
+    public LoginVO refresh(String refreshToken) {
+        String userId = redisTemplate.execute(
+                GET_AND_DELETE_SCRIPT,
+                List.of(refreshKey(refreshToken)));
+        if (userId == null) {
+            throw new BizException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        User user = userMapper.selectById(Long.valueOf(userId));
+        if (user == null) {
+            throw new BizException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+        if (user.getStatus() != null && user.getStatus() == 0) {
+            throw new BizException(ErrorCode.ACCOUNT_DISABLED);
+        }
+
+        // rotation：旧 refreshToken 已删除，返回新的 accessToken + refreshToken。
+        return issue(user);
+    }
+
+    /**
+     * 当前设备登出。重复调用仍然成功，保持接口幂等。
+     *
+     * @param refreshToken 当前 refreshToken
+     */
+    public void logout(String refreshToken) {
+        redisTemplate.delete(refreshKey(refreshToken));
+    }
+
+    private String randomRefreshToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(bytes);
+    }
+
+    private String refreshKey(String refreshToken) {
+        try {
+            byte[] digest = MessageDigest
+                    .getInstance("SHA-256")
+                    .digest(refreshToken.getBytes(StandardCharsets.UTF_8));
+            return REFRESH_PREFIX + HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            // Java 标准运行时必须提供 SHA-256；缺失属于不可恢复的运行环境错误。
+            throw new IllegalStateException("SHA-256 is unavailable", e);
+        }
+    }
+}
+```
+
+这一版比“查询 refreshToken 后继续续期 7 天”更安全：
+
+- 每次刷新都会删除旧 refreshToken 并返回新 refreshToken。
+- Lua 保证并发刷新时旧 token 只能成功一次。
+- Redis 中只保存 token 摘要，不保存客户端持有的原始 refreshToken。
+- 不做无限滑动续期；每个新 refreshToken 都有明确的 7 天 TTL。
+
+轮换也有代价：如果后端已经轮换成功，但响应在网络中丢失，客户端手里的旧 token 已失效，只能重新登录。大型系统会增加很短的重试宽限窗口和“令牌家族”复用检测，当前阶段先不展开。
+
+当前 refreshToken 是不透明随机串；Redis key 消失后，服务端无法再区分“自然过期”和
+“已登出/已轮换”，所以统一返回 `REFRESH_TOKEN_INVALID`。若必须精确区分，需要让令牌
+自带受保护的过期信息或额外保留过期记录。
+
+### 步骤 7：接入登录、刷新和登出接口
+
+Day04 的 `LoginController` 不再直接调用 `JwtUtil`，改为注入 `TokenService`：
+
+```java
+private final AuthenticationManager authenticationManager;
+private final TokenService tokenService;
+private final UserConverter userConverter;
+
+@PostMapping("/login")
+public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
+    Authentication authentication;
+    try {
+        authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()));
+    } catch (DisabledException e) {
+        throw new BizException(ErrorCode.ACCOUNT_DISABLED);
+    } catch (AuthenticationException e) {
+        throw new BizException(ErrorCode.BAD_CREDENTIALS);
+    }
+
+    LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+    return Result.ok(tokenService.issue(loginUser.getUser()));
+}
+```
+
+`RefreshTokenRequest.java`：
 
 ```java
 package com.mall.user.dto;
@@ -581,126 +850,220 @@ package com.mall.user.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+/**
+ * 刷新或登出请求。
+ */
 @Data
-public class RefreshRequest {
-    @NotBlank(message = "refreshToken 不能为空")
+public class RefreshTokenRequest {
+
+    @NotBlank(message = "{validation.auth.refresh-token.not-blank}")
     private String refreshToken;
 }
 ```
 
-> **Day 04 登录接口要补的一行**：登录成功返回前，先生成 refreshToken 并存 Redis：
-> ```java
-> String refreshToken = UUID.randomUUID().toString().replace("-", "");
-> tokenService.storeRefreshToken(user.getId(), refreshToken);
-> // 然后把 accessToken + refreshToken 一起返回给前端
-> ```
+`TokenController.java`：
 
-::: tip 💡 面试题：accessToken 和 refreshToken 为什么要分开？refreshToken 为什么存 Redis 而 accessToken 不存？
-**一句话**：accessToken 短（泄露窗口小）但无状态、每次请求都带；refreshToken 长但要能「主动吊销」——JWT 一旦发出就无法让它失效，所以 refreshToken 用**随机串存 Redis**，登出/发现泄露时直接从 Redis 删掉即可。二者配合 = 安全 + 体验。详见 [Spring Security](/learn_backend/java/基础/Spring Security)。
-:::
+```java
+package com.mall.user.controller;
 
-### 步骤 6：登出——无状态 JWT 怎么「立刻失效」
+import com.mall.common.result.Result;
+import com.mall.user.dto.RefreshTokenRequest;
+import com.mall.user.service.TokenService;
+import com.mall.user.vo.LoginVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-JWT 是无状态的，服务端不存它，所以「删」不了已经发出去的 accessToken。两种思路：
+@Tag(name = "登录会话")
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class TokenController {
 
-1. **短有效期**（今天用的）：accessToken 只活 30 分钟，登出后最多 30 分钟内它仍有效，但窗口可控。
-2. **黑名单**：登出时把 accessToken 的 `jti`/签名存 Redis 黑名单，鉴权拦截器每次查一遍。能立刻失效，但每次请求多一次 Redis 查询，且要存到 token 过期才能清。
+    private final TokenService tokenService;
 
-今天选了「短 accessToken + 删 refreshToken」的组合，是成本最低、绝大多数场景够用的方案。
+    @Operation(summary = "刷新登录令牌")
+    @PostMapping("/refresh")
+    public Result<LoginVO> refresh(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        return Result.ok(tokenService.refresh(request.getRefreshToken()));
+    }
 
-::: tip 💡 面试题：无状态 JWT 怎么实现「登出后立刻失效」？
-**一句话**：JWT 本身删不掉，只能靠① accessToken 设短有效期，或② 登出时把它加进 Redis 黑名单、鉴权时拦截。方案①零成本但有几十分钟延迟，方案②立刻失效但每次请求都要查 Redis。详见 [Redis](/learn_database/Redis)。
-:::
-
-### 步骤 7：启动验证
-
-先确认 Redis 起来了：
-
-```bash
-redis-cli ping      # 返回 PONG 说明连得上
+    @Operation(summary = "退出当前设备")
+    @PostMapping("/logout")
+    public Result<Void> logout(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        tokenService.logout(request.getRefreshToken());
+        return Result.ok();
+    }
+}
 ```
 
-然后回到 `E:\course-mall\` 根目录：
+### 步骤 8：更新 Security 白名单
 
-```bash
-mvn clean install -DskipTests        # 编译安装
-mvn -pl mall-user spring-boot:run    # 启动用户服务
+验证码、登录、注册和刷新都发生在“尚未拥有有效 accessToken”时，必须在 `SecurityConfig` 放行：
+
+```java
+import org.springframework.http.HttpMethod;
+
+.authorizeHttpRequests(auth -> auth
+        .requestMatchers(HttpMethod.GET,
+                "/api/captcha/image",
+                "/doc.html",
+                "/webjars/**",
+                "/v3/api-docs/**",
+                "/swagger-ui/**",
+                "/favicon.ico")
+        .permitAll()
+        .requestMatchers(HttpMethod.POST,
+                "/api/captcha/sms",
+                "/api/user/register",
+                "/api/user/login",
+                "/api/auth/refresh",
+                "/api/auth/logout")
+        .permitAll()
+        .anyRequest()
+        .authenticated())
 ```
 
-**① 图形验证码**：
+`/api/auth/refresh` 必须放行，否则 accessToken 过期时反而无法刷新。`logout` 只凭 refreshToken 就能吊销当前会话，并且接口幂等，因此也可以放行。
+
+> 如果未来 Web 端把 refreshToken 放进 HttpOnly Cookie，这两个接口会重新涉及 CSRF；本文面向 Flutter/JSON 请求，refreshToken 不依赖浏览器自动携带的 Cookie。
+
+### 步骤 9：为什么这套 i18n 能正常工作？
+
+- DTO 的 `{validation...}` 由 `LocalValidatorFactoryBean` 解析。
+- `CaptchaService`、`TokenService` 只抛 `new BizException(ErrorCode.Xxx)`。
+- `GlobalExceptionHandler` 返回带消息键的 `Result`。
+- Controller 响应会经过 `ResultMessageAdvice`，在 Jackson 序列化前翻译。
+- Day04 的 Security 过滤器响应不会经过 MVC，所以已经在 `writeJson` 中用 `LocaleResolver + MessageSource` 单独翻译。
+
+因此业务代码里不再出现“验证码错误”“refreshToken 无效”等硬编码中文。
+
+## 五、启动与验收
+
+先确认 Redis：
+
+```bash
+redis-cli ping
+```
+
+返回 `PONG` 后启动 `mall-user`。
+
+### 1. 获取图形验证码
 
 ```bash
 curl http://localhost:8080/api/captcha/image
 ```
 
-预期返回（image 是一长串 base64，可复制到浏览器地址栏直接看图）：
+把返回的 `uuid` 和 Base64 图片保存下来。
+
+### 2. 发送短信验证码
+
+```bash
+curl -X POST http://localhost:8080/api/captcha/sms \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000","uuid":"替换为真实uuid","imageCode":"替换为图片字符"}'
+```
+
+非生产环境日志会显示 mock 验证码。60 秒内再次发送应返回 `SMS_CAPTCHA_TOO_FREQUENT` 对应文案。
+
+查看 Redis 时使用 `SCAN`，不要在生产环境执行阻塞式 `KEYS *`：
+
+```bash
+redis-cli SCAN 0 MATCH "course-mall:captcha:*" COUNT 100
+```
+
+### 3. 注册并登录
+
+注册请求增加 `phone` 和 `smsCode`：
+
+```bash
+curl -X POST http://localhost:8080/api/user/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"zhangsan","password":"Mall@123456","nickname":"张三","phone":"13800138000","smsCode":"短信中的6位数字"}'
+```
+
+登录成功后应同时得到：
 
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
-    "uuid": "6f3a2c...",
-    "image": "data:image/png;base64,iVBORw0KGgo..."
+    "accessToken": "eyJ...",
+    "refreshToken": "安全随机字符串",
+    "tokenType": "Bearer",
+    "expiresIn": 1800
   }
 }
 ```
 
-**② 短信验证码**（先看图里是什么字符，替换 `uuid` 和 `imageCode`）：
-
-```bash
-curl -X POST http://localhost:8080/api/captcha/sms \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"13800138000","uuid":"6f3a2c...","imageCode":"图中字符"}'
-```
-
-预期返回 `{"code":200,...}`，同时控制台打印 `【mock短信】向 13800138000 发送验证码：xxxxxx`。
-
-**③ 确认验证码进了 Redis 且带 TTL**：
-
-```bash
-redis-cli
-> KEYS captcha:*
-> TTL captcha:sms:13800138000    # 应返回 300 附近（秒），且在倒计时
-```
-
-**④ 刷新/登出**（先用 Day04 登录拿到 accessToken + refreshToken 后）：
+### 4. 验证 refreshToken rotation
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/refresh \
   -H "Content-Type: application/json" \
-  -d '{"refreshToken":"登录时返回的refreshToken"}'
-
-curl -X POST http://localhost:8080/api/auth/logout \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken":"登录时返回的refreshToken"}'
+  -d '{"refreshToken":"登录返回的refreshToken"}'
 ```
 
-## 四、知识点索引
+响应会返回一对新令牌。再次提交旧 refreshToken，应该失败；这证明旧令牌已经被原子消费。
 
-| 今天用到的点 | 对应知识文档 |
+### 5. 登出
+
+```bash
+curl -X POST http://localhost:8080/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"刷新后返回的新refreshToken"}'
+```
+
+再次刷新应失败。注意：登出前已经签发的 accessToken 仍可用到 30 分钟过期；如果业务要求“踢下线立即生效”，后续需要 tokenVersion 或 Redis 黑名单。
+
+### 6. 验证英文响应
+
+故意提交错误图形验证码：
+
+```bash
+curl -X POST http://localhost:8080/api/captcha/sms \
+  -H "Content-Type: application/json" \
+  -H "Accept-Language: en" \
+  -d '{"phone":"13800138000","uuid":"真实uuid","imageCode":"WRONG"}'
+```
+
+`message` 应返回英文，而不是消息键或硬编码中文。
+
+## 六、✅ 完成后回填
+
+- [ ] Redis 可以连接，验证码 key 都有 TTL。
+- [ ] 图形验证码最多允许配置次数的错误尝试，成功后不可重复使用。
+- [ ] 60 秒短信限频生效，业务代码没有硬编码中文响应。
+- [ ] 注册成功后短信验证码不可再次使用。
+- [ ] 登录返回 accessToken 与 refreshToken。
+- [ ] 刷新后旧 refreshToken 失效，新 refreshToken 可用。
+- [ ] 登出后 refreshToken 失效，但能解释为什么 accessToken 不会立刻失效。
+- [ ] `Accept-Language: en` 能得到英文校验/业务提示。
+- [ ] 踩坑记录：
+- [ ] 疑问：
+
+## 七、知识点索引
+
+| 知识点 | 对应文档 |
 |---|---|
-| Redis 存验证码、TTL、SETNX 防刷、GETDEL 原子性 | [Redis](/learn_database/Redis) |
-| `StringRedisTemplate` 自动装配 | [Spring Boot](/learn_backend/java/基础/Spring Boot) |
-| `@Valid` + `@NotBlank`/`@Pattern` 参数校验 | [Spring MVC](/learn_backend/java/基础/Spring MVC) |
-| `@RestControllerAdvice` 全局异常、异常匹配优先级 | [Spring](/learn_backend/java/基础/Spring) |
-| `HashMap` 组装返回、`SecureRandom` | [Java集合](/learn_backend/java/Java核心/Java集合) |
-| 双 token 机制、JWT 无状态与吊销 | [Spring Security](/learn_backend/java/基础/Spring Security) |
+| Redis TTL、SET NX、Lua 原子脚本、SCAN | [Redis](/learn_database/Redis) |
+| `@ConfigurationProperties` 与 `Duration` | [Spring Boot](/learn_backend/java/基础/Spring Boot) |
+| `@Valid` 与国际化校验消息 | [Spring MVC](/learn_backend/java/基础/Spring MVC) |
+| accessToken、refreshToken、rotation、吊销 | [Spring Security](/learn_backend/java/基础/Spring Security) |
+| `SecureRandom`、SHA-256 | [并发编程](/learn_backend/java/Java核心/并发编程) |
 
-## 五、✅ 完成后回填
+## 八、我下次会追问的问题
 
-- [ ] 完成时间：`____年__月__日`
-- [ ] 图形验证码接口返回了 base64 图片，浏览器能显示：是 / 否
-- [ ] 短信验证码发送成功，`redis-cli` 里能看到 `captcha:sms:*` 且 TTL 在倒计时：是 / 否
-- [ ] 60 秒内重复发短信被拒绝（频率限制生效）：是 / 否
-- [ ] `/api/auth/refresh` 能换到新 accessToken，`/api/auth/logout` 后 refresh 返回 401：是 / 否
-- [ ] 踩坑记录（Redis 连不上、jjwt 版本报错、AWT 无头异常等）：
-- [ ] 疑问（有就写，我来答）：
-
-## 六、我下次会追问的问题（做完先自己想想）
-
-1. 为什么验证码存 Redis 而不是 HttpSession 或 MySQL？验证码的 key 是怎么设计的？TTL 设了多少、为什么设这个值？
-2. 为什么发短信验证码之前必须先过图形验证码？如果去掉这步，短信接口会被怎么攻击？60 秒限频又是怎么用 Redis 实现的（`setIfAbsent` 的底层命令是什么）？
-3. 为什么生成验证码用 `SecureRandom` 不用 `Random`？「一次性使用」的验证码在并发下怎么保证只被用一次（`GET` + `DEL` 有什么问题）？
-4. accessToken 和 refreshToken 为什么要分开？refreshToken 为什么存 Redis 而 accessToken 不存？「滑动过期」是怎么实现的？
-5. 无状态 JWT 怎么做到「登出立刻失效」？「短有效期」和「黑名单」两种方案各有什么取舍？
+1. 为什么注册短信验证码要原子“校验并删除”，不能先 `GET` 再 `DEL`？
+2. `setIfAbsent(key, value, ttl)` 对应 Redis 的什么语义？为什么一定要同时带 TTL？
+3. 为什么 refreshToken 要存 Redis，而 accessToken 通常不存？rotation 解决了什么问题？
+4. 为什么 `/api/auth/refresh` 必须放进白名单？它如何证明调用者身份？
+5. 为什么 Security 过滤器里的错误不能依赖 `ResultMessageAdvice` 做国际化？

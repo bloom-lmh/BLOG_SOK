@@ -389,6 +389,72 @@ curl http://localhost:8080/api/health
 }
 ```
 
+## 三·补充：六位业务错误码设计（生产级演进）
+
+Day01 的 `ErrorCode` 用的是简单码（`400`/`404`/`500`）。生产级项目会把错误码设计成**六位数字**，把「HTTP 状态 + 业务域 + 域内序号」压进一个数字里：
+
+```
+409101
+│  │ └─ 域内序号 01（该域的第几个错误）
+│  └─── 业务域 1（用户域）
+└────── HTTP 状态 409 Conflict
+```
+
+**含义：用户域的第 1 号错误，HTTP 语义是 409 冲突。**
+
+### 为什么这么设计（三个价值）
+
+**① 错误码自带 HTTP 语义，前端零映射**
+看到 `409xxx` 知道是冲突、`401xxx` 未认证、`403xxx` 无权限、`404xxx` 不存在。前端拦截器**按前 3 位统一处理**（如 401 全部跳登录页），不用维护一张「码 → HTTP 状态」的映射表。
+
+**② 定位快：一个码 = 域 + 第几条**
+码里直接编码业务域（1=用户、2=课程、3=订单……），配合「域内错误清单」，看到 `409101` 立刻去用户域错误表查第 01 条。
+
+**③ 码是稳定的 key，文案走 i18n**
+错误码本身**不变**，变的只是文案。前端展示码对应文案、后端日志记录原始码，两边对得上：
+
+```properties
+# messages_zh_CN.properties
+409101=用户名已存在
+# messages_en_US.properties
+409101=Username already exists
+```
+
+### 和 Day01 现有代码怎么接
+
+当前 `ErrorCode` 是「码 + 文案绑定」：
+
+```java
+public enum ErrorCode {
+    NOT_FOUND(404, "资源不存在");
+}
+```
+
+生产化演进是「**码与文案解耦**」——枚举只存码用，`message` 交给 `MessageSource` 按当前语言解析（i18n），`GlobalExceptionHandler` 统一转译：
+
+```java
+public enum ErrorCode {
+    USERNAME_DUPLICATE(409101);   // 只存码，不绑死文案
+
+    private final Integer code;
+    ErrorCode(Integer code) { this.code = code; }
+    public Integer getCode() { return code; }
+}
+```
+
+```java
+// GlobalExceptionHandler 里：码 + i18n key 解析成本地化文案
+@ExceptionHandler(BizException.class)
+public Result<Void> handleBiz(BizException e) {
+    String msg = messageSource.getMessage(
+            String.valueOf(e.getCode()), null,
+            e.getMessage(), LocaleContextHolder.getLocale());
+    return Result.fail(e.getCode(), msg);
+}
+```
+
+一句话：**码给前端 / 日志用，文案给用户看**，两套解耦。Day03 的「用户名已存在」用 4xx 业务码其实语义不准——它是「409 资源冲突」，生产化后应返回 `409101`。
+
 ## 四、知识点索引（今天涉及的，会陆续补全）
 
 | 今天用到的点                       | 对应知识文档                                        |
