@@ -5,11 +5,11 @@
 ## 一、前置条件
 
 - 已完成 **Day 02**（`orders` / `order_item` / `course` 表已建好，`course.stock` 字段 Day 11 已加）
-- 已完成 **Day 10**（`mall-order` 模块，`POST /api/order/create` 下单接口）
-- 已完成 **Day 11**（`mall-stock` 模块，`POST /api/stock/deduct` 原子扣减接口，防超卖）
+- 已完成 **Day 10**（`mall-order` 模块，`POST /api/orders` 下单接口）
+- 已完成 **Day 11/15**（`mall-stock` 的 `/internal/stocks/deductions` 幂等扣减接口）
 - 已完成 **Day 13**（Nacos 注册中心已启动，服务注册/发现已打通）
 - 已完成 **Day 15**（OpenFeign 远程调用，`@EnableFeignClients`、超时配置都学过）
-- 已完成 **Day 21/22**（`mall-order` 里的 MQ 异步下单——**今天要把它改回同步 Feign 扣库存**，见步骤 3 开头）
+- 已完成 **Day 21/22**（订单事务消息、消费幂等与失败处理）。MQ 继续负责订单创建后的异步事件；今天的 Seata 只处理下单主链路中订单与库存的同步一致性
 - Seata Server 今天部署（步骤 1）
 
 ## 二、先想清楚：为什么要分布式事务
@@ -27,7 +27,7 @@ Day 10 的下单是**单体思维**：一个 `@Transactional` 方法里「插订
 │   (8082)       │                                            │ course_mall  │
 └───────────────┘                                            └──────────────┘
    │
-   │ ② Feign 调用 /api/stock/deduct（连接 B，事务 B）
+   │ ② Feign 调用 /internal/stocks/deductions（连接 B，事务 B）
    ▼
 ┌───────────────┐  ③ 改 course.stock（连接 B，事务 B）        ┌──────────────┐
 │   mall-stock   │ ────────────────────────────────────────▶ │   MySQL 库    │
@@ -62,11 +62,11 @@ Seata 里有三个角色：**TC**（Transaction Coordinator，独立部署的全
 └───────────┘                                     └───────────┘
 ```
 
-- **一阶段**（各 RM 干活，但不提交）：执行本地 SQL 前查出该行「**前镜像**」，执行后记「**后镜像**」，一起写进 `undo_log`；本地事务**先不提交**，向 TC 报告「我准备好了」。
-- **二阶段**（TC 拍板）：所有分支都就绪 → **全局提交**（各 RM 提交本地事务，删 `undo_log`）；任一分支失败 → **全局回滚**（各 RM 按前镜像**反向 UPDATE** 把数据改回去，再删日志）。
+- **一阶段**：RM 执行业务 SQL，记录前/后镜像和 `undo_log`，注册分支并获取全局锁，然后**提交本地事务并释放本地锁**。这是 AT 与传统 XA 长时持有资源的重要区别。
+- **二阶段**：全局提交时异步删除 `undo_log`；全局回滚时根据前镜像生成反向 SQL 补偿，并用后镜像检查脏写。
 
 ::: tip 💡 面试题：Seata AT 模式一句话原理？
-**一句话**：一阶段**记录前后镜像、不提交**；二阶段要么全局提交（删日志），要么按 `undo_log` 的**前镜像反向补偿**（把数据改回原值）。业务代码只加一个 `@GlobalTransactional` 注解，其余全是 Seata 自动做的——这就是 AT「对业务零侵入」的原因。详见 [Seata](/learn_backend/java/微服务/Seata)。
+**一句话**：AT 一阶段在同一本地事务中写业务数据和 `undo_log`，获得全局锁后就提交本地事务；二阶段提交只清理日志，回滚则使用镜像补偿。详见 [Seata](/learn_backend/java/微服务/Seata)。
 :::
 
 ::: tip 💡 面试题：AT 模式和 TCC 怎么选？
@@ -75,12 +75,12 @@ Seata 里有三个角色：**TC**（Transaction Coordinator，独立部署的全
 
 ## 四、步骤
 
-### 改造前的现状盘点（Day 21 留下的尾巴，先看懂再动手）
+### 改造前的现状盘点
 
-Day 21 把下单改成了 **MQ 异步扣库存**：`createOrder` 里 `syncSend` 发一条消息，由同服务的 `OrderCreateListener` 消费后**本地**扣库存。今天要换成 **Seata 同步 Feign 扣库存**，所以 `createOrder` 要再改一次：
+Day 21 的事务消息用于发布 `OrderCreatedEvent`，通知、积分等下游可以异步消费；它**不再承担核心扣库存**。今天让 `createOrder` 在 Seata 全局事务内同步调用库存服务，事务成功后再提交订单事件。两条链路不要混为一谈：
 
-- **删掉** `rocketMQTemplate.syncSend(...)` 那一段和 `rocketMQTemplate` 字段（扣库存不再走 MQ）；
-- Day 21 的 `OrderCreateListener`、事务消息 `createTx`、Day 22 的幂等/死信代码**全部保留不动**——消息不再发送，监听器自然收不到消息，不影响它们的存在。
+- **同步主链路**：写订单 + Feign 扣库存，由 Seata 保证一致性；
+- **异步扩展链路**：事务提交后发布订单事件，由 MQ 实现解耦和最终一致性。
 
 ::: tip 💡 面试题：MQ 异步（最终一致）和 Seata（强一致）到底怎么选？
 **一句话**：**强一致、实时性强、链路上服务少**（订单+库存这种 2~3 个服务的核心写链路）用 Seata；**允许短暂不一致、需要削峰解耦、链路长**（下单后还要通知、积分、优惠券）用 MQ + 本地消息表/事务消息保证最终一致。两种方案解决的是同一个问题，Day 21 和今天正好是同一个下单场景的两种解法，面试时放在一起讲很加分。详见 [RocketMQ](/learn_backend/java/微服务/RocketMQ)。
@@ -88,7 +88,7 @@ Day 21 把下单改成了 **MQ 异步扣库存**：`createOrder` 里 `syncSend` 
 
 ### 步骤 1：部署 Seata Server（TC）
 
-**① 下载**：从 https://github.com/seata/seata/releases 下载 `seata-server-1.8.0.zip`（客户端 1.8.0 由 Day 13 引入的 Spring Cloud Alibaba BOM 2023.0.1.2 管理，两端版本要一致），解压到 `E:\seata\`。
+**① 确认版本再下载**：先执行 `mvn dependency:tree -Dincludes=io.seata` 查看项目实际解析出的 Seata 客户端版本，再从 https://github.com/apache/incubator-seata/releases 下载兼容的 Server。不要在课程里写死一个与当前 BOM 不一致的版本。
 
 **② 改配置**：打开 `E:\seata\conf\application.yml`，把 `registry` 从 file 改成 nacos（让 TC 注册到 Nacos，客户端才能发现它）：
 
@@ -208,14 +208,14 @@ spring:
   application:
     name: mall-order
   datasource:
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root        # 换成你自己的
-    password: 你的密码
+    url: ${ORDER_DB_URL:jdbc:mysql://127.0.0.1:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${ORDER_DB_USERNAME:root}
+    password: ${ORDER_DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
 
 # ---- Day 21 加的 MQ 配置，今天原样保留（NameServer 没启动也不影响今天的验证）----
 rocketmq:
@@ -241,48 +241,29 @@ seata:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # 打印 SQL，观察事务提交/回滚
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # 仅开发环境打印 SQL
   global-config:
     db-config:
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
+      logic-delete-field: deletedAt
+      logic-not-delete-value: 'null'
+      logic-delete-value: now()
 ```
 
 > `tx-service-group` 是「客户端和 TC 之间的暗号」：所有参加同一个全局事务的服务，这个值必须**完全一致**。`seata.config` 没配（默认 file），因为 Seata 的 spring-boot starter 内置了 `SpringBootConfigurationProvider`——直接读 Spring 环境（就是这份 application.yml），不用再建 file.conf。
 
-#### 3.4 用 DataSourceProxy 包住数据源（AT 核心配置）
+#### 3.4 使用 Starter 自动代理数据源
 
-新建 `E:\course-mall\mall-order\src\main\java\com\mall\order\config\SeataDataSourceConfig.java`：
-
-```java
-package com.mall.order.config;
-
-import io.seata.rm.datasource.DataSourceProxy;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-
-import javax.sql.DataSource;
-
-@Configuration
-public class SeataDataSourceConfig {
-
-    // 关键：用 Seata 的 DataSourceProxy 包住 Spring Boot 自动装配的 Hikari 数据源。
-    // 之后业务代码的所有 SQL 都会先经过它：自动解析表名/主键、生成前后镜像写 undo_log，
-    // 业务代码对此完全无感知——这就是 AT「零侵入」的实现基础。
-    // @Primary：容器里现在有两个 DataSource 类型的 Bean，标了 @Primary 的那个
-    // 才是 MyBatis-Plus 真正拿去用的，否则注入会因「多个候选」而报错。
-    @Bean
-    @Primary
-    public DataSourceProxy dataSourceProxy(DataSource dataSource) {
-        return new DataSourceProxy(dataSource);
-    }
-}
+```yaml
+seata:
+  enabled: true
+  enable-auto-data-source-proxy: true
+  data-source-proxy-mode: AT
 ```
 
-::: tip 💡 面试题：为什么必须用 `DataSourceProxy` 包住数据源？不包会怎样？
-**一句话**：AT 模式靠**拦截业务 SQL**来记录前后镜像和回滚补偿，`DataSourceProxy` 就是那个「SQL 拦截器」——它返回的连接是代理连接，每条写 SQL 都会被解析并生成 `undo_log`。不包的话 Seata 拿不到镜像，全局事务要么报错、要么回滚时无凭据。详见 [Seata](/learn_backend/java/微服务/Seata)。
+Seata Spring Boot Starter 会自动将数据源代理为 `DataSourceProxy`。**不再手工声明一个 `@Primary DataSourceProxy` Bean**，否则版本/条件配置不当时可能产生双重代理或数据源循环依赖。启动日志应能确认 AT 数据源代理已生效。
+
+::: tip 💡 面试题：`DataSourceProxy` 做了什么？
+**一句话**：它拦截业务 SQL，生成前/后镜像和 `undo_log`，并将本地事务注册为全局分支。现代 Starter 通常自动完成代理，不需要再手写 Bean。
 :::
 
 #### 3.5 远程扣库存的 Feign 客户端
@@ -293,18 +274,17 @@ public class SeataDataSourceConfig {
 package com.mall.order.feign;
 
 import com.mall.common.result.Result;
+import com.mall.contract.stock.StockChangeRequest;
+import jakarta.validation.Valid;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 
 // name = "mall-stock"：只写服务名不写 IP:端口（Day 15：Nacos 发现 + LoadBalancer 挑实例）
 @FeignClient(name = "mall-stock")
 public interface StockClient {
-
-    // 方法签名和 mall-stock 的 StockController.deduct 完全对齐（Day 11 实现的那个）
-    @PostMapping("/api/stock/deduct")
-    Result<Void> deduct(@RequestParam("courseId") Long courseId,
-                        @RequestParam("count") Integer count);
+    @PostMapping("/internal/stocks/deductions")
+    Result<Void> deduct(@Valid @RequestBody StockChangeRequest request);
 }
 ```
 
@@ -321,14 +301,15 @@ import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
 import com.mall.common.result.Result;
 import com.mall.order.dto.CreateOrderRequest;
-import com.mall.order.entity.Course;
 import com.mall.order.entity.Order;
 import com.mall.order.entity.OrderItem;
 import com.mall.order.enums.OrderStatus;
+import com.mall.order.feign.CourseClient;
 import com.mall.order.feign.StockClient;
-import com.mall.order.mapper.CourseMapper;
 import com.mall.order.mapper.OrderItemMapper;
 import com.mall.order.mapper.OrderMapper;
+import com.mall.contract.course.CourseSnapshotDTO;
+import com.mall.contract.stock.StockChangeRequest;
 import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -347,63 +328,47 @@ public class OrderService {
 
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final CourseMapper courseMapper;   // 今天只读课程信息，不再本地扣库存（Day 10/21 的本地扣减都去掉）
-    private final StockClient stockClient;     // 远程扣库存：Feign 调 mall-stock
+    private final CourseClient courseClient;
+    private final StockClient stockClient;
 
     // 两个注解各管一摊，职责不同、缺一不可：
     // @GlobalTransactional：开启 Seata 全局事务（生成 XID 并分发给各分支），本方法就是 TM。
     //   方法正常返回 → 通知 TC 全局提交；抛异常 → 通知 TC 全局回滚（各 RM 按 undo_log 反向补偿）。
     // @Transactional：括住本服务的「分支事务」——本方法的 insert 必须处在一个
-    //   本地事务边界内，DataSourceProxy 才能按「一阶段不提交」的方式拦截住这次提交，
-    //   等 TC 二阶段指令再真正提交/回滚。只有全局注解、没有本地事务边界，AT 拿不到干净的分支。
+    //   本地事务边界内，业务数据和 undo_log 一起提交，并注册为全局分支。
     @GlobalTransactional
     @Transactional(rollbackFor = Exception.class)
-    public Order createOrder(CreateOrderRequest request) {
-        // 1. 读课程（价格/标题必须取 DB，防前端改价）。生产上应通过 Feign 调 mall-course，
-        //    今天为聚焦分布式事务，沿用 Day 10 直接查 course 表的做法。
-        Course course = courseMapper.selectById(request.getCourseId());
-        if (course == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "课程不存在");
-        }
-        if (course.getStatus() == null || course.getStatus() != 1) {
-            throw new BizException(ErrorCode.PARAM_ERROR.getCode(), "课程已下架，无法购买");
+    public Order createOrder(Long userId, String requestId, CreateOrderRequest request) {
+        // 跨服务只调 API，不再跨库直接查 course 表。
+        CourseSnapshotDTO course = RemoteResult.unwrap(
+                courseClient.getSnapshot(request.getCourseId()));
+        if (!Integer.valueOf(1).equals(course.status())) {
+            throw new BizException(ErrorCode.COURSE_OFFLINE);
         }
         int count = request.getCount() == null ? 1 : request.getCount();
 
-        // 2. 分支事务一（本地）：写订单主表 + 明细快照。这两个 insert 会被 DataSourceProxy
-        //    拦截并写入 undo_log，本地事务暂不提交，等 TC 二阶段指令。
+        // 分支事务一：写订单主表 + 明细快照。
         Order order = new Order();
-        order.setOrderNo(generateOrderNo(request.getUserId()));
-        order.setUserId(request.getUserId());
-        order.setTotalAmount(course.getPrice().multiply(BigDecimal.valueOf(count)));
+        order.setOrderNo(generateOrderNo(userId));
+        order.setRequestId(requestId);
+        order.setUserId(userId);
+        order.setTotalAmount(course.price().multiply(BigDecimal.valueOf(count)));
         order.setStatus(OrderStatus.PENDING_PAYMENT.getCode());
         orderMapper.insert(order);
 
         OrderItem item = new OrderItem();
         item.setOrderId(order.getId());
-        item.setCourseId(course.getId());
-        item.setCourseTitle(course.getTitle());
-        item.setCourseCover(course.getCover());
-        item.setPrice(course.getPrice());
+        item.setCourseId(course.id());
+        item.setCourseTitle(course.title());
+        item.setCourseCover(course.cover());
+        item.setPrice(course.price());
         orderItemMapper.insert(item);
 
         // 3. 分支事务二（远程）：Feign 扣库存（XID 随 TX_XID 请求头自动透传）
-        Result<Void> stockResult = stockClient.deduct(course.getId(), count);
-        if (stockResult.getCode() != 200) {
-            // 关键！mall-stock 的「库存不足」返回的是 HTTP 200 + code=400（Day 11 抛
-            // BizException(400,...)，全局异常处理器统一返回 HTTP 200 + 业务码），Feign 不抛异常。
-            // 这里必须自己检查 code 并抛异常，Seata 才能捕获到并触发全局回滚——
-            // 否则订单已写、库存没扣，就是事故现场。
-            throw new BizException(stockResult.getCode(), stockResult.getMessage());
-        }
+        RemoteResult.unwrap(stockClient.deduct(new StockChangeRequest(
+                course.id(), count, "deduct:" + requestId)));
 
-        // 4. 模拟故障开关（仅测试用）：库存扣成功后订单侧再抛异常，
-        //    用来验证「Seata 把已经扣掉的库存自动补回去」——AT 的回滚能力。
-        if (Boolean.TRUE.equals(request.getForceFail())) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "模拟订单服务异常，验证全局回滚");
-        }
-
-        log.info("下单成功 orderNo={} courseId={} count={}", order.getOrderNo(), course.getId(), count);
+        log.info("下单成功 orderNo={} courseId={} count={}", order.getOrderNo(), course.id(), count);
         return order;
     }
 
@@ -417,14 +382,14 @@ public class OrderService {
 ```
 
 ::: tip 💡 面试题：`@GlobalTransactional` 和 `@Transactional` 是什么关系？只写其中一个行不行？
-**一句话**：`@GlobalTransactional` 管**全局**（TM 身份：开全局事务、发 XID、汇总各分支结果），`@Transactional` 管**本地**（给自己这个分支划定本地事务边界）。只写全局注解：本服务的 SQL 不在明确的本地事务边界内，AT 一阶段「拦住不提交」无从谈起，会提交成散段；只写本地注解：跨服务的两个事务依旧各走各的，回到 Day 10 之后「事故现场」。详见 [Seata](/learn_backend/java/微服务/Seata)。
+**一句话**：`@GlobalTransactional` 由 TM 建立全局边界并传播 XID，`@Transactional` 将本服务的多条 SQL 组成一个清晰本地分支。只有本地注解无法协调跨服务回滚；只有全局注解时单条 SQL 仍可被代理，但多 SQL 的本地原子边界不够清晰，因此业务方法通常两者都使用。
 :::
 
-::: tip 💡 面试题：下游返回「HTTP 200 + code=400」时，Feign 会抛异常吗？不抛会有什么后果？
-**一句话**：**不会**——Feign 只把 HTTP 非 2xx 当异常，body 里的业务失败码它不关心。所以 TM 侧**必须自己检查 `Result.code` 并抛异常**，Seata 的全局事务拦截器才能捕获异常并触发全局回滚；漏掉这个检查，全局事务会「正常提交」，留下一笔没扣库存的订单。详见 [OpenFeign](/learn_backend/java/微服务/OpenFeign)。
+::: tip 💡 面试题：为什么远程业务失败必须转成异常？
+**一句话**：Seata 根据 TM 方法是否正常返回决定提交/回滚。Day18 已让下游返回真实非 2xx，并用 `ErrorDecoder` 转成异常；如果仍使用 HTTP 200 + 失败 code，就必须 `unwrap` 检查并抛异常，否则全局事务会误提交。
 :::
 
-#### 3.7 DTO 加两个测试字段
+#### 3.7 完善下单 DTO 校验
 
 改 `E:\course-mall\mall-order\src\main\java\com\mall\order\dto\CreateOrderRequest.java`：
 
@@ -432,13 +397,17 @@ public class OrderService {
 package com.mall.order.dto;
 
 import lombok.Data;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 @Data
 public class CreateOrderRequest {
-    private Long userId;      // 下单用户（Day 04 起从 JWT 取，今天显式传方便测试）
-    private Long courseId;    // 要买的课程
-    private Integer count = 1;      // 购买数量（今天新增，默认 1）
-    private Boolean forceFail;      // 模拟故障开关（今天新增，仅测试用；生产环境别留这种口子）
+    @NotNull @Positive
+    private Long courseId;
+    @NotNull @Min(1) @Max(10)
+    private Integer count = 1;
 }
 ```
 
@@ -493,9 +462,7 @@ seata:
       namespace: ""
 ```
 
-**③ 加 DataSourceProxy 配置类**：和步骤 3.4 那个类**一模一样**（包名换成 `com.mall.stock.config` 即可），新建 `E:\course-mall\mall-stock\src\main\java\com\mall\stock\config\SeataDataSourceConfig.java` 复制过去。
-
-> 为什么不把这个类抽到 `mall-common`？因为 `mall-common` 不想背上 Seata 依赖——不是所有服务都要分布式事务，公共模块保持轻量，谁用谁引。
+**③ 开启 Starter 自动数据源代理**：在 `mall-stock` 使用与 3.4 相同的 `enable-auto-data-source-proxy: true` 和 `data-source-proxy-mode: AT`。不要再复制手写 `DataSourceProxy` 配置类。
 
 **④（建议）给扣减方法加上本地事务边界**：改 `E:\course-mall\mall-stock\src\main\java\com\mall\stock\service\StockService.java` 的 `deductByAtomicSql`，方法上加 `@Transactional(rollbackFor = Exception.class)`（import `org.springframework.transaction.annotation.Transactional`）。和 TM 侧同理：RM 的 SQL 也要有明确的本地事务边界，AT 才能把它作为一个干净的分支交给 TC 管理。
 
@@ -524,22 +491,24 @@ mvn -pl mall-stock spring-boot:run
 **验证 1 · 正常下单（全局提交）**：
 
 ```bash
-curl -X POST http://localhost:8082/api/order/create \
+curl -X POST http://localhost:9000/api/orders \
+  -H "Authorization: Bearer <USER_TOKEN>" \
+  -H "Idempotency-Key: seata-ok-001" \
   -H "Content-Type: application/json" \
-  -d "{\"userId\":1,\"courseId\":1}"
+  -d '{"courseId":1,"count":1}'
 ```
 
 预期：返回 `code=200` 的订单；`SELECT stock FROM course WHERE id=1;` 变成 99；`orders`/`order_item` 各多一条；`SELECT COUNT(*) FROM undo_log;` 为 **0**（全局提交后日志已清理）。
 
 **验证 2 · 模拟故障（全局回滚，今天的重头戏）**：
 
-```bash
-curl -X POST http://localhost:8082/api/order/create \
-  -H "Content-Type: application/json" \
-  -d "{\"userId\":1,\"courseId\":1,\"forceFail\":true}"
+```java
+// 集成测试中用 test Profile 的 FaultInjector，在库存扣减后抛异常。
+assertThatThrownBy(() -> orderService.createOrder(userId, "seata-fail-001", request))
+        .isInstanceOf(IllegalStateException.class);
 ```
 
-预期：接口返回「模拟订单服务异常，验证全局回滚」。然后查库：
+预期：测试捕获故障异常。然后查库：
 
 - `orders` / `order_item` **没有新增**（分支一的 insert 被回滚）
 - `course.stock` **仍然是 99**——库存先被扣成 98，订单侧抛异常后，Seata 二阶段按 `undo_log` 的前镜像反向 UPDATE，把库存补回了 99
@@ -548,9 +517,11 @@ curl -X POST http://localhost:8082/api/order/create \
 **验证 3 · 库存不足（远端业务失败，同样全局回滚）**：
 
 ```bash
-curl -X POST http://localhost:8082/api/order/create \
+curl -X POST http://localhost:9000/api/orders \
+  -H "Authorization: Bearer <USER_TOKEN>" \
+  -H "Idempotency-Key: seata-stock-001" \
   -H "Content-Type: application/json" \
-  -d "{\"userId\":1,\"courseId\":1,\"count\":9999}"
+  -d '{"courseId":1,"count":9999}'
 ```
 
 预期：返回「库存不足」，且 `orders` 表**没有新增**——这正是 3.6 里「必须检查 code 抛异常」那一步生效的结果。
@@ -582,7 +553,7 @@ TCC = **Try / Confirm / Cancel**，把一次业务操作拆成三个阶段：**T
 | Seata 三角色（TC/TM/RM）、AT 两阶段、undo_log 前后镜像 | [Seata](/learn_backend/java/微服务/Seata) |
 | 分布式事务理论：CAP/BASE、2PC、最终一致 | [分布式基础](/learn_backend/java/微服务/分布式基础) |
 | `@GlobalTransactional` + `@Transactional` 分工、DataSourceProxy 数据源代理 | [Seata](/learn_backend/java/微服务/Seata) |
-| Feign 远程调用、TX_XID 透传、HTTP 200 + 业务失败码 | [OpenFeign](/learn_backend/java/微服务/OpenFeign) |
+| Feign 远程调用、TX_XID 透传、非 2xx 与业务异常转换 | [OpenFeign](/learn_backend/java/微服务/OpenFeign) |
 | TC 注册到 Nacos、按服务名发现 | [Nacos](/learn_backend/java/微服务/Nacos) |
 | 本地事务 `@Transactional` 与 AOP 代理的边界 | [Spring](/learn_backend/java/基础/Spring) |
 | 反向补偿 UPDATE、行锁与前后镜像 | [MySQL](/learn_database/MySQL) |
@@ -596,7 +567,7 @@ TCC = **Try / Confirm / Cancel**，把一次业务操作拆成三个阶段：**T
 - [ ] Nacos 服务列表能看到 `mall-order` 和 `mall-stock`：是 / 否
 - [ ] `mall-order`（8082）、`mall-stock`（8083）都启动成功且无 Seata 相关报错：是 / 否
 - [ ] 正常下单成功：订单 +1、库存 -1、`undo_log` 为空：是 / 否
-- [ ] `forceFail=true` 下单失败后：订单无新增、库存自动补回（先扣后还）：是 / 否
+- [ ] 集成测试注入故障后：订单无新增、库存自动补回（先扣后还）：是 / 否
 - [ ] `count=9999` 库存不足时订单表无新增（证明检查 code 抛异常生效）：是 / 否
 - [ ] 踩坑记录（Seata Server 起不来、注册不上、mall-stock 没注册进 Nacos、数据源代理没生效等）：
 - [ ] 疑问（有就写，我来答）：
@@ -604,7 +575,7 @@ TCC = **Try / Confirm / Cancel**，把一次业务操作拆成三个阶段：**T
 ## 八、我下次会追问的问题（做完先自己想想）
 
 1. Day 10 的 `@Transactional` 为什么在拆分后失效了？「一个事务 = 一个数据库连接」具体怎么理解？Seata 是怎么把两个服务的两个连接「捏」成一个全局事务的？
-2. AT 模式一阶段为什么不直接提交本地事务？`undo_log` 是谁写的、什么时候删？全局回滚时 `mall-stock` 那条「反向 UPDATE」是怎么生成的？
+2. AT 一阶段为什么可以提交本地事务？`undo_log` 和全局锁如何支持二阶段回滚？
 3. `@GlobalTransactional` 和 `@Transactional` 各管什么？只写其中一个会发生什么？
 4. XID 是怎么从 `mall-order` 传到 `mall-stock` 的？如果不用 Feign、自己用 `RestTemplate` 裸调 HTTP，XID 还能传过去吗？（提示：TX_XID 请求头）
 5. AT 和 TCC 怎么选？TCC 的 Try/Confirm/Cancel 为什么都必须幂等？什么是「空回滚」和「悬挂」？另外想想：Day 21 的 MQ 异步下单和今天的 Seata 强一致，各自适合什么场景？

@@ -11,6 +11,8 @@
 - 已完成 **Day 10/11/12/16**：`mall-order`、`mall-stock`、`mall-payment`、`mall-gateway` 四个模块已存在（父 pom 里都有），本天只在 `<modules>` 里新增 `mall-seckill`，其余不动
 - Redis 已装（本机 `localhost:6379`）
 
+> `mall-seckill` 要依赖 Day16 抽取的 `mall-security`，独立验证 JWT 并构造 `SecurityContext`。只写 `@PreAuthorize` 但没有认证过滤链，不算完成安全接入。
+
 > ⚠️ Day 02 的秒杀活动种子数据时间是「相对时间」（`NOW() ± 1 DAY`）。如果现在活动时间已经过期，先刷新一下：
 
 ```sql
@@ -24,7 +26,7 @@ WHERE id = 1;
 ```
 E:\course-mall\
 ├─ pom.xml                                     # 改：加 mall-seckill 模块
-└─ mall-seckill/                               # 新增：秒杀服务（端口 8083）
+└─ mall-seckill/                               # 新增：秒杀服务（端口 8085）
    ├─ pom.xml
    └─ src/main/
       ├─ java/com/mall/seckill/
@@ -174,10 +176,12 @@ package com.mall.seckill;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 
 // scanBasePackages = "com.mall"：和 Day01 一样，扫到 mall-common 的全局异常处理器
 @SpringBootApplication(scanBasePackages = "com.mall")
 @MapperScan("com.mall.seckill.mapper")   // 秒杀模块自己的 Mapper 包
+@EnableMethodSecurity
 public class MallSeckillApplication {
     public static void main(String[] args) {
         SpringApplication.run(MallSeckillApplication.class, args);
@@ -189,25 +193,25 @@ public class MallSeckillApplication {
 
 ```yaml
 server:
-  port: 8083              # 8080=mall-user、8081=mall-course、8082=mall-order/mall-stock，秒杀用 8083；本机已占就改
+  port: 8085
 
 spring:
   application:
     name: mall-seckill    # 注册到 Nacos 的服务名
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 你的MySQL密码        # ← 改成你自己的
+    url: ${SECKILL_DB_URL:jdbc:mysql://127.0.0.1:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${SECKILL_DB_USERNAME:root}
+    password: ${SECKILL_DB_PASSWORD}
   data:
     redis:
-      host: localhost
+      host: ${REDIS_HOST:127.0.0.1}
       port: 6379
-      # password: 你的Redis密码    # 本机默认无密码，有就打开这行
+      password: ${REDIS_PASSWORD:}
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
 
 mybatis-plus:
   configuration:
@@ -456,7 +460,7 @@ public class SeckillService {
         String lockKey = "lock:preload:" + activityId;
         String token = lock.tryLock(lockKey, Duration.ofSeconds(10));
         if (token == null) {
-            throw new BizException(500, "预热正在进行中，请勿重复触发");
+            throw new BizException(ErrorCode.SECKILL_BUSY);
         }
         try {
             SeckillActivity activity = activityMapper.selectById(activityId);
@@ -487,7 +491,8 @@ public class SeckillService {
         }
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(activity.getStartTime()) || now.isAfter(activity.getEndTime())) {
-            throw new BizException(400, "秒杀未开始或已结束");
+            throw new BizException(now.isBefore(activity.getStartTime())
+                    ? ErrorCode.SECKILL_NOT_STARTED : ErrorCode.SECKILL_ENDED);
         }
 
         // 2. 限购「一人一单」第一道防线：Redis SETNX 去重标记（原子的 SET NX）
@@ -495,7 +500,7 @@ public class SeckillService {
         String userKey = "seckill:user:" + activityId + ":" + userId;
         Boolean first = redis.opsForValue().setIfAbsent(userKey, "1", Duration.ofDays(1));
         if (!Boolean.TRUE.equals(first)) {
-            throw new BizException(400, "你已抢购过该活动，每人限购一单");
+            throw new BizException(ErrorCode.SECKILL_DUPLICATE_ORDER);
         }
 
         // 3. 防超卖核心：Lua 脚本原子扣库存（GET 判断 + DECR 扣减，一次执行完）
@@ -503,11 +508,11 @@ public class SeckillService {
         Long r = redis.execute(deductStockScript, List.of(stockKey));
         if (r == null || r == -1) {
             redis.delete(userKey);   // 没买到，回滚限购标记，允许后续重试
-            throw new BizException(500, "活动库存未预热，请先预热");
+            throw new BizException(ErrorCode.SECKILL_BUSY);
         }
         if (r == 0) {
             redis.delete(userKey);
-            throw new BizException(400, "手慢了，库存已抢光");
+            throw new BizException(ErrorCode.SECKILL_SOLD_OUT);
         }
 
         // 4. 落库写秒杀订单（真实项目这里发 MQ 异步生成正式订单，Day20 做）
@@ -525,7 +530,7 @@ public class SeckillService {
             // 此时要把刚才扣掉的库存还回去 + 清掉标记，保证库存不凭空少 1
             redis.opsForValue().increment(stockKey);
             redis.delete(userKey);
-            throw new BizException(400, "你已抢购过该活动");
+            throw new BizException(ErrorCode.SECKILL_DUPLICATE_ORDER);
         }
 
         return orderNo;
@@ -553,10 +558,15 @@ package com.mall.seckill.controller;
 
 import com.mall.common.result.Result;
 import com.mall.seckill.service.SeckillService;
+import jakarta.validation.constraints.Positive;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/seckill")
+@Validated
 public class SeckillController {
 
     private final SeckillService seckillService;
@@ -567,13 +577,16 @@ public class SeckillController {
 
     // 预热：把活动库存加载到 Redis。真实项目由「活动开始前的定时任务」自动触发，Day20 会接
     @PostMapping("/preload/{activityId}")
-    public Result<Integer> preload(@PathVariable Long activityId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Integer> preload(@PathVariable @Positive Long activityId) {
         return Result.ok(seckillService.preload(activityId));
     }
 
-    // 抢购：userId 先用请求参数模拟「当前登录用户」；Day04 JWT 鉴权做好后，改成从登录态上下文取 userId
     @PostMapping("/{activityId}")
-    public Result<String> seckill(@PathVariable Long activityId, @RequestParam Long userId) {
+    @PreAuthorize("isAuthenticated()")
+    public Result<String> seckill(
+            @PathVariable @Positive Long activityId,
+            @AuthenticationPrincipal(expression = "id") Long userId) {
         return Result.ok(seckillService.doSeckill(activityId, userId));
     }
 }
@@ -593,19 +606,19 @@ mvn -pl mall-seckill spring-boot:run
 
 ```bash
 # ① 预热：把活动 1 的库存（100）加载到 Redis
-curl -X POST "http://localhost:8083/api/seckill/preload/1"
+curl -X POST -H "Authorization: Bearer <ADMIN_TOKEN>" "http://localhost:9000/api/seckill/preload/1"
 # 预期：{"code":200,"data":100}
 
 # ② 用户 1 第一次抢购 → 成功，返回订单号
-curl -X POST "http://localhost:8083/api/seckill/1?userId=1"
+curl -X POST -H "Authorization: Bearer <USER_TOKEN>" "http://localhost:9000/api/seckill/1"
 # 预期：{"code":200,"data":"SK..."}
 
 # ③ 用户 1 再抢一次 → 被限购拦截（Redis SETNX 失败）
-curl -X POST "http://localhost:8083/api/seckill/1?userId=1"
+curl -X POST -H "Authorization: Bearer <USER_TOKEN>" "http://localhost:9000/api/seckill/1"
 # 预期：{"code":400,"message":"你已抢购过该活动，每人限购一单"}
 
 # ④ 用户 2 抢购 → 成功（库存从 100 扣到 99）
-curl -X POST "http://localhost:8083/api/seckill/1?userId=2"
+curl -X POST -H "Authorization: Bearer <ANOTHER_USER_TOKEN>" "http://localhost:9000/api/seckill/1"
 
 # ⑤ 看 Redis 里的库存变化（应该从 100 → 99，只有 userId=1 和 userId=2 成功）
 redis-cli GET seckill:stock:1
@@ -619,13 +632,13 @@ redis-cli GET seckill:stock:1
 # 先把库存调成 10 方便观察，然后清掉 Redis 里的旧状态，重新预热
 # SQL: UPDATE seckill_activity SET stock_count = 10 WHERE id = 1;
 redis-cli DEL seckill:stock:1 seckill:user:1:1 seckill:user:1:2
-curl -X POST "http://localhost:8083/api/seckill/preload/1"
+curl -X POST -H "Authorization: Bearer <ADMIN_TOKEN>" "http://localhost:9000/api/seckill/preload/1"
 ```
 
 然后用 ApacheBench 并发打（100 个请求、并发 20，模拟 100 个不同用户抢 10 件货，`userId` 用 `ab` 没法动态传，这里先用固定 userId 演示扣库存逻辑；**真正的并发防超卖压测放到 Day29 用 JMeter 做**，JMeter 能动态生成不同 userId）：
 
 ```bash
-ab -n 100 -c 20 -p post.txt "http://localhost:8083/api/seckill/1?userId=3"
+ab -n 100 -c 20 -H "Authorization: Bearer <USER_TOKEN>" -p post.txt "http://localhost:9000/api/seckill/1"
 ```
 
 打完看结果：`redis-cli GET seckill:stock:1` 应该 **≥ 0**（绝不为负），`seckill_order` 里活动 1 的成功订单数**恰好等于扣掉的库存**。这就是「原子扣减」防住超卖的直接证据。

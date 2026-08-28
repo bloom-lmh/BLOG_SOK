@@ -1,11 +1,11 @@
 # Day 14 · 配置中心（Nacos Config + 多环境 + 动态刷新）
 
-> **今天目标**：把 `mall-user` 的配置从本地 `application.yml` 迁到 Nacos 配置中心，实现「配置集中管理 + 多环境隔离（dev/prod）+ 改配置不重启」。
+> **今天目标**：把 `mall-user` 的可动态业务配置放到 Nacos，实现集中管理、环境隔离和动态刷新。连接 Nacos 的最小配置仍留在本地，密码/私钥由环境变量或专用密钥系统注入。
 
 ## 一、前置条件
 
 - 已完成 **Day 13（服务拆分 + Nacos 注册）**：Nacos Server 已启动，`mall-user` 已注册到 Nacos，控制台 `http://localhost:8848/nacos`（账号密码 `nacos/nacos`）能登录
-- Day 13 已在父 `pom.xml` 引入 **Spring Cloud Alibaba 的 BOM**（版本 `2023.0.1.2`），所以今天新增的 nacos-config 依赖**不用写版本号**
+- Day 13 已在父 `pom.xml` 引入 **Spring Cloud Alibaba `2023.0.1.0` BOM**，所以今天新增的 nacos-config 依赖不写版本号
 - `mall-user` 已依赖 `spring-cloud-starter-alibaba-nacos-discovery`（注册中心和配置中心是两回事，今天再加配置中心的 starter）
 
 > ⚠️ 如果 Nacos 没启动，先回 Day 13 用 `startup.cmd -m standalone` 拉起来。今天每一步都依赖它在线。
@@ -67,11 +67,11 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848   # Day13 的注册中心配置，原样保留
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       config:
-        server-addr: localhost:8848   # 配置中心地址（和注册中心同一个 Nacos）
-        namespace: dev                # 命名空间ID：环境隔离用（步骤 4 建，步骤 7 细讲）
-        group: DEFAULT_GROUP          # 分组：默认 DEFAULT_GROUP，可不写
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
   config:
     import:
       # 从 Nacos 导入配置：拼出来的 Data ID = mall-user.yaml
@@ -123,12 +123,17 @@ mall:
 package com.mall.user.config;
 
 import lombok.Data;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 @Data
 @Component
+@Validated
 // @ConfigurationProperties(prefix)：按前缀 mall.user 批量绑定配置——
 // welcome → mall.user.welcome，maxLoginFail → mall.user.max-login-fail
 // （松散绑定：中划线和驼峰自动对应，这是 Spring Boot 的约定）
@@ -136,8 +141,11 @@ import org.springframework.stereotype.Component;
 // @RefreshScope：Nacos 配置变更时，这个 bean 会被销毁重建、重新绑定最新值（步骤 6 细讲）
 @RefreshScope
 public class UserProperties {
-    private String welcome;       // 欢迎语
-    private Integer maxLoginFail; // 最大登录失败次数（后面 Day5 的登录限制会用到这类开关）
+    @NotBlank
+    private String welcome;
+    @Min(1)
+    @Max(20)
+    private Integer maxLoginFail;
 }
 ```
 
@@ -148,40 +156,42 @@ package com.mall.user.controller;
 
 import com.mall.common.result.Result;
 import com.mall.user.config.UserProperties;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api")
+@Profile("dev")
 // 注意：@Value 字段直接写在这个 Controller 里，想让 @Value 也动态刷新，这个类同样要标 @RefreshScope
 @RefreshScope
 public class ConfigController {
+    private final String welcome;
+    private final UserProperties userProperties;
 
-    // 方式一：@Value 注入单个值，冒号后面是「没读到配置时的默认值」
-    @Value("${mall.user.welcome:默认欢迎语}")
-    private String welcome;
-
-    // 方式二：注入整个 @ConfigurationProperties 配置类，类型安全、可批量绑定
-    @Autowired
-    private UserProperties userProperties;
+    public ConfigController(
+            @Value("${mall.user.welcome:默认欢迎语}") String welcome,
+            UserProperties userProperties) {
+        this.welcome = welcome;
+        this.userProperties = userProperties;
+    }
 
     @GetMapping("/config")
-    public Result<Map<String, Object>> config() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("welcome(@Value)", welcome);
-        data.put("welcome(@ConfigurationProperties)", userProperties.getWelcome());
-        data.put("maxLoginFail", userProperties.getMaxLoginFail());
-        return Result.ok(data);
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<ConfigView> config() {
+        return Result.ok(new ConfigView(
+                welcome, userProperties.getWelcome(), userProperties.getMaxLoginFail()));
     }
+
+    public record ConfigView(String valueWelcome, String propertiesWelcome, Integer maxLoginFail) {}
 }
 ```
+
+`/api/config` 只是学习用观测端点，所以限定 `dev + ADMIN`。真实项目不应返回数据库密码、JWT 秘钥、AccessKey 等配置值。
 
 ::: tip 💡 面试题：`@Value` 和 `@ConfigurationProperties` 有什么区别？为什么项目里更推荐后者？
 **一句话**：`@Value` 是**逐个**注入、靠字符串拼 key、**没有类型校验**（把 `5` 配成字符串也可能不报错）；`@ConfigurationProperties` 是**按前缀批量绑定**、**类型安全**、支持 `List`/`Map` 等复杂结构和 `@Validated` 校验。配置项一多，后者更清晰、更不容易错。详见 [Spring Boot](/learn_backend/java/基础/Spring Boot)。
@@ -265,11 +275,12 @@ mall:
 3. 切换环境只改一个启动参数：
 
 ```bash
-# dev 环境（默认，因为 application.yml 里写了 namespace: dev）
+# dev 环境（本地默认）
 mvn -pl mall-user spring-boot:run
 
-# prod 环境：用命令行参数覆盖 namespace（命令行参数优先级高于 yml）
-mvn -pl mall-user spring-boot:run -Dspring-boot.run.arguments="--spring.cloud.nacos.config.namespace=prod"
+# prod 环境：PowerShell 用环境变量注入，不改 jar
+$env:NACOS_NAMESPACE="prod"
+mvn -pl mall-user spring-boot:run
 ```
 
 启动后再 `curl /api/config`，`welcome` 会变成「生产环境」那句。
@@ -281,7 +292,11 @@ mvn -pl mall-user spring-boot:run -Dspring-boot.run.arguments="--spring.cloud.na
 :::
 
 ::: tip 💡 面试题：Nacos 远程配置和本地 `application.yml` 冲突时谁赢？
-**一句话**：**Nacos 远程配置优先级更高**——同一个 key，Nacos 里的值会覆盖本地。所以本地 `application.yml` 只保留「连 Nacos 的最小配置」（应用名、Nacos 地址、namespace），业务配置全部上 Nacos，这正是「配置中心」的意义。
+**一句话**：不要背“Nacos 永远覆盖本地”。最终值受 Spring Boot PropertySource 优先级、`spring.config.import` 顺序和命令行/环境变量影响。工程上避免同一 key 在多处重复定义，并在授权的管理环境中追踪配置来源。
+:::
+
+::: warning Nacos Config 不等于密钥管理系统
+配置集中化不代表已加密。生产密码、JWT 签名私钥、OSS AccessKey 应由环境变量、Kubernetes Secret、Vault/KMS 等注入，并限制 Nacos 控制台权限。
 :::
 
 > 今天只给 `mall-user` 接了配置中心，把「怎么接」讲透。后面新增的 `mall-course`、订单服务等接入方式完全一样：加同一个依赖、写同一段 `spring.config.import`、建各自的 Data ID（如 `mall-course.yaml`）即可。Day 15 起就会用到这些配置。

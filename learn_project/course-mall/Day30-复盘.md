@@ -28,48 +28,48 @@ curl http://localhost:9000/api/health
 # ─── 2. 注册用户（Day03，走网关转发到 mall-user）───
 curl -X POST http://localhost:9000/api/user/register \
   -H "Content-Type: application/json" \
-  -d '{"username":"lmh_final","password":"123456","phone":"13800138000","email":"lmh@test.com"}'
+  -d '{"username":"lmh_final","password":"Mall@2026Pass","phone":"13800138000","email":"lmh@test.com"}'
 
 # ─── 3. 登录拿 token（Day04 JWT）───
 # 把返回的 accessToken 复制下来，下面所有带鉴权的请求都要带
 curl -X POST http://localhost:9000/api/user/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"lmh_final","password":"123456"}'
+  -d '{"username":"lmh_final","password":"Mall@2026Pass"}'
 
 # ─── 4. 查课程列表（Day06 MyBatis-Plus 分页 + 条件查询）───
-curl "http://localhost:9000/api/course/list?categoryId=1&page=1&size=5"
+curl "http://localhost:9000/api/courses?categoryId=1&page=1&size=5"
 
 # ─── 5. 查课程详情（Day08 Redis 缓存——连查两次，第二次快很多）───
-curl http://localhost:9000/api/course/1
-curl http://localhost:9000/api/course/1
+curl http://localhost:9000/api/courses/1
+curl http://localhost:9000/api/courses/1
 
 # ─── 6. 下单（Day10 订单 + 状态机 + 事务扣库存）───
-curl -X POST http://localhost:9000/api/order/create \
+curl -X POST http://localhost:9000/api/orders \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer 你的token" \
+  -H "Authorization: Bearer <USER_TOKEN>" \
+  -H "Idempotency-Key: e2e-order-001" \
   -d '{"courseId":1,"count":1}'
 
 # ─── 7. 支付（Day12 沙箱支付 + 回调幂等）───
-curl -X POST http://localhost:9000/api/pay/create \
+curl -X POST http://localhost:9000/api/payments \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <USER_TOKEN>" \
   -d '{"orderNo":"上一步返回的订单号","payType":1}'
-# 模拟支付平台回调（连调两次，验证幂等：第二次应该返回「重复回调被拦截」）
-curl -X POST http://localhost:9000/api/pay/mock-success \
-  -H "Content-Type: application/json" \
-  -d '{"orderNo":"上一步返回的订单号"}'
-curl -X POST http://localhost:9000/api/pay/mock-success \
-  -H "Content-Type: application/json" \
-  -d '{"orderNo":"上一步返回的订单号"}'
+# 仅 dev Profile 存在的模拟回调，生产环境绝不能开放；重复调用验证幂等
+curl -X POST http://localhost:9000/api/payments/订单号/mock-success \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
+curl -X POST http://localhost:9000/api/payments/订单号/mock-success \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
 
 # ─── 8. 查订单（Day10 订单查询，状态应该已经是「已支付」）───
-curl http://localhost:9000/api/order/订单ID -H "Authorization: Bearer 你的token"
+curl http://localhost:9000/api/orders/订单号 -H "Authorization: Bearer <USER_TOKEN>"
 
 # ─── 9. 秒杀（Day19/20 预扣减 + MQ 削峰）───
 curl -X POST http://localhost:9000/api/seckill/1 \
-  -H "Authorization: Bearer 你的token"
+  -H "Authorization: Bearer <USER_TOKEN>"
 
 # ─── 10. 搜索课程（Day25 Elasticsearch 高亮搜索）───
-curl "http://localhost:9000/api/search/course?keyword=Java"
+curl "http://localhost:9000/api/search/courses?keyword=Java"
 ```
 
 把上面每一步的输出截图/复制存起来，命名 `联调记录.md` 放进 `E:\course-mall\deploy\`。
@@ -84,20 +84,20 @@ curl "http://localhost:9000/api/search/course?keyword=Java"
 
 **① 项目简介（放在项目名下面，80~150 字）：**
 
-> **课程商城 course-mall**：独立开发的微服务电商后端（课程售卖场景）。Spring Boot 3 + Spring Cloud Alibaba 全家桶，包含用户、课程、订单、支付、秒杀、搜索 6 大模块。核心亮点：Redis 预扣减 + RocketMQ 削峰支撑秒杀 QPS 3000+（JMeter 实测），Seata AT 解决下单扣库存的分布式事务一致性，Canal 同步 MySQL → Elasticsearch 实现课程搜索，Docker Compose 一键部署。Git 提交 100+ 次，30 天完成。
+> **课程商城 course-mall**：独立开发的课程交易后端，基于 Spring Boot 3 / Spring Cloud Alibaba，覆盖用户、课程、订单、支付、秒杀与搜索。通过 JWT 做无状态认证，使用 Redis/Lua 处理热点库存，RocketMQ 承担异步事件，Canal 构建 Elasticsearch 搜索读模型，并完成容器化和可复现压测。所有吞吐、延迟和提升比例以仓库压测报告实测结果为准。
 
 **② 个人职责（4 条，动词开头 + 技术名词 + 效果）：**
 
 1. 设计 11 张表的数据库模型（DECIMAL 金额、逻辑删除、BIGINT 主键），用 MyBatis-Plus 完成 6 大模块 CRUD 与条件分页查询
 2. 实现 JWT + Spring Security 无状态鉴权，双 token 刷新机制；验证码防刷（图形验证码 + 60s 限频）
-3. 设计秒杀链路：Lua 脚本原子预扣减 + RocketMQ 异步下单削峰 + 分布式锁防超卖，压测验证 QPS 3000+
-4. 主导性能优化：慢查询日志 + EXPLAIN 定位全表扫描，联合索引优化后列表接口 QPS 提升 9 倍（280→2600）
+3. 设计秒杀链路：Lua 原子预扣减 + RocketMQ 异步处理 + 数据库唯一约束兜底，并通过故障与重复消费测试验证
+4. 建立性能优化闭环：固定环境压测、链路与资源监控、EXPLAIN 分析、索引优化和同脚本复测，指标引用 `deploy/压测报告.md`
 
 **③ 难点亮点（3 个，每个用「难点 → 方案 → 结果」一句话）：**
 
-1. **秒杀超卖**：高并发下库存扣减竞态 → Redis Lua 原子扣减 + DB 唯一索引兜底 → 0 超卖，QPS 3000+
-2. **分布式事务**：下单扣库存跨服务一致性 → Seata AT 模式 + 订单状态机兜底 → 异常回滚 100% 有效
-3. **缓存一致性**：课程详情缓存与 DB 一致 → Cache Aside + 延迟双删 + 互斥锁防击穿 → 缓存命中率 95%+
+1. **秒杀超卖**：高并发库存竞争 → Redis Lua 原子预扣 + DB 唯一约束与幂等消费兜底 → 以并发测试结果证明不超卖
+2. **分布式事务**：下单与库存跨服务 → 对比 Seata 强一致和 MQ 最终一致两种方案 → 用故障注入验证回滚/补偿
+3. **缓存一致性**：课程详情缓存与 DB → Cache Aside + 事务提交后删缓存 + 热点互斥重建 → 以命中率和回源量实测评估
 
 ::: tip 💡 面试题：简历上项目写「分布式」「高并发」这些词，面试官会怎么拷打你？
 **一句话**：**你写的每个技术名词都是面试官的出题点**——写了 Seata 就会被问「AT 模式和 TCC 的区别、回滚原理」；写了 RocketMQ 就会被问「消息丢失、重复消费、顺序消息」。所以原则是：**写上去的必须是你能讲 3 分钟的**（原理 + 为什么 + 踩坑），讲不了的删掉或降级为「了解」。这也是为什么这 30 天的每篇文档末尾都有追问——那些就是面试官会问的。
@@ -111,7 +111,7 @@ curl "http://localhost:9000/api/search/course?keyword=Java"
 |---|---|---|---|
 | 一·单体 | MyBatis-Plus 完成 CRUD/分页 | 分页插件原理？逻辑删除怎么实现的？为什么不用物理删除？ | [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)、[MySQL](/learn_database/MySQL) |
 | 一·单体 | JWT + Spring Security 登录鉴权 | JWT 三段结构？无状态鉴权怎么注销用户？JWT 和 Session 区别？ | [Spring Security](/learn_backend/java/基础/Spring Security) |
-| 一·单体 | Redis 缓存课程详情 | 穿透/击穿/雪崩分别怎么解决？缓存和 DB 一致性？延迟双删？ | [Redis](/learn_database/Redis) |
+| 一·单体 | Redis 缓存课程详情 | 穿透/击穿/雪崩分别怎么解决？为什么事务提交后删缓存？ | [Redis](/learn_database/Redis) |
 | 一·单体 | 下单事务 + 状态机 | @Transactional 失效场景？事务隔离级别？状态机为什么用状态机？ | [Spring](/learn_backend/java/基础/Spring)、[MySQL](/learn_database/MySQL) |
 | 一·单体 | 支付沙箱 + 回调幂等 | 重复回调怎么防？幂等的几层设计？为什么回调要验签？ | [MySQL](/learn_database/MySQL)、[Redis](/learn_database/Redis) |
 | 二·微服务 | Nacos 注册 + 配置中心 | 注册中心原理？AP/CP 选型？配置动态刷新原理？ | [Nacos](/learn_backend/java/微服务/Nacos) |
@@ -127,7 +127,7 @@ curl "http://localhost:9000/api/search/course?keyword=Java"
 | 四·部署 | Nginx 反代 + 负载均衡 | 正向/反向代理区别？负载均衡算法？Nginx 为什么高并发？ | [Nginx](/learn_backend/java/微服务/Nginx) |
 | 四·部署 | JMeter 压测 + 慢 SQL 优化 | QPS/TPS 区别？P99 为什么重要？EXPLAIN 怎么看？索引失效场景？ | [MySQL](/learn_database/MySQL)、[并发编程](/learn_backend/java/Java核心/并发编程) |
 
-### 步骤 4：模拟面试 30 题（按频率排序，先背这些）
+### 步骤 4：模拟面试核心题（先讲清项目证据）
 
 面试官问项目时，80% 会落到下面这些问题。**每题都能在对应文档的「追问」和知识库文章里找到答案**：
 
@@ -166,7 +166,7 @@ cd /e/course-mall
 # 2. 检查 git 状态：确认没有敏感信息（数据库密码、支付密钥）
 git status
 # 常见的坑：application.yml 里的真实密码提交上去了 → 改成环境变量占位符
-# 密码改 ${MYSQL_PASSWORD:123456} 这种占位写法
+# 密码改为 ${MYSQL_PASSWORD}，不要提供可被误用的默认密码
 
 # 3. 提交规范：30 天的提交记录本身就是「工作习惯」的证明
 #    好的 message 长这样：feat(order): 下单事务 + 状态机 + 库存扣减
@@ -187,7 +187,7 @@ git log --oneline   # 看看你的提交历史，有没有「fix bug」「update
 - [ ] 端到端联调 10 步全部跑通，输出 `联调记录.md`：是 / 否
 - [ ] 简历项目描述写好（简介 100 字 + 职责 4 条 + 亮点 3 个）：是 / 否
 - [ ] 八股映射总表过了一遍，每行都能说出来「我做了什么」：是 / 否
-- [ ] 模拟 30 题里自测，每题能答 1 分钟以上：`____/30` 题
+- [ ] 本节核心题逐题自测，每题能用“项目场景 + 原理 + 证据”回答：是 / 否
 - [ ] 项目 README 写好了，git 提交记录干净：是 / 否
 - [ ] 踩坑记录（联调中发现的问题，如服务没注册、token 过期等）：
 - [ ] 疑问（有就写，我来答）：

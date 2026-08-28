@@ -342,6 +342,7 @@ public class Course {
     private BigDecimal price;
     private BigDecimal originalPrice;
     private Integer stock;
+    @Version
     private Integer version;
 
     private String description;    // TEXT 长文本，用 String 接收即可

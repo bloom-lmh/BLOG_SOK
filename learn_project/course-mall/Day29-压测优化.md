@@ -4,7 +4,7 @@
 
 ## 一、前置条件
 
-- 已完成 **Day 06 + Day 08**：`mall-course`（8081）有课程查询接口 + Redis 缓存（`/api/course/{id}` 走缓存）
+- 已完成 **Day 06 + Day 08**：课程查询和 Redis 缓存已接入，压测统一从网关 `/api/courses/**` 进入
 - 已完成 **Day 02**：`course_mall.course` 表有种子数据（今天会给它灌 10 万条模拟数据来暴露慢 SQL）
 - 本机 MySQL 8.4 已启动；Redis 已启动
 - 下载 **JMeter**（apache-jmeter 官网下载 zip，解压到 `E:\tools\apache-jmeter`；跑 JMeter 需要 JAVA_HOME，用 IDEA 自带的 JBR 即可，或者直接双击 `bin\jmeter.bat` 时它自动探测）
@@ -26,8 +26,8 @@
 |---|---|---|
 | **QPS**（每秒查询数） | 每秒成功处理的请求数，衡量吞吐 | 越高越好；对比优化前后用 |
 | **TPS**（每秒事务数） | 每秒完成的事务数（一次下单可能包含多个请求 = 1 个事务） | 写接口看 TPS，读接口看 QPS |
-| **RT**（响应时间） | 从发请求到收响应的耗时，看平均、P95、**P99** | P99 < 200ms 算健康，毛刺看 P99 |
-| **错误率** | 失败请求 / 总请求 | 压测中必须为 0 才有意义 |
+| **RT**（响应时间） | 从发请求到收响应的耗时，看平均、P95、**P99** | 是否达标由接口 SLO 决定，不能统一写死 200ms |
+| **错误率** | 失败请求 / 总请求 | 与事先定义的 SLO 对比，并区分超时、5xx、限流等原因 |
 
 ::: tip 💡 面试题：QPS 和 TPS 有什么区别？
 **一句话**：**QPS 是「每秒请求数」，TPS 是「每秒事务数」**——一个事务可能由多个请求组成（比如一次下单 = 扣库存请求 + 创建订单请求 + 发消息），所以 TPS 通常 ≤ QPS。读接口（查课程）两者基本相等，面试时说「我压的接口是纯查询，QPS≈TPS」即可。详见 [并发编程](/learn_backend/java/Java核心/并发编程)。
@@ -39,7 +39,7 @@
 
 ### 步骤 2：给 course 表灌 10 万条数据（没有数据量，压测就是压空气）
 
-真实系统慢 SQL 全是因为「数据量大了索引没跟上」。先用存储过程灌数据：
+慢 SQL 可能来自索引、锁等待、返回数据过多、磁盘或错误执行计划。先在**独立性能环境**造数据；不要在开发共享库或生产库运行下面脚本：
 
 ```sql
 -- 在 course_mall 库执行（为什么用存储过程灌：一条 INSERT 10 万次太慢，批量循环快得多）
@@ -50,7 +50,7 @@ CREATE PROCEDURE gen_course_data()
 BEGIN
     DECLARE i INT DEFAULT 1;
     WHILE i <= 100000 DO
-        INSERT INTO course (title, teacher_id, category_id, price, original_price, cover, description, status, deleted, create_time, update_time)
+        INSERT INTO course (title, teacher_id, category_id, price, original_price, cover, description, status, deleted_at, create_time, update_time)
         VALUES (
             CONCAT('测试课程-', i, '-Java进阶'),        -- 标题带序号，方便构造各种查询
             (i % 2) + 1,                                 -- teacher_id 在 1/2 之间循环
@@ -59,7 +59,7 @@ BEGIN
             ROUND(20 + (i % 500) * 1.99, 2),
             'https://cdn.example.com/cover.jpg',
             '压测用数据',
-            1, 0, NOW(), NOW()
+            1, NULL, NOW(), NOW()
         );
         SET i = i + 1;
     END WHILE;
@@ -76,18 +76,18 @@ JMeter 没有「写代码」，全是在 GUI 里右键搭组件，跟着点：
 
 1. 双击 `bin\jmeter.bat` 打开 GUI
 2. 右键「测试计划」→ Add → Threads → **Thread Group**（线程组 = 虚拟用户）
-   - 线程数 `100`（模拟 100 个并发用户）
-   - Ramp-up 时间 `10`（10 秒内陆续上线，别一上来全打）
-   - 循环次数 `10`（每个线程跑 10 轮 → 总共 1000 个请求，样本量够看）
+   - 线程数先从 `20` 起，逐级增加到 `50/100/200`，寻找吞吐拐点
+   - Ramp-up 时间 `30` 秒，避免瞬时洪峰污染结果
+   - 持续时间至少 `120` 秒；前 30 秒预热不计入正式结论，每组至少重复 3 次
 3. 右键线程组 → Add → Sampler → **HTTP Request**
-   - 协议 http，服务器 `localhost`，端口 `8081`，方法 GET，路径 `/api/course/1`
+   - 协议 http，服务器 `localhost`，端口 `9000`，方法 GET，路径 `/api/courses/1`
 4. 右键线程组 → Add → Listener → **聚合报告**（Aggregate Report）——看结果用
 5. 点绿色 ▶ 运行，跑完看聚合报告的列：`Average`（平均 RT）、`99% Line`（P99）、`Throughput`（吞吐量，即 QPS）
 
-记下这组数字：**这是你的基线**。假设类似：Average 15ms、P99 60ms、Throughput 3200/s（走了 Day08 的 Redis 缓存，所以 QPS 不错——缓存的价值这就看到了）。
+记下真实基线：QPS、P50/P95/P99、错误率、CPU、堆内存、GC、数据库连接池、Redis 命中率。课程不预填“看起来漂亮”的数字；没有原始 `.jtl` 和环境说明的数据不能写进简历。
 
 ::: tip 💡 面试题：压测的「并发数」和「QPS」是什么关系？为什么并发数不是越大越好？
-**一句话**：并发数（线程数）是「同时在打的人数」，QPS 是「每秒实际完成多少请求」；**QPS = 并发数 ÷ 平均 RT**（利特尔法则）。并发数小时 QPS 上不去（资源闲着），并发数太大时 RT 暴涨、错误率飙升，QPS 反而掉——曲线是一个「先升后平/降」的拐点，压测的目标就是找到这个**拐点（系统容量上限）**。详见 [并发编程](/learn_backend/java/Java核心/并发编程)。
+**一句话**：在稳定、闭环且没有额外 think time 的近似条件下，可用利特尔法则理解 `并发数 ≈ 吞吐量 × 响应时间`。它不是任何压测都能直接套用的精确公式；并发过高会造成排队、超时和吞吐拐点。详见 [并发编程](/learn_backend/java/Java核心/并发编程)。
 :::
 
 ### 步骤 4：命令行压测（可复现，写进报告）
@@ -110,10 +110,10 @@ HTML 报告在 `report/index.html`，有完整的 QPS/RT/P99 曲线图——压�
 新建测试计划 `course-list-test.jmx`，压这个接口（Day06 的课程列表接口，带筛选条件）：
 
 ```
-GET http://localhost:8081/api/course/list?categoryId=1&page=1&size=10
+GET http://localhost:9000/api/courses?categoryId=1&page=1&size=10
 ```
 
-100 并发 × 10 轮跑完，观察：Average 可能飙到 800ms+，Throughput 掉到 300/s 以下。**这就是数据库拖后腿的样子。**
+使用与基线相同的并发阶梯、持续时间和机器环境。是否变慢必须由实际监控证明，不能先假设数据库一定是瓶颈。
 
 ### 步骤 6：开慢查询日志，把慢 SQL 揪出来
 
@@ -126,13 +126,15 @@ SET GLOBAL long_query_time = 0.1;   -- 超过 0.1 秒就记（默认 10 秒，�
 SHOW VARIABLES LIKE 'slow_query_log_file';
 ```
 
+`SET GLOBAL` 会影响整个 MySQL 实例，只允许在隔离性能环境使用，并在实验后恢复原值。生产优先使用已有慢日志平台或 Performance Schema，由 DBA 评估开销。
+
 重新跑一轮 JMeter 压测，然后打开慢查询日志文件，会看到大量类似：
 
 ```sql
 # Time: 2026-08-19T22:31:05.123456Z
 # Query_time: 0.512345  Lock_time: 0.000012
 SELECT id, title, price ... FROM course
-WHERE category_id = 1 AND deleted = 0
+WHERE category_id = 1 AND deleted_at IS NULL
 ORDER BY price DESC
 LIMIT 10;
 ```
@@ -149,7 +151,7 @@ LIMIT 10;
 
 ```sql
 EXPLAIN SELECT id, title, price FROM course
-WHERE category_id = 1 AND deleted = 0
+WHERE category_id = 1 AND deleted_at IS NULL
 ORDER BY price DESC
 LIMIT 10;
 ```
@@ -168,9 +170,9 @@ LIMIT 10;
 -- 为什么建 (category_id, price) 联合索引：WHERE 里用 category_id 过滤、ORDER BY 用 price 排序，
 -- 联合索引按 (category_id, price) 组织数据，过滤完 category_id 后 price 天然有序，
 -- 不用再 filesort 排序——「索引本身有序」是联合索引最大的价值
-CREATE INDEX idx_category_price ON course(category_id, price);
+CREATE INDEX idx_category_deleted_price ON course(category_id, deleted_at, price);
 
--- 再加一个逻辑删除过滤用的（deleted 列区分度低，单独建意义不大，但配合联合索引可减少回表——这里先不加，留个思考点）
+-- deleted_at 单列区分度通常不高，所以把它放进与真实过滤、排序匹配的联合索引中。
 ```
 
 再 EXPLAIN 一次：
@@ -178,11 +180,11 @@ CREATE INDEX idx_category_price ON course(category_id, price);
 | 字段 | 加索引后 | 对比 |
 |---|---|---|
 | `type` | `ref`（或 `range`） | 走索引，比 ALL 快几个数量级 |
-| `key` | `idx_category_price` | 用上了 |
+| `key` | `idx_category_deleted_price` | 用上了 |
 | `rows` | `20000` 左右 | 只扫命中的行 |
 | `Extra` | 无 `Using filesort` | 排序直接用索引顺序，省了一次内存排序 |
 
-回 JMeter 重跑 `course-list-test.jmx`：Average 应该从 800ms 降到 50ms 以内，Throughput 翻十几倍。**这就是你压测报告里的核心数据对比。**
+回 JMeter 使用完全相同的脚本和负载阶梯复测。只有实际结果显著、稳定且没有把错误率或资源消耗转移到别处，才能写成优化成果。
 
 ::: tip 💡 面试题：EXPLAIN 的 `type` 字段有哪些级别？哪个最好哪个最差？
 **一句话**：从好到差：`system > const > eq_ref > ref > range > index > ALL`。`const` 是主键/唯一索引等值查询（最多一行）；`ref` 是非唯一索引等值匹配；`range` 是索引范围扫描；`index` 是「全索引扫描」（比全表稍好一点，但仍是大范围）；**`ALL` 是全表扫描，看到它就要警惕**。面试时至少要能说出这五档。详见 [MySQL](/learn_database/MySQL)。
@@ -202,10 +204,9 @@ CREATE INDEX idx_category_price ON course(category_id, price);
 spring:
   datasource:
     hikari:
-      maximum-pool-size: 20        # 为什么不是越大越好：每个连接在 MySQL 侧占内存+线程，
+      maximum-pool-size: 20        # 示例起点，不是固定答案；结合实例数、DB max_connections、等待时间压测
                                    # 池太大 → 数据库连接数耗尽、上下文切换开销大；
                                    # 池太小 → 线程等连接排队，RT 暴涨。
-                                   # 经验公式：核数*2 + 磁盘数，压测调优验证
       connection-timeout: 3000     # 等连接超时 3 秒：宁可快速失败也不让用户无限等
       minimum-idle: 5              # 保底空闲连接，避免突发流量时现建连接的延迟
 ```
@@ -249,18 +250,18 @@ spring:
 - 机器：Windows 11 单机（16G 内存 / 8 核）
 - 版本：mall-course 0.0.1-SNAPSHOT、MySQL 8.4、Redis 7.2
 - 数据量：course 表 10 万行
-- 工具：JMeter 5.6（命令行模式，100 并发 × 10 轮 = 1000 样本）
+- 工具：JMeter 5.6（命令行模式；20/50/100/200 并发阶梯，每档 120 秒，预热 30 秒）
 
 ## 二、结果对比
 
 | 接口 | 优化前 QPS | 优化前 P99 | 优化后 QPS | 优化后 P99 | 提升 |
 |---|---|---|---|---|---|
-| /api/course/1（带缓存） | 3200 | 60ms | — | — | 基线 |
-| /api/course/list（查库） | 280 | 1500ms | 2600 | 85ms | QPS 提升约 9 倍 |
+| /api/courses/1（带缓存） | 待实测 | 待实测 | 待实测 | 待实测 | 待计算 |
+| /api/courses（查库） | 待实测 | 待实测 | 待实测 | 待实测 | 待计算 |
 
 ## 三、做了什么
 1. 慢查询日志定位：WHERE category_id=1 ORDER BY price DESC 全表扫描 10 万行
-2. EXPLAIN 确认 type=ALL → 建联合索引 idx_category_price(category_id, price)
+2. EXPLAIN 确认执行计划后，按真实查询建立 `idx_category_deleted_price(category_id, deleted_at, price)`
 3. HikariCP 连接池调优：maximum-pool-size 10 → 20
 4. Tomcat 线程池 accept-count 收紧，防止请求堆积
 
@@ -282,8 +283,8 @@ spring:
 
 - [ ] 完成时间：`____年__月__日`
 - [ ] 灌入 10 万条数据：`SELECT COUNT(*) FROM course` = 100003 左右：是 / 否
-- [ ] JMeter 压 `/api/course/1`（缓存命中）拿到基线 QPS：`______/s`
-- [ ] 压 `/api/course/list` 发现慢 SQL，慢查询日志里看到 `Query_time > 0.1`：是 / 否
+- [ ] JMeter 压 `/api/courses/1`（缓存命中）拿到基线 QPS：`______/s`
+- [ ] 压 `/api/courses`，结合链路与资源监控定位真实瓶颈：是 / 否
 - [ ] `EXPLAIN` 优化前 `type=ALL`、优化后 `type=ref/range`：是 / 否
 - [ ] 复测 QPS 提升记录：`____/s → ____/s`
 - [ ] 压测报告写完并提交 git：是 / 否
@@ -292,8 +293,8 @@ spring:
 
 ## 六、我下次会追问的问题（做完先自己想想）
 
-1. 你压 `/api/course/1` 时 QPS 高得离谱（几千），压 `/api/course/list` 却只有几百——**同样的接口，为什么差这么多？**（提示：Redis 单机 10 万 QPS vs MySQL 单机几千 QPS，架构上这说明什么？）
+1. 详情缓存接口与列表查库接口的吞吐和延迟为什么可能不同？你用哪些监控数据证明瓶颈位置？
 2. 联合索引 `(category_id, price)` 为什么能同时优化 WHERE 和 ORDER BY？如果 SQL 改成 `WHERE category_id=1 AND status=1 ORDER BY create_time DESC`，这个索引还有效吗？（提示：最左前缀 + 索引有序性）
-3. 你建索引是在线直接 CREATE 的吗？如果生产库有 1000 万行，直接 CREATE INDEX 会发生什么？生产加索引的正确姿势是什么？（提示：锁表、gh-ost/pt-osc 在线 DDL）
+3. MySQL 在线 DDL 仍可能在哪些阶段持有 metadata lock？生产加索引前如何评估、监控和回滚？什么时候才需要 gh-ost/pt-osc？
 4. 连接池 `maximum-pool-size` 为什么不是越大越好？如果 MySQL 的 `max_connections` 是 100，你 10 个服务每个池子配 50，会发生什么？（提示：连接数打满、报错 Too many connections）
 5. 除了加索引和调连接池，接口再往上压，下一步的优化方向还有哪些？（提示：Redis 缓存已用、分库分表 Day24、读写分离、ES 分担读、CDN、MQ 削峰）

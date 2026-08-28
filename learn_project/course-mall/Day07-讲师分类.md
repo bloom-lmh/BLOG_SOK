@@ -407,7 +407,7 @@ public class TeacherController {
 }
 ```
 
-这三个接口都是商城前台公开读取，因此不贴 `@PreAuthorize`；后台讲师增删改接口以后应放 `/api/admin/teachers/**` 并使用 `teacher:create/update/delete` 权限。
+这三个接口都是商城前台公开读取，因此不贴 `@PreAuthorize`；后台讲师写接口以后应放在 `/api/admin/teachers/**`，并使用 Day02 已入库的 `teacher:edit` 权限。
 
 启动验证（在 `E:\CourseMall\` 根目录）：
 

@@ -10,25 +10,24 @@
 - 已完成 **Day 13**（微服务拆分，Nacos 已跑通）
 - 本机已装 **Docker**（今天用 Docker 跑 ES，Day 27 会正式讲 Docker 镜像/编排）
 
-> ⚠️ 今天所有代码复用 Day 02 已经建好的 `course` 表，**不要另建表**。另外确认课程数据还在：如果你 Day 06 测试「逻辑删除」时把 id=2 删了，先执行 `UPDATE course SET deleted=0 WHERE id=2` 恢复，或重跑 Day 02 的种子 SQL。
+> ⚠️ MySQL 的课程数据仍由 `mall-course` 独占。`mall-search` 不能为了方便直接连接课程库；全量重建通过内部 API 拉取已发布课程，Day26 再接入增量同步。
 
 ## 二、今天完成后你会得到什么
 
 ```
 E:\course-mall\
 ├─ pom.xml                                    # 改：modules 里加 mall-search
-└─ mall-search/                               # 新增：搜索服务（端口 8085）
+└─ mall-search/                               # 新增：搜索服务（端口 8086）
    ├─ pom.xml
    └─ src/main/java/com/mall/search/
       ├─ MallSearchApplication.java           # 启动类
       ├─ doc/CourseDoc.java                   # ES 文档（映射 + IK 分析器）
-      ├─ entity/Course.java                   # 本地只读投影（全量同步读 MySQL 用）
-      ├─ mapper/CourseMapper.java             # 读 course 表
+      ├─ feign/CourseClient.java              # 通过课程服务内部 API 获取重建数据
       ├─ repository/CourseDocRepository.java  # ES 的 CRUD（类比 BaseMapper）
       ├─ dto/CourseSearchQuery.java           # 搜索入参
       ├─ vo/CourseHitVO.java / CourseSearchResultVO.java / BucketVO.java
       ├─ service/SearchService.java           # 搜索 + 全量同步
-      └─ controller/SearchController.java     # /api/search/course + /api/search/sync
+      └─ controller/SearchController.java     # 公开搜索 + 管理端索引重建
 ```
 
 ## 三、先搞懂：搜索为什么不能靠 MySQL LIKE
@@ -132,15 +131,18 @@ docker restart es
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
-        <!-- MyBatis-Plus + MySQL：全量同步时从 MySQL 读课程数据（版本由父工程管，不写） -->
+        <!-- 搜索服务不能跨库读取课程表：通过 Feign 调课程服务的内部 API -->
         <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-contract</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
         <!-- Nacos 注册：微服务架构下网关/前端按服务名发现它 -->
         <dependency>
@@ -169,33 +171,19 @@ docker restart es
 
 ```yaml
 server:
-  port: 8085              # 8080 user / 8081 course / 8082~8084 已被 order/stock/seckill 占用，
-                          # 搜索服务用 8085（Day26 的 search_after 接口也沿用这个端口）
+  port: 8086              # 8085 已分配给 mall-seckill
 
 spring:
   application:
     name: mall-search
-  datasource:             # 全量同步要读 course 表，所以也要连 MySQL
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 你的MySQL密码        # ← 改成你自己的
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
   elasticsearch:
-    uris: http://localhost:9200    # ES 地址（Docker 单节点）。因为关了 security，不用写账号密码
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-  global-config:
-    db-config:
-      logic-delete-field: deleted   # 读 course 表时自动过滤 deleted=0
-      logic-delete-value: 1
-      logic-not-delete-value: 0
+    uris: ${ELASTICSEARCH_URIS:http://127.0.0.1:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
 ```
 
 **3.3 启动类（`com/mall/search/MallSearchApplication.java`）：**
@@ -203,17 +191,16 @@ mybatis-plus:
 ```java
 package com.mall.search;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
 // scanBasePackages = "com.mall"：和 Day01 一样，扫到 mall-common 的全局异常处理器
-// @MapperScan：MyBatis 扫描 mapper 接口（全量同步读 MySQL 用）
 // @EnableElasticsearchRepositories：扫描 ES 的 Repository 接口，生成代理实现
 @SpringBootApplication(scanBasePackages = "com.mall")
-@MapperScan("com.mall.search.mapper")
 @EnableElasticsearchRepositories(basePackages = "com.mall.search.repository")
+@EnableFeignClients
 public class MallSearchApplication {
     public static void main(String[] args) {
         SpringApplication.run(MallSearchApplication.class, args);
@@ -244,6 +231,10 @@ public class CourseDoc {
 
     @Id
     private Long id;
+
+    // _id 不能用于排序；保留一份启用 doc_values 的业务 ID 给 Day26 search_after 使用。
+    @Field(type = FieldType.Long)
+    private Long sortId;
 
     // text 类型：会分词、建倒排索引，支持全文检索
     // analyzer（索引时）/ searchAnalyzer（查询时）分开设：两边粒度可以不同（见下面面试题）
@@ -316,16 +307,39 @@ public interface CourseDocRepository extends ElasticsearchRepository<CourseDoc, 
 ```java
 package com.mall.search.dto;
 
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class CourseSearchQuery {
+    @Size(max = 100)
     private String keyword;      // 搜索关键词（对 title + description 全文检索）
+    @Positive
     private Long categoryId;     // 分类筛选（精确过滤）
+    @DecimalMin("0.0")
     private Double minPrice;     // 最低价
+    @DecimalMin("0.0")
     private Double maxPrice;     // 最高价
+    @Min(1)
     private int pageNum = 1;     // 页码，从 1 开始
+    @Min(1)
+    @Max(100)
     private int pageSize = 10;   // 每页条数
+
+    @AssertTrue(message = "{search.price-range-invalid}")
+    public boolean isPriceRangeValid() {
+        return minPrice == null || maxPrice == null || minPrice <= maxPrice;
+    }
+
+    @AssertTrue(message = "{search.page-window-too-large}")
+    public boolean isPageWindowValid() {
+        return (long) pageNum * pageSize <= 10_000;
+    }
 }
 ```
 
@@ -411,21 +425,22 @@ import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
 import com.mall.search.doc.CourseDoc;
 import com.mall.search.dto.CourseSearchQuery;
-import com.mall.search.entity.Course;
-import com.mall.search.mapper.CourseMapper;
+import com.mall.contract.course.CourseIndexDTO;
+import com.mall.common.feign.RemoteResult;
+import com.mall.search.feign.CourseClient;
 import com.mall.search.repository.CourseDocRepository;
 import com.mall.search.vo.BucketVO;
 import com.mall.search.vo.CourseHitVO;
 import com.mall.search.vo.CourseSearchResultVO;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class SearchService {
 
@@ -433,14 +448,14 @@ public class SearchService {
 
     private final ElasticsearchClient client;        // 底层客户端：拼复杂 DSL（高亮/聚合）
     private final CourseDocRepository repository;    // 高层仓库：全量同步的写入/清空
-    private final CourseMapper courseMapper;         // MySQL 读取：全量同步的数据源
+    private final CourseClient courseClient;         // 通过服务 API 获取课程，不跨库
 
     public SearchService(ElasticsearchClient client,
                          CourseDocRepository repository,
-                         CourseMapper courseMapper) {
+                         CourseClient courseClient) {
         this.client = client;
         this.repository = repository;
-        this.courseMapper = courseMapper;
+        this.courseClient = courseClient;
     }
 
     // ==================== 搜索 ====================
@@ -466,8 +481,8 @@ public class SearchService {
 
             return toResult(response, q);
         } catch (Exception e) {
-            // ES 挂了或查询异常，转成统一业务异常交给 GlobalExceptionHandler，避免堆栈直接抛给前端
-            throw new BizException(ErrorCode.SYSTEM_ERROR.getCode(), "搜索服务异常: " + e.getMessage());
+            log.error("课程搜索失败 keyword={}", q.getKeyword(), e);
+            throw new BizException(ErrorCode.SEARCH_UNAVAILABLE);
         }
     }
 
@@ -562,33 +577,37 @@ public class SearchService {
     }
 
     // ==================== 全量同步 ====================
-    public long sync() {
-        // 1. 从 MySQL 读「已上架」的课程（@TableLogic 会自动拼 deleted=0）
-        List<Course> courses = courseMapper.selectList(new LambdaQueryWrapper<Course>()
-                .eq(Course::getStatus, 1));
-
-        // 2. 转成 ES 文档
-        List<CourseDoc> docs = courses.stream().map(this::toDoc).toList();
-
-        // 3. 先清空索引再批量写入（简单全量同步；数据量大或要求平滑过渡要用「索引别名切换」，Day26 会讲）
+    public long rebuild() {
+        // 学习版先清空再分批拉取；生产改为“新索引构建完成后切别名”，避免空窗。
         repository.deleteAll();
-        repository.saveAll(docs);   // saveAll 底层是 bulk 批量写入
-        return docs.size();
+        long afterId = 0L;
+        long total = 0L;
+        while (true) {
+            List<CourseIndexDTO> batch = RemoteResult.unwrap(
+                    courseClient.listForIndex(afterId, 500));
+            if (batch.isEmpty()) {
+                return total;
+            }
+            repository.saveAll(batch.stream().map(this::toDoc).toList());
+            afterId = batch.get(batch.size() - 1).id();
+            total += batch.size();
+        }
     }
 
-    private CourseDoc toDoc(Course c) {
+    private CourseDoc toDoc(CourseIndexDTO c) {
         CourseDoc doc = new CourseDoc();
-        doc.setId(c.getId());
-        doc.setTitle(c.getTitle());
-        doc.setDescription(c.getDescription());
-        doc.setCover(c.getCover());
-        doc.setCategoryId(c.getCategoryId());
-        doc.setTeacherId(c.getTeacherId());
-        doc.setPrice(c.getPrice().doubleValue());
-        doc.setStatus(c.getStatus());
-        doc.setViewCount(c.getViewCount());
-        doc.setBuyCount(c.getBuyCount());
-        doc.setCreateTime(c.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        doc.setId(c.id());
+        doc.setSortId(c.id());
+        doc.setTitle(c.title());
+        doc.setDescription(c.description());
+        doc.setCover(c.cover());
+        doc.setCategoryId(c.categoryId());
+        doc.setTeacherId(c.teacherId());
+        doc.setPrice(c.price().doubleValue());
+        doc.setStatus(c.status());
+        doc.setViewCount(c.viewCount());
+        doc.setBuyCount(c.buyCount());
+        doc.setCreateTime(c.createTime().toString());
         return doc;
     }
 }
@@ -599,65 +618,68 @@ public class SearchService {
 :::
 
 ::: tip 💡 面试题：ES 的高亮是怎么实现的？是前端拿到数据自己找关键词吗？
-**一句话**：**不是前端做，是 ES 在查询时就把命中片段返回**。分词器在匹配时记录了「命中的词」以及它在文本中的位置，高亮阶段按这个位置信息，把命中词用 `pre_tags`（`<em>`）/ `post_tags`（`</em>`）包起来返回。前端直接渲染 `<em>` 即可，不用自己扫字符串找关键词。
+**一句话**：高亮片段由 ES 返回。前端若使用 HTML 渲染，只允许 `<em>` 等明确白名单标签并做消毒，不能把任意课程文本直接作为 HTML 插入，否则会产生 XSS。
 :::
 
 ::: tip 💡 面试题：聚合（aggregation）和普通查询有什么区别？为什么说 ES 能「一次请求同时拿到 hits + 聚合」？
 **一句话**：普通查询返回的是**文档列表**（hits），聚合返回的是**统计结果**（一个个「桶 bucket」，如每个分类有多少条，等价 SQL 的 `GROUP BY`）。ES 允许在一个 search 请求里**同时声明 query 和 aggregations**，一次网络往返同时拿到「本页命中结果」和「侧边栏的分类/价格统计」——MySQL 要发多次查询才能凑齐。详见 [Elasticsearch](/learn_backend/java/微服务/Elasticsearch)。
 :::
 
-### 步骤 8：本地只读投影 `Course` + `CourseMapper`
+### 步骤 8：用契约 DTO 获取重建数据
 
-创建 `E:\course-mall\mall-search\src\main\java\com\mall\search\entity\Course.java`：
+在 `mall-contract` 定义 `CourseIndexDTO`，只包含搜索索引需要的字段；它不是 `mall-course` 的 Entity：
 
 ```java
-package com.mall.search.entity;
-
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-// 这是「搜索服务」本地的课程投影：只读、只保留全量同步需要的字段。
-// 微服务下各服务拥有自己的数据模型，这里和 mall-course 的 Course 是两套独立实体，
-// 互不依赖（不引对方模块），耦合最低。Day26 用 Canal 后，这个「自己读库同步」会被替换成 binlog 增量。
-// 注意：course 表没有分表（Day24 只对 orders 分了表），所以这里直接连 MySQL 读单表即可，
-// 不需要配 ShardingSphere；如果将来 course 也分表，读侧就要换成和 mall-order 一样的分片配置。
-@Data
-@TableName("course")
-public class Course {
-    @TableId(type = IdType.AUTO)
-    private Long id;
-    private Long teacherId;
-    private Long categoryId;
-    private String title;
-    private String cover;
-    private BigDecimal price;
-    private String description;
-    private Integer status;
-    private Integer viewCount;
-    private Integer buyCount;
-    @TableLogic
-    private Integer deleted;
-    private LocalDateTime createTime;
+public record CourseIndexDTO(
+        Long id,
+        Long teacherId,
+        Long categoryId,
+        String title,
+        String cover,
+        BigDecimal price,
+        String description,
+        Integer status,
+        Integer viewCount,
+        Integer buyCount,
+        LocalDateTime createTime) {
 }
 ```
 
-创建 `E:\course-mall\mall-search\src\main\java\com\mall\search\mapper\CourseMapper.java`：
+`mall-search` 通过 Feign 分批拉取：
 
 ```java
-package com.mall.search.mapper;
+@FeignClient(name = "mall-course")
+public interface CourseClient {
 
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mall.search.entity.Course;
-
-public interface CourseMapper extends BaseMapper<Course> {
+    @GetMapping("/internal/courses/search-documents")
+    Result<List<CourseIndexDTO>> listForIndex(
+            @RequestParam long afterId,
+            @RequestParam int size);
 }
 ```
+
+`mall-course` 提供仅供内部重建使用的接口。查询条件必须包含 `status=1`、`deleted_at IS NULL`、`id > afterId`，并按 `id ASC LIMIT size`，避免 offset 深分页：
+
+```java
+@Validated
+@RestController
+@RequestMapping("/internal/courses")
+@RequiredArgsConstructor
+public class CourseInternalController {
+
+    private final CourseService courseService;
+
+    @GetMapping("/search-documents")
+    @PreAuthorize("hasAuthority('search:sync')")
+    public Result<List<CourseIndexDTO>> listForIndex(
+            @RequestParam @PositiveOrZero long afterId,
+            @RequestParam(defaultValue = "500") @Min(1) @Max(1000) int size) {
+        return Result.ok(courseService.listForSearchIndex(afterId, size));
+    }
+}
+```
+
+Feign 继续复用 Day15 的 `Authorization` 请求头传递。即便接口只在内网，也不能因为路径以 `/internal` 开头就默认可信。
 
 ### 步骤 9：`SearchController`
 
@@ -670,29 +692,29 @@ import com.mall.common.result.Result;
 import com.mall.search.dto.CourseSearchQuery;
 import com.mall.search.service.SearchService;
 import com.mall.search.vo.CourseSearchResultVO;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequestMapping("/api/search")
+@RequiredArgsConstructor
 public class SearchController {
 
     private final SearchService searchService;
 
-    public SearchController(SearchService searchService) {
-        this.searchService = searchService;
-    }
-
-    // 搜索接口：GET，参数走 query string，方便调试
-    @GetMapping("/course")
-    public Result<CourseSearchResultVO> search(CourseSearchQuery query) {
+    @GetMapping("/courses")
+    public Result<CourseSearchResultVO> search(@Valid CourseSearchQuery query) {
         return Result.ok(searchService.search(query));
     }
 
-    // 全量同步：手动触发，把 MySQL 的课程灌进 ES。
-    // Day26 会用 Canal（binlog）做自动增量同步，取代这个手动接口
-    @PostMapping("/sync")
-    public Result<Long> sync() {
-        return Result.ok(searchService.sync());
+    @PostMapping("/admin/indexes/courses/rebuild")
+    @PreAuthorize("hasAuthority('search:sync')")
+    public Result<Long> rebuild() {
+        return Result.ok(searchService.rebuild());
     }
 }
 ```
@@ -701,13 +723,31 @@ public class SearchController {
 **一句话**：**MySQL 是 source of truth（事务可靠、能精确查询），ES 只是搜索引擎（快、但不做事务）**。用户下单/改课都写 MySQL，ES 靠「全量 + 增量」同步数据用于检索。因为同步有延迟，两者是**最终一致**（短暂不一致可接受）。今天做的是手动**全量同步**，Day 26 的 Canal 监听 MySQL binlog 做**增量同步**，把「改一条课 → ES 跟着变」自动化。详见 [Elasticsearch](/learn_backend/java/微服务/Elasticsearch)、[分布式基础](/learn_backend/java/微服务/分布式基础)。
 :::
 
+在 `ErrorCode`、`messages.properties`、`messages_zh_CN.properties` 中补充：
+
+```properties
+search.unavailable=Search service is temporarily unavailable
+search.index-rebuild-failed=Course index rebuild failed
+search.price-range-invalid=Minimum price cannot be greater than maximum price
+search.page-window-too-large=Use cursor pagination for deep pages
+```
+
+```properties
+search.unavailable=搜索服务暂时不可用
+search.index-rebuild-failed=课程索引重建失败
+search.price-range-invalid=最低价格不能大于最高价格
+search.page-window-too-large=深分页请使用游标分页
+```
+
+同时给管理员角色分配 `search:sync`。`mall-search` 必须启用 Day04 的资源服务器安全配置和 `@EnableMethodSecurity`，否则上面的 `@PreAuthorize` 不会执行。
+
 ### 步骤 10：启动验证
 
 在 `E:\course-mall\` 根目录：
 
 ```bash
 mvn clean install -DskipTests             # 编译安装所有模块（含新的 mall-search）
-mvn -pl mall-search spring-boot:run       # 启动搜索服务（端口 8085）
+mvn -pl mall-search spring-boot:run       # 启动搜索服务（端口 8086）
 ```
 
 > 启动顺序注意：先确认 ES 已起（步骤 1）、Nacos 已起（Day13），再启动本服务。启动时 Spring Data ES 会自动创建 `course` 索引并写入映射（因为 `createIndex = true`）。
@@ -716,17 +756,18 @@ mvn -pl mall-search spring-boot:run       # 启动搜索服务（端口 8085）
 
 ```bash
 # ① 先全量同步：把 MySQL 的 3 门课灌进 ES
-curl -X POST "http://localhost:8085/api/search/sync"
+curl -X POST "http://localhost:9000/api/search/admin/indexes/courses/rebuild" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>"
 # 预期返回 data = 3
 
 # ② 关键词搜索 + 高亮（看 title 里 <em>高并发</em>）
-curl "http://localhost:8085/api/search/course?keyword=高并发"
+curl "http://localhost:9000/api/search/courses?keyword=高并发"
 
 # ③ 不带关键词 = match_all + 聚合（看 byCategory 和 byPrice 三个桶）
-curl "http://localhost:8085/api/search/course"
+curl "http://localhost:9000/api/search/courses"
 
 # ④ 组合筛选：关键词 + 分类 + 价格区间
-curl "http://localhost:8085/api/search/course?keyword=Java&categoryId=2&minPrice=100&maxPrice=300"
+curl "http://localhost:9000/api/search/courses?keyword=Java&categoryId=2&minPrice=100&maxPrice=300"
 ```
 
 > ⚠️ 刚同步完**立刻**搜索可能拿到 `total: 0`：ES 写入后要等一次 refresh（默认 `refresh_interval=1s`）才对搜索可见。若 ② 返回 0 条，等 1~2 秒再搜一次即可——这正是「近实时（Near Real-Time）」的含义，也是 ES 不能替代 MySQL 做强一致事务的一个体现。
@@ -792,7 +833,7 @@ curl "http://localhost:9200/course/_search?pretty" # 能看到 3 条文档
 | 倒排索引、全文检索、高亮、聚合、分页、IK 分词器 | [Elasticsearch](/learn_backend/java/微服务/Elasticsearch) |
 | Spring Data Elasticsearch 文档映射 / Repository | [Elasticsearch](/learn_backend/java/微服务/Elasticsearch) |
 | ES 与 MySQL 定位、最终一致、双写同步 | [分布式基础](/learn_backend/java/微服务/分布式基础) |
-| MyBatis-Plus 读 MySQL（同步数据源） | [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus) |
+| Feign 内部契约、服务数据所有权 | [OpenFeign](/learn_backend/java/微服务/OpenFeign) |
 | Nacos 注册（微服务架构） | [Nacos](/learn_backend/java/微服务/Nacos) |
 | Docker 跑 ES 中间件 | [Docker](/learn_maintenance/Docker) |
 | `DECIMAL` ↔ `BigDecimal`（同步时转换） | [MySQL](/learn_database/MySQL) |
@@ -803,8 +844,9 @@ curl "http://localhost:9200/course/_search?pretty" # 能看到 3 条文档
 - [ ] ES 容器启动成功，`curl http://localhost:9200` 有响应：是 / 否
 - [ ] IK 分词器安装成功（`docker exec -it es ./bin/elasticsearch-plugin list` 能看到 ik）：是 / 否
 - [ ] `mvn clean install` 通过，`mall-search` 启动成功：是 / 否
-- [ ] `POST /api/search/sync` 返回 3，`curl localhost:9200/course/_search` 能看到 3 条文档：是 / 否
-- [ ] `GET /api/search/course?keyword=高并发` 返回结果且 `highlightTitle` 带 `<em>`：是 / 否
+- [ ] 管理员调用 `POST /api/search/admin/indexes/courses/rebuild` 成功，普通用户返回 403：是 / 否
+- [ ] `GET /api/search/courses?keyword=高并发` 返回结果且 `highlightTitle` 带 `<em>`：是 / 否
+- [ ] 非法价格区间、分页窗口被 Validation 拦截：是 / 否
 - [ ] 无关键词搜索能看到 `byCategory` / `byPrice` 聚合桶：是 / 否
 - [ ] 组合筛选（关键词 + 分类 + 价格区间）能正确过滤：是 / 否
 - [ ] 踩坑记录（ES 起不来、IK 版本不匹配、连接报错等）：

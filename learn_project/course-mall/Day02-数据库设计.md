@@ -228,12 +228,15 @@ DROP TABLE IF EXISTS `payment`;
 CREATE TABLE `payment` (
     `id`             BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
     `order_no`       VARCHAR(64)   NOT NULL                COMMENT '关联订单号',
+    `pay_type`       TINYINT       NOT NULL                COMMENT '支付渠道：1沙箱/支付宝 2微信',
     `transaction_id` VARCHAR(64)   DEFAULT NULL            COMMENT '第三方支付流水号（如支付宝/微信返回的）',
     `amount`         DECIMAL(10,2) NOT NULL                COMMENT '支付金额',
     `status`         TINYINT       NOT NULL DEFAULT 0      COMMENT '支付状态：0待支付 1成功 2失败',
     `create_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    KEY `idx_order_no` (`order_no`)                       -- 回调时按订单号找支付记录
+    UNIQUE KEY `uk_order_no` (`order_no`),                 -- 一个订单只允许一张支付单
+    UNIQUE KEY `uk_transaction_id` (`transaction_id`)      -- 一笔第三方流水不能绑定多个订单
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='支付记录表';
 ```
 

@@ -103,24 +103,25 @@ docker run -d --name rmqbroker -p 10911:10911 -p 10909:10909 \
 
 ```yaml
 server:
-  port: 8082              # 和 Day19 一致，端口不变
+  port: 8085              # 与 Day19 一致
 
 spring:
   application:
     name: mall-seckill
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/course_mall?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 你的MySQL密码        # ← 改成你自己的
+    url: ${SECKILL_DB_URL:jdbc:mysql://127.0.0.1:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${SECKILL_DB_USERNAME:root}
+    password: ${SECKILL_DB_PASSWORD}
   data:
     redis:
-      host: localhost
+      host: ${REDIS_HOST:127.0.0.1}
       port: 6379
+      password: ${REDIS_PASSWORD:}
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
 
 mybatis-plus:
   configuration:
@@ -249,7 +250,7 @@ public class SeckillService {
         String lockKey = "lock:preload:" + activityId;
         String token = lock.tryLock(lockKey, Duration.ofSeconds(10));
         if (token == null) {
-            throw new BizException(500, "预热正在进行中，请勿重复触发");
+            throw new BizException(ErrorCode.SECKILL_BUSY);
         }
         try {
             SeckillActivity activity = activityMapper.selectById(activityId);
@@ -275,7 +276,7 @@ public class SeckillService {
         // 0. 限流（Day20 新增）：令牌桶，每秒最多 LIMIT_RATE 个请求通过，超出的直接拒绝。
         //    放在最前面，把「注定抢不到的无效请求」挡在 Redis 和 MQ 之外。
         if (!rateLimiter.tryAcquire("seckill:limit:" + activityId, LIMIT_CAPACITY, LIMIT_RATE)) {
-            throw new BizException(429, "请求过于频繁，请稍后再试");
+            throw new BizException(ErrorCode.SECKILL_BUSY);
         }
 
         // 1. 查活动 + 校验时间窗口（Day19 已有，保留）
@@ -285,14 +286,15 @@ public class SeckillService {
         }
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(activity.getStartTime()) || now.isAfter(activity.getEndTime())) {
-            throw new BizException(400, "秒杀未开始或已结束");
+            throw new BizException(now.isBefore(activity.getStartTime())
+                    ? ErrorCode.SECKILL_NOT_STARTED : ErrorCode.SECKILL_ENDED);
         }
 
         // 2. 限购「一人一单」：Redis SETNX 去重标记（Day19 已有，key 不变）
         String userKey = "seckill:user:" + activityId + ":" + userId;
         Boolean first = redis.opsForValue().setIfAbsent(userKey, "1", Duration.ofDays(1));
         if (!Boolean.TRUE.equals(first)) {
-            throw new BizException(400, "你已抢购过该活动，每人限购一单");
+            throw new BizException(ErrorCode.SECKILL_DUPLICATE_ORDER);
         }
 
         // 3. Redis 预扣减（Day19 的 Lua 脚本原样复用）：
@@ -302,11 +304,11 @@ public class SeckillService {
         Long r = redis.execute(deductStockScript, List.of(stockKey));
         if (r == null || r == -1) {
             redis.delete(userKey);   // 没抢到 → 回滚限购标记，允许用户重试
-            throw new BizException(500, "活动库存未预热，请先预热");
+            throw new BizException(ErrorCode.SECKILL_BUSY);
         }
         if (r == 0) {
             redis.delete(userKey);
-            throw new BizException(400, "手慢了，库存已抢光");
+            throw new BizException(ErrorCode.SECKILL_SOLD_OUT);
         }
 
         // 4. 发 MQ（Day20 核心改动）：把「写库」这件慢事丢给消费者异步做，请求线程立即返回。
@@ -321,7 +323,7 @@ public class SeckillService {
             log.error("发送秒杀消息失败，回补库存：activityId={} userId={}", activityId, userId, e);
             redis.opsForValue().increment(stockKey);
             redis.delete(userKey);
-            throw new BizException(500, "系统繁忙，请重试");
+            throw new BizException(ErrorCode.SERVICE_UNAVAILABLE);
         }
 
         // 5. 立即返回「排队中」：用户拿到的是「抢购成功」，订单由消费者在后台慢慢出
@@ -350,10 +352,15 @@ package com.mall.seckill.controller;
 
 import com.mall.common.result.Result;
 import com.mall.seckill.service.SeckillService;
+import jakarta.validation.constraints.Positive;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/seckill")
+@Validated
 public class SeckillController {
 
     private final SeckillService seckillService;
@@ -364,14 +371,17 @@ public class SeckillController {
 
     // 预热接口不变（Day19 已有，原样保留）
     @PostMapping("/preload/{activityId}")
-    public Result<Integer> preload(@PathVariable Long activityId) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Integer> preload(@PathVariable @Positive Long activityId) {
         return Result.ok(seckillService.preload(activityId));
     }
 
     // 抢购：唯一改动是返回泛型从 Result<String> 变成 Result<SeckillResult>
     @PostMapping("/{activityId}")
-    public Result<SeckillService.SeckillResult> seckill(@PathVariable Long activityId,
-                                                        @RequestParam Long userId) {
+    @PreAuthorize("isAuthenticated()")
+    public Result<SeckillService.SeckillResult> seckill(
+            @PathVariable @Positive Long activityId,
+            @AuthenticationPrincipal(expression = "id") Long userId) {
         return Result.ok(seckillService.doSeckill(activityId, userId));
     }
 }
@@ -584,13 +594,13 @@ public class RateLimiterConfig {
 ```bash
 # 在 E:\course-mall\ 根目录
 mvn clean install -DskipTests          # 编译安装
-mvn -pl mall-seckill spring-boot:run   # 启动秒杀服务（8082）
+mvn -pl mall-seckill spring-boot:run   # 启动秒杀服务（8085）
 ```
 
 **1. 预热库存**（用 Day 19 已有的预热接口，而不是手塞 Redis）：
 
 ```bash
-curl -X POST "http://localhost:8082/api/seckill/preload/1"
+curl -X POST -H "Authorization: Bearer <ADMIN_TOKEN>" "http://localhost:9000/api/seckill/preload/1"
 # 预期：{"code":200,"data":100}
 ```
 
@@ -600,7 +610,7 @@ curl -X POST "http://localhost:8082/api/seckill/preload/1"
 **2. 调用秒杀接口**（用户 1 抢活动 1）：
 
 ```bash
-curl -X POST "http://localhost:8082/api/seckill/1?userId=1"
+curl -X POST -H "Authorization: Bearer <USER_TOKEN>" "http://localhost:9000/api/seckill/1"
 # 预期立即返回（毫秒级，不用等写库）：
 # {"code":200,"data":{"orderNo":"SK172...","status":"排队中，正在出单"}}
 ```

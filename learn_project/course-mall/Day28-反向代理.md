@@ -1,6 +1,6 @@
 # Day 28 · 反向代理（Nginx 反向代理 + 负载均衡 + HTTPS）
 
-> **今天目标**：给 course-mall 装上生产级统一入口——用 Nginx 反向代理把外部流量转发给网关集群，用 `upstream` 对多个网关实例做负载均衡，并给入口配上 HTTPS。完成后对外只暴露 80/443 两个端口，后端 9000/8080 全部藏起来。
+> **今天目标**：为 course-mall 建立生产入口基线：Nginx 终止 TLS、限制请求并反向代理到网关集群。自签证书只用于本地验证，不能称为生产证书。
 
 ## 一、前置条件
 
@@ -91,6 +91,8 @@ upstream mall-gateway {
     server host.docker.internal:9000;
 }
 
+limit_req_zone $binary_remote_addr zone=api_per_ip:10m rate=20r/s;
+
 server {
     listen 80;                    # 先监听 80，步骤 5 改成 443
     server_name localhost;
@@ -98,12 +100,20 @@ server {
     # 所有 /api/ 开头的请求，转发给上面的网关组
     location /api/ {
         proxy_pass http://mall-gateway;   # 注意：末尾没有斜杠！路径会原样透传
+        proxy_http_version 1.1;
+        client_max_body_size 20m;
+        proxy_connect_timeout 3s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        limit_req zone=api_per_ip burst=40 nodelay;
 
-        # ---- 下面四个头是「透传客户端真实信息」，每个都有用 ----
-        proxy_set_header Host $host;                              # 1. 原样带上客户端请求的域名
-        proxy_set_header X-Real-IP $remote_addr;                  # 2. 真实客户端 IP（直接连 Nginx 的那一端）
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; # 3. 完整的 IP 链：把客户端 IP 追加到已有的 XFF 后面
-        proxy_set_header X-Forwarded-Proto $scheme;               # 4. 原始协议 http/https（SSL 终止在 Nginx，后端默认以为都是 http）
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # 当前 Nginx 是唯一可信边缘，覆盖客户端伪造的 XFF。
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header Authorization $http_authorization;
     }
 }
 ```
@@ -111,7 +121,7 @@ server {
 关键点（为什么这么写）：
 
 - **`proxy_pass http://mall-gateway` 末尾不带斜杠**：不带 URI 时，请求路径**原样透传**。客户端请求 `/api/health` → Nginx 转发给网关的仍然是 `/api/health`，正好命中 Day16 网关里 `Path=/api/**` 的路由断言，再经 `lb://mall-user` 到用户服务。如果末尾加了斜杠 `/`，路径会被改写，规则完全不同（见下面的面试题）。
-- **`X-Real-IP` 和 `X-Forwarded-For`**：Nginx 转发时，后端看到的 TCP 连接对端是 Nginx 的 IP。不配这些头，后端日志里所有请求都「来自 Nginx」，出问题没法排查、风控和限流也全部失效。
+- **`X-Real-IP` 和 `X-Forwarded-For`**：当前拓扑只有一个可信边缘，所以用 `$remote_addr` 覆盖客户端传入值，避免伪造 IP 绕过风控。如果前面还有云负载均衡，必须用 `set_real_ip_from` 只信任其固定网段，再使用 `$realip_remote_addr`。
 - **`X-Forwarded-Proto`**：步骤 5 之后 HTTPS 在 Nginx 层就终止了（解密后明文转发给后端），网关默认会以为请求都是 http。带上这个头，后端才知道「原始请求是 https」。
 
 保存后重载配置并验证：
@@ -161,53 +171,7 @@ curl http://localhost/api/health
 
 一台网关是单点：它一挂，全站挂。负载均衡的思路是**起多台网关，Nginx 把请求轮流分发**。我们的 Nginx 前面已经挡了网关集群一层，网关到微服务之间还有 Nacos 的 `lb://` 客户端负载均衡（Day15/16 做过）——这就是经典的**两层负载均衡**。
 
-#### 4.1 给网关加一个「自报家门」接口（验证负载均衡要用）
-
-要亲眼看到请求被分到不同网关实例，得先让网关能「说出自己是谁」。在 `mall-gateway` 模块加一个接口，返回自己的端口：
-
-新建 `E:\course-mall\mall-gateway\src\main\java\com\mall\gateway\controller\SelfController.java`：
-
-```java
-package com.mall.gateway.controller;
-
-import com.mall.common.result.Result;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Mono;
-
-import java.util.Map;
-
-// 网关是 WebFlux 应用（Day16 讲过：没有 spring-boot-starter-web），
-// 注解式 Controller 依然可用，但返回值要包成 Mono（响应式流）
-@RestController
-public class SelfController {
-
-    // 读的是当前实例自己的端口：9000 实例返回 9000，9001 实例返回 9001
-    @Value("${server.port}")
-    private String port;
-
-    @GetMapping("/gateway/self")
-    public Mono<Result<Map<String, String>>> self() {
-        return Mono.just(Result.ok(Map.of("instance", "mall-gateway", "port", port)));
-    }
-}
-```
-
-然后把 `/gateway/self` 加进 Day16 写的 `AuthGlobalFilter` 白名单（不加的话会被 JWT 拦截返回 401）：
-
-```java
-// 白名单：这些路径不用登录。health 是探活；login/register 是 Day3/4 的登录注册；
-// /gateway/self 是今天加的「自报家门」接口，只用来观察负载均衡效果，不用登录
-private static final Set<String> WHITE_LIST = Set.of(
-        "/api/health",
-        "/api/user/login",
-        "/api/user/register",
-        "/gateway/self"
-);
-```
-
-#### 4.2 起两个网关实例
+#### 4.1 起两个网关实例
 
 在 `E:\course-mall\` 根目录开两个终端：
 
@@ -221,7 +185,7 @@ mvn -pl mall-gateway spring-boot:run "-Dspring-boot.run.arguments=--server.port=
 
 关键点：`--server.port=9001` 是**命令行参数覆盖 yml**——Spring Boot 配置优先级里，命令行参数 > 配置文件。两个实例会注册到 Nacos 同名服务 `mall-gateway` 下，这是正常的（同一服务的多实例）。
 
-#### 4.3 upstream 加一台，验证轮询
+#### 4.2 upstream 加一台，验证轮询
 
 修改 `course-mall.conf` 的 upstream：
 
@@ -233,39 +197,33 @@ upstream mall-gateway {
 }
 ```
 
-再给 server 块加一条 location（`/gateway/self` 也转发给网关组）：
+不要为了演示负载均衡新增并公开 `/gateway/self`，更不要把调试接口加入认证白名单。直接把 Nginx access log 加上 `$upstream_addr`：
 
 ```nginx
-    location /gateway/ {
-        proxy_pass http://mall-gateway;   # 同样不带斜杠，原样透传 /gateway/self
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+log_format upstream_log '$request_id $remote_addr "$request" $status '
+                        'upstream=$upstream_addr rt=$request_time urt=$upstream_response_time';
+access_log /var/log/nginx/access.log upstream_log;
 ```
 
-重载后连续请求 6 次（Git Bash 的 for 循环）：
+重载后连续请求 6 次，再查看日志：
 
 ```bash
 docker exec course-mall-nginx nginx -t && docker exec course-mall-nginx nginx -s reload
 
-for i in 1 2 3 4 5 6; do curl -s http://localhost/gateway/self; echo; done
+for i in 1 2 3 4 5 6; do curl -s http://localhost/api/health > /dev/null; done
+docker logs course-mall-nginx --tail 10
 ```
 
-预期输出（`port` 在 9000 和 9001 之间交替，顺序可能有细微差别，但两个都会出现）：
+预期日志中的 `upstream=` 在两个地址间轮换：
 
-```json
-{"code":200,"message":"success","data":{"instance":"mall-gateway","port":"9000"}}
-{"code":200,"message":"success","data":{"instance":"mall-gateway","port":"9001"}}
-{"code":200,"message":"success","data":{"instance":"mall-gateway","port":"9000"}}
-{"code":200,"message":"success","data":{"instance":"mall-gateway","port":"9001"}}
-...
+```text
+upstream=host.docker.internal:9000
+upstream=host.docker.internal:9001
 ```
 
 看到两个端口交替出现，就说明 Nginx 真的在把请求轮流分发给两台网关——这就是负载均衡。
 
-#### 4.4 其他分发策略（面试要会背）
+#### 4.3 其他分发策略（面试要会背）
 
 | 策略 | 写法 | 适合场景 |
 |---|---|---|
@@ -330,6 +288,8 @@ upstream mall-gateway {
     server host.docker.internal:9001;
 }
 
+limit_req_zone $binary_remote_addr zone=api_per_ip:10m rate=20r/s;
+
 # ===== HTTP 入口：只做一件事——301 跳到 HTTPS =====
 server {
     listen 80;
@@ -350,21 +310,28 @@ server {
 
     # 只允许安全版本：禁用 SSLv3 / TLS1.0 / TLS1.1（都已被攻破）
     ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 10m;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
 
     location /api/ {
         proxy_pass http://mall-gateway;
+        proxy_http_version 1.1;
+        client_max_body_size 20m;
+        proxy_connect_timeout 3s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+        limit_req zone=api_per_ip burst=40 nodelay;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;   # 解密后转发时告诉后端「原来是 https」
-    }
-
-    location /gateway/ {
-        proxy_pass http://mall-gateway;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header Authorization $http_authorization;
     }
 }
 ```
@@ -387,13 +354,13 @@ curl -I http://localhost/api/health
 curl -k https://localhost/api/health
 # → 和之前一样的 200 JSON
 
-# 3) HTTPS 下的负载均衡依然生效
-for i in 1 2 3 4; do curl -ks https://localhost/gateway/self; echo; done
-# → port 在 9000/9001 交替
+# 3) HTTPS 下的负载均衡依然生效：请求后检查 access log 的 upstream_addr
+for i in 1 2 3 4; do curl -ks https://localhost/api/health > /dev/null; done
+docker logs course-mall-nginx --tail 10
 ```
 
 ::: tip 💡 面试题：HTTPS 为什么安全？对称加密和非对称加密各扮演什么角色？
-**一句话**：HTTPS = HTTP + TLS。TLS 握手时用**非对称加密**（公钥/私钥）安全地交换出一个「会话密钥」，之后的数据传输用这个密钥做**对称加密**——因为非对称安全但慢，对称快但密钥分发难，**混合使用**才既安全又高效。证书的作用是证明「这个公钥确实属于这个网站」。详见 [Nginx](/learn_backend/java/微服务/Nginx)。
+**一句话**：HTTPS = HTTP + TLS。现代 TLS 通常通过 ECDHE 协商共享密钥，用证书私钥签名来证明服务器身份，后续数据再用高效的对称加密保护机密性和完整性。证书不是“拿公钥直接加密全部 HTTP 数据”。详见 [Nginx](/learn_backend/java/微服务/Nginx)。
 :::
 
 ::: tip 💡 面试题：为什么浏览器访问自签证书的网站会警告「不安全」？
@@ -411,8 +378,9 @@ curl http://localhost:9000/api/health
 # ② 反向代理：走 Nginx 80，能拿到业务数据
 curl http://localhost/api/health
 
-# ③ 负载均衡：多次请求在两个网关实例间轮询
-for i in 1 2 3 4 5 6; do curl -s http://localhost/gateway/self; echo; done
+# ③ 负载均衡：多次请求后检查 Nginx access log 的 upstream_addr
+for i in 1 2 3 4 5 6; do curl -ks https://localhost/api/health > /dev/null; done
+docker logs course-mall-nginx --tail 10
 
 # ④ HTTPS：443 通，80 自动 301
 curl -k https://localhost/api/health
@@ -436,7 +404,7 @@ curl -I http://localhost/api/health
 
 - [ ] 完成时间：`____年__月__日`
 - [ ] `curl http://localhost/api/health` 走 Nginx 返回和直连 9000 一致：是 / 否
-- [ ] 两个 gateway 实例（9000/9001）都启动，`/gateway/self` 连续请求能看到端口轮询：是 / 否
+- [ ] 两个 gateway 实例（9000/9001）都启动，access log 的 `upstream_addr` 能看到轮询：是 / 否
 - [ ] `curl -k https://localhost/api/health` 通，`curl -I http://localhost/api/health` 返回 301：是 / 否
 - [ ] 踩坑记录（80 被占用、host.docker.internal 不通、proxy_pass 加斜杠导致 404、证书路径写错等）：
 - [ ] 疑问（有就写，我来答）：

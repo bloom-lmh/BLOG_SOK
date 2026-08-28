@@ -1,6 +1,6 @@
 # Day 27 · 容器化（Dockerfile + 镜像 + Compose 编排）
 
-> **今天目标**：把 course-mall 装进 Docker——给每个微服务写 Dockerfile（多阶段构建），给 MySQL/Redis/Nacos 写 docker-compose.yml 一键编排，最后 `docker compose up -d` 一条命令把整个系统拉起来。完成后你拥有一个和真实公司一样的「一键部署」环境，这也是简历上「部署」能力的具体体现。
+> **今天目标**：先把 `mall-user + mall-gateway + MySQL + Redis + Nacos` 做成可部署的纵向切片，再用同一模板扩展到 course/order/stock/payment/seckill/search。重点是可重复构建、非 root 运行、配置外置、健康检查和不泄露密钥。
 
 ## 一、前置条件
 
@@ -12,8 +12,8 @@
 ## 二、今天完成后你会得到什么
 
 1. `E:\course-mall\mall-user\Dockerfile`、`mall-gateway\Dockerfile`（其余模块照葫芦画瓢）
-2. `E:\course-mall\deploy\docker-compose.yml`——MySQL + Redis + Nacos + mall-user + mall-gateway 一键编排
-3. 一条命令 `docker compose up -d` 启动整个系统，`docker compose down` 全部关掉
+2. `E:\course-mall\deploy\docker-compose.yml`——首个纵向切片一键编排；其余服务按清单逐个加入
+3. 一条命令启动或停止首个可部署纵向切片，并掌握扩展到其余服务的方法
 4. 三个容器基础设施（MySQL/Redis/Nacos）数据用数据卷持久化，容器删了数据还在
 
 ## 三、步骤
@@ -72,12 +72,16 @@ RUN mvn -B -q package -pl mall-user -am -DskipTests
 # ============ 第 2 阶段：运行（只留运行时） ============
 # 为什么第 2 阶段换 JRE 镜像：构建阶段那个镜像有 Maven+JDK+缓存，几百 MB；
 # 最终镜像只需要 JRE + jar，瘦身后只有约 200MB——这就是「多阶段构建」的意义
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
+
+# 运行阶段使用普通用户；curl 只用于 Actuator 健康检查。
+RUN addgroup -S spring && adduser -S spring -G spring && apk add --no-cache curl
 
 # 为什么 --from=builder：从第 1 阶段的产物里拷贝，而不是从宿主机拷贝
 # *.jar 通配符：Spring Boot 打出来的 fat jar（含全部依赖），名字带版本号
-COPY --from=builder /build/mall-user/target/*.jar app.jar
+COPY --from=builder --chown=spring:spring /build/mall-user/target/*.jar app.jar
+USER spring
 
 # 为什么 EXPOSE：声明容器要用的端口（文档性质，真正映射靠 docker run -p）
 EXPOSE 8080
@@ -129,9 +133,11 @@ COPY mall-common/src mall-common/src
 COPY mall-gateway/src mall-gateway/src
 RUN mvn -B -q package -pl mall-gateway -am -DskipTests
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-COPY --from=builder /build/mall-gateway/target/*.jar app.jar
+RUN addgroup -S spring && adduser -S spring -G spring && apk add --no-cache curl
+COPY --from=builder --chown=spring:spring /build/mall-gateway/target/*.jar app.jar
+USER spring
 EXPOSE 9000
 ENTRYPOINT ["java", "-Duser.timezone=GMT+8", "-jar", "/app/app.jar"]
 ```
@@ -154,8 +160,8 @@ docker run --rm course-mall/mall-user:1.0
 # 同时用环境变量覆盖数据源地址（Spring Boot 的环境变量优先级高于 application.yml）
 docker run --rm -p 8080:8080 \
   -e SPRING_DATASOURCE_URL="jdbc:mysql://host.docker.internal:3306/course_mall?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8" \
-  -e SPRING_DATASOURCE_USERNAME=root \
-  -e SPRING_DATASOURCE_PASSWORD=你的MySQL密码 \
+  -e SPRING_DATASOURCE_USERNAME=course_mall_app \
+  -e SPRING_DATASOURCE_PASSWORD="$MYSQL_APP_PASSWORD" \
   -e SPRING_DATA_REDIS_HOST=host.docker.internal \
   -e SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR=host.docker.internal:8848 \
   course-mall/mall-user:1.0
@@ -172,7 +178,7 @@ docker run --rm -p 8080:8080 \
 创建 `E:\course-mall\deploy\docker-compose.yml`：
 
 ```yaml
-# deploy/docker-compose.yml —— 一条命令拉起 MySQL + Redis + Nacos + 两个业务服务
+# deploy/docker-compose.yml —— 首个纵向切片；敏感值从同目录 .env 读取
 # 为什么用 Compose：五个容器要一起启动、互相通信（业务服务要连 mysql/redis/nacos），
 # Compose 帮我们做三件事：组网（同一个 compose 网络内可以用「服务名」互相访问）、
 # 按依赖顺序启动、一条命令整体管理
@@ -185,12 +191,12 @@ services:
     container_name: course-mall-mysql
     environment:
       # 为什么密码用环境变量传：不写死在镜像/文件里，换环境改一行配置即可
-      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在deploy/.env配置}
       TZ: Asia/Shanghai
     ports:
       # 为什么映射成 3307 而不是 3306：你本机 Windows 上已经装了 MySQL 占着 3306，
       # 容器再映射 3306 会端口冲突。宿主机 3307 → 容器 3306
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       # 为什么挂数据卷：容器删除后 /var/lib/mysql 里的数据会一起消失，
       # 挂到命名卷 mysql-data 后，容器删了重建数据还在（生产必须这么做）
@@ -203,7 +209,7 @@ services:
     healthcheck:
       # 为什么加 healthcheck：depends_on 只保证「容器启动了」，不保证「MySQL 就绪了」。
       # 用 mysqladmin ping 检测真正就绪，业务服务用 condition: service_healthy 等它
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p123456"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p\"$${MYSQL_ROOT_PASSWORD}\""]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -213,7 +219,7 @@ services:
     image: redis:7.2
     container_name: course-mall-redis
     ports:
-      - "6380:6379"          # 同样避开本机已占用的 6379
+      - "127.0.0.1:6380:6379"          # 仅绑定本机，不暴露到局域网
     volumes:
       - redis-data:/data     # Redis 数据持久化目录
     # 为什么 appendonly yes：开启 AOF 持久化，容器重启后缓存数据不丢
@@ -225,10 +231,10 @@ services:
     container_name: course-mall-nacos
     environment:
       MODE: standalone                  # 单机模式（生产集群才用 cluster）
-      NACOS_AUTH_ENABLE: "false"        # 关闭鉴权，方便本地调试
+      NACOS_AUTH_ENABLE: "false"        # 只允许本机开发；生产必须开启鉴权并限制网络
     ports:
-      - "8848:8848"   # Nacos 控制台 + HTTP 接口
-      - "9848:9848"   # gRPC 客户端端口——Spring Cloud Alibaba 2.2.x+ 客户端必须能连它，
+      - "127.0.0.1:8848:8848"   # 本地开发控制台
+      - "127.0.0.1:9848:9848"   # gRPC 客户端端口——Spring Cloud Alibaba 2.2.x+ 客户端必须能连它，
                       # 只映射 8848 服务会注册失败（高频踩坑点）
 
   # ---------- 业务服务 1：mall-user ----------
@@ -249,15 +255,23 @@ services:
       # 为什么这里写 mysql:3306 而不是 localhost：
       # Compose 把五个容器放进同一个网络，容器之间用「服务名」互访——mysql 就是那台 MySQL
       SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/course_mall?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true"
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: "123456"
+      SPRING_DATASOURCE_USERNAME: course_mall_app
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:?请在deploy/.env配置}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      JWT_SECRET: ${JWT_SECRET:?请在deploy/.env配置}
       TZ: Asia/Shanghai
-    ports:
-      - "8080:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
   # ---------- 业务服务 2：mall-gateway ----------
   mall-gateway:
@@ -274,7 +288,12 @@ services:
     environment:
       # 网关只连 Nacos（路由 lb:// 走服务发现），不需要数据库
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      JWT_SECRET: ${JWT_SECRET:?请在deploy/.env配置}
       TZ: Asia/Shanghai
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - "9000:9000"
 
@@ -285,11 +304,32 @@ volumes:
   redis-data:
 ```
 
+在 `deploy/.env.example` 只提交变量名，在本地复制成 `deploy/.env`；`.env` 必须加入 `.gitignore`：
+
+```dotenv
+MYSQL_ROOT_PASSWORD=请替换为本地强密码
+MYSQL_APP_PASSWORD=请替换为应用账号密码
+JWT_SECRET=至少32字节且不要提交Git
+```
+
+`init.sql` 还要创建最小权限业务账号，业务容器不能使用 root：
+
+```sql
+CREATE USER IF NOT EXISTS 'course_mall_app'@'%' IDENTIFIED BY '<与MYSQL_APP_PASSWORD一致>';
+GRANT SELECT, INSERT, UPDATE, DELETE ON course_mall.* TO 'course_mall_app'@'%';
+```
+
+本地 Compose 的环境变量替换不会自动改写 SQL 文件中的占位符。可用单独的初始化脚本读取环境变量，或首次启动后执行授权；不要把真实密码写入仓库中的 `init.sql`。
+
+业务服务需引入 Actuator，并只暴露 `health/readiness`、`health/liveness`。Security 白名单只放行这两个探针路径，不要公开全部 `/actuator/**`。
+
+纵向切片通过后，按相同模板加入并验收：`mall-course:8081`、`mall-order:8082`、`mall-stock:8083`、`mall-payment:8084`、`mall-seckill:8085`、`mall-search:8086`。内部服务不映射宿主机端口，仅 Gateway 映射 `9000`；ES、RocketMQ、Seata、Canal 使用独立 Compose profile，避免日常开发一次启动全部重型中间件。
+
 ::: tip 💡 面试题：`depends_on` 能保证 MySQL 先就绪吗？为什么还要 `healthcheck`？
 **一句话**：`depends_on` 只保证「容器 A 在容器 B 之后启动」，但 MySQL 容器「启动了」不代表「数据库能接受连接了」（初始化数据、加载引擎还要几秒到几十秒）；`healthcheck` + `condition: service_healthy` 才是「等服务真正可用」——不配的话业务服务会在 MySQL 就绪前连库失败而崩溃重启。详见 [Docker](/learn_maintenance/Docker)。
 :::
 
-### 步骤 6：准备 init.sql，启动整个栈
+### 步骤 6：准备 init.sql，启动纵向切片
 
 1. 把 **Day 02 的建库建表 SQL** 保存到 `E:\course-mall\deploy\mysql\init.sql`（Day02 文档里的 11 张表 DDL，加一行 `CREATE DATABASE IF NOT EXISTS course_mall DEFAULT CHARACTER SET utf8mb4;` 和 `USE course_mall;`）
 2. 启动（第一次会自动 build 两个业务镜像 + 拉三个基础镜像，耐心等几分钟）：
@@ -297,7 +337,7 @@ volumes:
 ```bash
 cd /e/course-mall/deploy
 docker compose up -d          # -d：后台运行（detach）
-docker compose ps             # 五个容器都应该 Up
+docker compose ps             # 当前五个容器都应该 Up/healthy
 ```
 
 3. 验证：
@@ -307,7 +347,7 @@ docker compose ps             # 五个容器都应该 Up
 curl http://localhost:9000/api/health
 
 # 容器里的 MySQL（映射在宿主机 3307）里有没有表
-docker exec course-mall-mysql mysql -uroot -p123456 -e "SHOW TABLES FROM course_mall;"
+docker compose exec mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SHOW TABLES FROM course_mall"'
 
 # Nacos 控制台 http://localhost:8848 能看到 mall-user 注册进来（IP 是容器网段 IP）
 ```

@@ -4,14 +4,14 @@
 
 ## 一、前置条件
 
-- 已完成 **Day 13（服务拆分 + Nacos 注册）**：`mall-user` 已注册到 Nacos，父 pom 已引入 Spring Cloud Alibaba 的 BOM（版本 `2023.0.1.2`）
+- 已完成 **Day 13（服务拆分 + Nacos 注册）**：父 pom 已引入 Spring Cloud Alibaba `2023.0.1.0` BOM
 - 已完成 **Day 14（配置中心）**：`mall-user` 能从 Nacos 拉配置，`dev` 命名空间已建好
 - 已完成 **Day 15（OpenFeign）/ Day 16（Gateway）**：知道「服务间远程调用」「统一入口」的存在（本天只动 `mall-user`，但熔断的对象通常是这些远程调用）
 - **Nacos Server 已启动**（`http://localhost:8848/nacos`，账号 `nacos/nacos`）
 
 > 本天额外需要一个新组件：**Sentinel 控制台（Dashboard）**，步骤 1 会下载并启动它。
 >
-> ⚠️ 提醒：Day 16 的网关（9000）有全局 JWT 鉴权，`/api/sentinel/**` 不在白名单里。今天的实验**直接 curl 8080（直连 mall-user）**最省事；想走网关就带上 Day 4 登录拿到的 token。
+> ⚠️ 实验端点只在 `dev` 环境开启，并要求管理员 Token。统一从 9000 网关访问；不把“直连服务绕过网关”当作正常联调方案。
 
 ## 二、先搞懂：Sentinel 到底在解决什么问题
 
@@ -55,7 +55,7 @@ Sentinel 就是「流量防卫兵」，在服务「撑不住之前」就出手�
 **下载并启动控制台**（控制台本身是个独立 Spring Boot 应用，和业务服务无关）：
 
 ```bash
-# 1. 下载 Dashboard（版本 1.8.6，与 SCA 2023.0.1.2 内置的 Sentinel 版本对应）
+# 1. 下载 Dashboard（版本 1.8.6，与本课程 SCA 2023.0.1.0 对应）
 #    下载地址：https://github.com/alibaba/Sentinel/releases/download/1.8.6/sentinel-dashboard-1.8.6.jar
 
 # 2. 启动（用 8858 端口，避开 mall-user 的 8080）
@@ -70,6 +70,8 @@ java -Dserver.port=8858 -jar sentinel-dashboard-1.8.6.jar
 
 ### 步骤 2：流控（QPS 限流）
 
+下面的批量命令使用 Bash/Git Bash，先设置 `ADMIN_TOKEN='<管理员Token>'`。PowerShell 则使用 `$env:ADMIN_TOKEN='<管理员Token>'`，命令中改读 `$env:ADMIN_TOKEN`。
+
 新建演示接口 `E:\course-mall\mall-user\src\main\java\com\mall\user\controller\SentinelController.java`（本天四个功能都在这一个 Controller 里）：
 
 ```java
@@ -78,7 +80,13 @@ package com.mall.user.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.mall.common.result.ErrorCode;
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
 import com.mall.common.result.Result;
+import jakarta.validation.constraints.Positive;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -88,6 +96,9 @@ import org.springframework.web.bind.annotation.RestController;
 // 用 @SentinelResource 把每个接口注册成 Sentinel 的「资源」
 @RestController
 @RequestMapping("/api/sentinel")
+@Validated
+@Profile("dev")
+@PreAuthorize("hasRole('ADMIN')")
 public class SentinelController {
 
     // ---------- 1. 流控（QPS 限流）----------
@@ -101,7 +112,7 @@ public class SentinelController {
 
     // blockHandler 方法签名规则：参数和原方法一致 + 末尾多一个 BlockException，返回类型一致
     public Result<String> flowBlockHandler(BlockException ex) {
-        return Result.fail(429, "系统繁忙，请稍后重试（QPS 限流触发）");
+        return Result.fail(ErrorCode.TOO_MANY_REQUESTS);
     }
 }
 ```
@@ -124,7 +135,7 @@ spring:
 
 ```bash
 mvn -pl mall-user spring-boot:run      # 在 E:\course-mall\ 根目录
-curl http://localhost:8080/api/sentinel/flow
+curl -H "Authorization: Bearer <ADMIN_TOKEN>" http://localhost:9000/api/sentinel/flow
 ```
 
 **到控制台配流控规则**：`http://localhost:8858` → 左侧「流控规则」→ 新增：
@@ -140,7 +151,7 @@ curl http://localhost:8080/api/sentinel/flow
 **验证**：快速连续发 20 个请求：
 
 ```bash
-for i in {1..20}; do curl -s http://localhost:8080/api/sentinel/flow; echo; done
+for i in {1..20}; do curl -s -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:9000/api/sentinel/flow; echo; done
 ```
 
 预期：前 2 个返回 `flow 正常访问`，后面全部返回 `code:429` 的限流 JSON。
@@ -173,12 +184,13 @@ for i in {1..20}; do curl -s http://localhost:8080/api/sentinel/flow; echo; done
 
     // DegradeException 也是 BlockException 的子类，所以「熔断打开」时走 blockHandler
     public Result<String> degradeBlockHandler(BlockException ex) {
-        return Result.fail(500, "课程服务熔断中，已降级兜底");
+        return Result.fail(ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 场景B「降级」：业务方法抛异常 → 走 fallback（返回兜底结果，而不是把异常抛给前端）
     @GetMapping("/fallback")
-    @SentinelResource(value = "fallback", fallback = "fallbackHandler")
+    @SentinelResource(value = "fallback", fallback = "fallbackHandler",
+            exceptionsToIgnore = BizException.class)
     public Result<String> fallback() {
         // 模拟下游课程服务挂了：直接抛业务异常
         throw new RuntimeException("下游课程服务调用失败");
@@ -186,7 +198,7 @@ for i in {1..20}; do curl -s http://localhost:8080/api/sentinel/flow; echo; done
 
     // fallback 方法签名规则：参数和原方法一致 + 末尾多一个 Throwable，返回类型一致
     public Result<String> fallbackHandler(Throwable t) {
-        return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), "课程查询降级兜底：" + t.getMessage());
+        return Result.fail(ErrorCode.SERVICE_UNAVAILABLE);
     }
 ```
 
@@ -204,7 +216,7 @@ for i in {1..20}; do curl -s http://localhost:8080/api/sentinel/flow; echo; done
 **验证熔断**：连续打 10 次（每次 sleep 200ms，100% 慢调用，超过 50% 阈值）：
 
 ```bash
-for i in {1..10}; do curl -s http://localhost:8080/api/sentinel/degrade; echo; done
+for i in {1..10}; do curl -s -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:9000/api/sentinel/degrade; echo; done
 ```
 
 预期：前几个返回 `degrade 正常返回（耗时 200ms）`，第 5 个之后熔断打开，请求**瞬间**返回 `课程服务熔断中`（不再等 200ms）。
@@ -212,7 +224,7 @@ for i in {1..10}; do curl -s http://localhost:8080/api/sentinel/degrade; echo; d
 **验证降级 fallback**：
 
 ```bash
-curl -s http://localhost:8080/api/sentinel/fallback
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:9000/api/sentinel/fallback
 ```
 
 预期返回 `code:500` + `课程查询降级兜底：下游课程服务调用失败`。如果不配 `fallback`，这个 `RuntimeException` 会冒泡到 Day01 的 `GlobalExceptionHandler` 返回 500——**降级就是提前把异常处理掉，返回一个有意义的兜底结果**。
@@ -234,13 +246,13 @@ curl -s http://localhost:8080/api/sentinel/fallback
     // paramIdx=0（第一个参数 courseId）作为「热点」维度：对热门课程单独限流
     @GetMapping("/hot")
     @SentinelResource(value = "hot", blockHandler = "hotBlockHandler")
-    public Result<String> hot(@RequestParam Long courseId) {
+    public Result<String> hot(@RequestParam @Positive Long courseId) {
         return Result.ok("查询课程 " + courseId + " 成功");
     }
 
     // 注意：blockHandler 要带上原方法的参数（courseId），签名才能和原方法对上
     public Result<String> hotBlockHandler(Long courseId, BlockException ex) {
-        return Result.fail(429, "课程 " + courseId + " 访问过热，已限流");
+        return Result.fail(ErrorCode.TOO_MANY_REQUESTS);
     }
 ```
 
@@ -256,7 +268,7 @@ curl -s http://localhost:8080/api/sentinel/fallback
 **验证**：对**同一个** `courseId=1` 连续打 20 次：
 
 ```bash
-for i in {1..20}; do curl -s "http://localhost:8080/api/sentinel/hot?courseId=1"; echo; done
+for i in {1..20}; do curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "http://localhost:9000/api/sentinel/hot?courseId=1"; echo; done
 ```
 
 预期：第一个返回 `查询课程 1 成功`，后面返回 `课程 1 访问过热`。换个 `courseId=2` 又能正常访问——这就是「热点」：限流是按**参数值**维度的，不是对整个接口一刀切。
@@ -269,7 +281,7 @@ for i in {1..20}; do curl -s "http://localhost:8080/api/sentinel/hot?courseId=1"
 
 **问题**：上面在控制台配的规则，都存在 Sentinel 客户端**内存**里——服务重启就没了，而且控制台推的规则只对单个实例生效。生产上要把规则外置到**配置中心**。
 
-**方案**：让 Sentinel 启动时从 Nacos **读取**规则（Pull 模式）。先把 `sentinel-datasource-nacos` 依赖加进 `mall-user/pom.xml`：
+**方案**：使用 Nacos DataSource 让 Sentinel 启动时读取规则，并监听 Nacos 配置变更。先把 `sentinel-datasource-nacos` 依赖加进实际受保护的服务 `pom.xml`：
 
 ```xml
 <!-- Sentinel 规则数据源：从 Nacos 读规则（持久化用）。部分 SCA 版本已传递引入，显式声明更稳妥 -->
@@ -380,12 +392,12 @@ spring:
 
 ```bash
 # 重启后，规则已从 Nacos 加载，不再需要去控制台手动配
-for i in {1..20}; do curl -s http://localhost:8080/api/sentinel/flow; echo; done
+for i in {1..20}; do curl -s -H "Authorization: Bearer $ADMIN_TOKEN" http://localhost:9000/api/sentinel/flow; echo; done
 ```
 
 预期：不用控制台配置，重启后依然限流（前 2 个成功，后面 429）。说明规则已经从 Nacos 读进来了。
 
-> ⚠️ 注意：本天用的是 **Pull 模式**——规则由你自己写进 Nacos，客户端启动时拉取。**控制台里配的规则不会写回 Nacos**（控制台只把规则推到客户端内存），所以配了 `datasource` 后，应把 Nacos 当作「规则的唯一来源」，控制台只当监控视图看。生产级做法是 **Push 模式**（改造控制台源码，规则一保存就推到 Nacos 再广播到所有实例），本系列 Day 30 复盘再展开。
+> ⚠️ 开源 Sentinel Dashboard 中直接修改的规则默认只在客户端内存生效，不会自动写回 Nacos。接入 DataSource 后把 Nacos 作为规则唯一来源；生产中通常改造管理端，让变更先持久化再下发。
 
 ::: tip 💡 面试题：Sentinel 规则默认存哪里？为什么重启就丢？怎么持久化？
 **一句话**：默认存在客户端**内存**（`RuleManager` 的 Map）里，重启即丢、且只对单机生效；持久化用 `datasource` 把规则外置到 Nacos 等配置中心，客户端启动时读取。详见 [Sentinel](/learn_backend/java/微服务/Sentinel)。

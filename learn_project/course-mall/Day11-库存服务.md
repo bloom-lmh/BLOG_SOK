@@ -23,7 +23,7 @@
 ```java
 // ❌ 反例：会超卖，不要这么写
 public void deductNaive(Long courseId, Integer count) {
-    CourseStock stock = courseStockMapper.selectById(courseId);  // 1. 查：stock = 1
+    Course stock = courseStockMapper.selectById(courseId);       // 1. 查：stock = 1
     if (stock.getStock() < count) {
         throw new BizException(ErrorCode.STOCK_INSUFFICIENT);
     }
@@ -44,7 +44,7 @@ public void deductNaive(Long courseId, Integer count) {
 
 解决思路有两条路，今天两条都给你，最后对比：
 
-- **路线 A（乐观锁）**：给表加 `version` 字段，更新时带上 `WHERE version = 旧值`，谁先把版本号 +1 谁成功，失败的重新读、重试。这是今天的**主线**。
+- **路线 A（乐观锁）**：更新时带上 `WHERE version = 旧值`，影响 0 行说明发生冲突；调用方根据业务决定刷新、报冲突或有限重试。
 - **路线 B（原子 SQL）**：把「检查 + 扣减」合成一条 `UPDATE ... WHERE stock >= count`，交给数据库原子执行。是生产上扣库存最常用的做法。
 
 ## 四、步骤
@@ -63,7 +63,7 @@ UPDATE course SET stock = 100, version = 0 WHERE id = 1;
 
 **为什么 `version` 能当乐观锁？**
 
-`version` 就是一条记录的「版本号」。每次成功更新都把它 +1。更新语句带上 `WHERE version = 旧值`，如果期间有别人更新过（version 已经 +1 了），这条 `WHERE` 就匹配不到行 → 影响行数为 0 → 说明「我读到的数据过期了」，重试即可。
+`version` 就是一条记录的版本号。每次成功更新都把它 +1；若期间有人先更新，旧版本条件匹配不到，影响行数为 0。检测到冲突不代表一定自动重试：绝对值覆盖应让用户刷新，可安全重放的增量操作才考虑有限重试。
 
 ::: tip 💡 面试题：乐观锁和悲观锁的区别？各自适用场景？
 **一句话**：乐观锁**不加锁**，靠版本号/CAS 在更新时校验冲突，冲突了重试，适合**读多写少、冲突概率低**（如库存、点赞数）；悲观锁**先加锁再操作**（`SELECT ... FOR UPDATE` 或 synchronized），全程阻塞别人，适合**冲突概率高、写多**的场景。乐观锁不阻塞、吞吐高，但冲突多时重试成本大。详见 [并发编程](/learn_backend/java/Java核心/并发编程)。
@@ -71,15 +71,36 @@ UPDATE course SET stock = 100, version = 0 WHERE id = 1;
 
 ### 步骤 2：创建 `mall-stock` 模块
 
-**2.1 先把模块注册进父工程**。打开 `E:\course-mall\pom.xml`，在 `<modules>` 里加一行：
+**2.1 注册模块与依赖关系**。父工程 `<modules>` 加入：
 
 ```xml
 <modules>
     <module>mall-common</module>
     <module>mall-user</module>
+    <module>mall-course</module>
+    <module>mall-order</module>
     <module>mall-stock</module>   <!-- 新增 -->
 </modules>
 ```
+
+父工程 `dependencyManagement` 增加 `mall-stock`，`mall-user` 增加对它的依赖。Day11 完成后再让 `mall-order` 依赖 `mall-stock`，并删除 Day10 临时的 `com.mall.order.mapper.CourseStockMapper`：
+
+```xml
+<!-- 父工程 dependencyManagement -->
+<dependency>
+    <groupId>com.mall</groupId>
+    <artifactId>mall-stock</artifactId>
+    <version>${project.version}</version>
+</dependency>
+
+<!-- mall-user/pom.xml 与 mall-order/pom.xml -->
+<dependency>
+    <groupId>com.mall</groupId>
+    <artifactId>mall-stock</artifactId>
+</dependency>
+```
+
+最终依赖方向是 `mall-user → mall-order → mall-stock → mall-course → mall-common`，不能反向依赖。
 
 **2.2 新建 `mall-stock/pom.xml`**：
 
@@ -105,179 +126,158 @@ UPDATE course SET stock = 100, version = 0 WHERE id = 1;
             <artifactId>mall-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-course</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
         </dependency>
         <!-- MyBatis-Plus 的 Spring Boot 3 专用 starter：@Version 乐观锁插件就在这里 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <version>3.5.5</version>
-        </dependency>
-        <!-- MySQL 驱动（版本由父工程 BOM 管理，不用写） -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <!-- 测试：并发测试要用 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>
 ```
 
-**2.3 启动类** `E:\course-mall\mall-stock\src\main\java\com\mall\stock\MallStockApplication.java`：
+`mall-stock` 是普通 jar，没有启动类、数据库驱动、独立 `application.yml` 和 Boot 打包插件。修改唯一启动类：
 
 ```java
-package com.mall.stock;
-
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-// scanBasePackages = "com.mall"：和 Day01 一样，扫到 mall-common 里的全局异常处理器
-// @MapperScan：告诉 MyBatis 去哪里找 Mapper 接口（不写的话每个接口上要单独标 @Mapper）
-@SpringBootApplication(scanBasePackages = "com.mall")
-@MapperScan("com.mall.stock.mapper")
-public class MallStockApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(MallStockApplication.class, args);
-    }
-}
-```
-
-**2.4 配置** `E:\course-mall\mall-stock\src\main\resources\application.yml`：
-
-```yaml
-server:
-  port: 8082                     # 8080 是 mall-user，库存服务用 8082
-
-spring:
-  application:
-    name: mall-stock
-  datasource:
-    url: jdbc:mysql://localhost:3306/course_mall?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true
-    username: root
-    password: 你的密码             # ⚠️ 改成你自己的 MySQL root 密码
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true   # 下划线列名自动映射驼峰字段（create_time → createTime）
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl   # 打印 SQL，方便看乐观锁的 WHERE version
+@MapperScan({
+        "com.mall.user.mapper",
+        "com.mall.course.mapper",
+        "com.mall.order.mapper",
+        "com.mall.stock.mapper"
+})
 ```
 
 ### 步骤 3：实体 + Mapper
 
-**3.1 实体** `E:\course-mall\mall-stock\src\main\java\com\mall\stock\entity\CourseStock.java`：
+**3.1 复用课程 Entity**
+
+同一个应用里不要为 `course` 表再复制 `CourseStock` Entity。在 Day06 的 `Course.version` 上添加 `@Version`：
 
 ```java
-package com.mall.stock.entity;
-
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.Version;
-import lombok.Data;
-
-// @TableName("course")：库存实体直接映射 Day02 的 course 表，不另建表
-// 只声明和库存相关的字段即可（MyBatis-Plus 只操作这些字段，其余字段不碰）
-@Data
-@TableName("course")
-public class CourseStock {
-    @TableId
-    private Long id;            // 课程ID（主键）
-
-    private String title;       // 课程标题（查询回显用）
-
-    private Integer stock;      // 库存数量
-
-    // @Version：乐观锁版本号。更新时 MyBatis-Plus 会自动：
-    //   SET version = version + 1   AND  WHERE version = 读到的旧值
-    @Version
-    private Integer version;
-}
+@Version
+private Integer version;
 ```
 
-**3.2 Mapper** `E:\course-mall\mall-stock\src\main\java\com\mall\stock\mapper\CourseStockMapper.java`：
+`Course` 已有 `id/title/stock/version/deletedAt`，库存模块直接复用。
+
+**3.2 Mapper** `E:\CourseMall\mall-stock\src\main\java\com\mall\stock\mapper\CourseStockMapper.java`：
 
 ```java
 package com.mall.stock.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.mall.stock.entity.CourseStock;
+import com.mall.course.entity.Course;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
-public interface CourseStockMapper extends BaseMapper<CourseStock> {
+public interface CourseStockMapper extends BaseMapper<Course> {
 
     // 路线 B：原子扣减。一条 SQL 同时完成「判断 + 扣减」，
     // 数据库层面保证原子性，天然防超卖。返回受影响行数：1=成功，0=库存不足
-    @Update("UPDATE course SET stock = stock - #{count}, version = version + 1 " +
-            "WHERE id = #{courseId} AND stock >= #{count}")
+    @Update("""
+            UPDATE course
+            SET stock = stock - #{count}, version = version + 1
+            WHERE id = #{courseId}
+              AND stock >= #{count}
+              AND status = 1
+              AND deleted_at IS NULL
+            """)
     int deductStock(@Param("courseId") Long courseId, @Param("count") int count);
 
     // 回补库存（取消订单/退款时把库存加回去）：无条件加回，同样把 version +1
-    @Update("UPDATE course SET stock = stock + #{count}, version = version + 1 " +
-            "WHERE id = #{courseId}")
+    @Update("""
+            UPDATE course
+            SET stock = stock + #{count}, version = version + 1
+            WHERE id = #{courseId} AND deleted_at IS NULL
+            """)
     int restoreStock(@Param("courseId") Long courseId, @Param("count") int count);
 }
 ```
 
-> `BaseMapper<CourseStock>` 继承了 `selectById` / `updateById` 等方法，这就是路线 A 乐观锁要用的。而上面两个 `@Update` 是自定义 SQL，走的是路线 B。
+> `BaseMapper<Course>` 的 `updateById` 用来演示路线 A；两个自定义 `@Update` 是订单链路使用的路线 B。
 
-**3.3 乐观锁插件配置** `E:\course-mall\mall-stock\src\main\java\com\mall\stock\config\MybatisPlusConfig.java`：
+**3.3 在 Day06 的同一个 MP 拦截器中加入乐观锁**
 
 ```java
-package com.mall.stock.config;
-
-import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
-public class MybatisPlusConfig {
-
-    // 注册乐观锁插件：不注册的话，@Version 字段不会生效，
-    // updateById 就退化成了「不检查版本号」的普通更新（又会超卖）
-    @Bean
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
-        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
-        return interceptor;
-    }
+@Bean
+public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+    interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+    interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+    return interceptor;
 }
 ```
 
-### 步骤 4：核心 —— StockService（扣减 / 回补 + 乐观锁 + 重试）
+不要再声明第二个 `MybatisPlusInterceptor` Bean；分页、乐观锁等内部插件按顺序放进同一个拦截器。
 
-`E:\course-mall\mall-stock\src\main\java\com\mall\stock\service\StockService.java`：
+### 步骤 4：核心 —— StockService（原子扣减 / 回补 + 乐观锁调整）
+
+先补充库存版本冲突错误码：
+
+```java
+// ErrorCode
+STOCK_VERSION_CONFLICT(409206, MessageKeys.Course.STOCK_VERSION_CONFLICT),
+
+// MessageKeys.Course + 三份 messages*.properties
+public static final String STOCK_VERSION_CONFLICT = "course.stock-version-conflict";
+course.stock-version-conflict=库存已被其他操作修改，请刷新后重试
+```
+
+建立后台调整 DTO 与返回 VO：
+
+```java
+package com.mall.stock.dto;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+public record StockAdjustDTO(
+        @NotNull(message = "{common.param-error}")
+        @Min(value = 0, message = "{common.param-error}") Integer stock,
+        @NotNull(message = "{common.param-error}")
+        @Min(value = 0, message = "{common.param-error}") Integer version) {
+}
+```
+
+```java
+package com.mall.stock.vo;
+
+public record StockVO(Long courseId, String title, Integer stock, Integer version) {
+}
+```
+
+`E:\CourseMall\mall-stock\src\main\java\com\mall\stock\service\StockService.java`：
 
 ```java
 package com.mall.stock.service;
 
 import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
-import com.mall.stock.entity.CourseStock;
+import com.mall.course.entity.Course;
+import com.mall.stock.dto.StockAdjustDTO;
 import com.mall.stock.mapper.CourseStockMapper;
+import com.mall.stock.vo.StockVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -287,66 +287,66 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor   // 生成「所有 final 字段」的构造器，替代 @Autowired 字段注入（更推荐）
 public class StockService {
 
-    private static final int MAX_RETRY = 3;   // 乐观锁冲突最多重试次数
-
     private final CourseStockMapper courseStockMapper;
 
-    /**
-     * 路线 A：乐观锁扣减（MyBatis-Plus @Version）+ 冲突重试
-     *
-     * 思路：读 → 改 → 写，写的时候带上「我读到的版本号」，
-     * 如果版本号变了（别人抢先改了），updateById 返回 0，重新读最新值再试。
-     */
-    public void deductByOptimisticLock(Long courseId, Integer count) {
-        for (int i = 1; i <= MAX_RETRY; i++) {
-            CourseStock stock = courseStockMapper.selectById(courseId);
-            if (stock == null) {
-                throw new BizException(ErrorCode.NOT_FOUND.getCode(), "课程不存在");
-            }
-            if (stock.getStock() < count) {
-                throw new BizException(400, "库存不足");
-            }
-            // 关键：这里 set 的是「读到那一刻」的库存；version 是 select 读到的旧值。
-            // 调用 updateById 时，乐观锁插件会自动拼上 WHERE version = 旧值 并把 version+1
-            stock.setStock(stock.getStock() - count);
-            int rows = courseStockMapper.updateById(stock);
-            if (rows == 1) {
-                log.info("乐观锁扣减成功 courseId={} count={}", courseId, count);
-                return;
-            }
-            // rows == 0：说明这行数据的 version 已经被别的线程改掉了 → 冲突 → 重试
-            log.warn("乐观锁冲突，第 {} 次重试 courseId={}", i, courseId);
-        }
-        // 重试 3 次还是失败：说明并发太激烈，直接抛错让用户稍后再试（而不是无限自旋）
-        throw new BizException(500, "系统繁忙，请稍后再试");
+    public StockVO query(Long courseId) {
+        Course course = requireCourse(courseId);
+        return toVO(course);
     }
 
-    /**
-     * 路线 B：原子 SQL 扣减（生产推荐）
-     *
-     * 把「判断库存够不够 + 扣减」合成一条 SQL，由数据库保证原子性，
-     * 没有「先查再改」的窗口，也就不存在超卖。返回 0 就是库存不足。
-     */
-    public void deductByAtomicSql(Long courseId, Integer count) {
+    /** 订单内部调用：原子判断并扣减，不开放成任意用户可调用的 HTTP 接口。 */
+    public void deduct(Long courseId, int count) {
+        validateCount(count);
         int rows = courseStockMapper.deductStock(courseId, count);
         if (rows == 0) {
-            throw new BizException(400, "库存不足");
+            throw new BizException(ErrorCode.STOCK_INSUFFICIENT);
         }
     }
 
-    /** 回补库存：订单取消/退款时调用，把库存加回去 */
-    public void restoreStock(Long courseId, Integer count) {
+    /** 订单取消/退款内部调用；幂等性由订单状态原子流转保证。 */
+    public void restore(Long courseId, int count) {
+        validateCount(count);
         int rows = courseStockMapper.restoreStock(courseId, count);
         if (rows == 0) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "课程不存在");
+            throw new BizException(ErrorCode.COURSE_NOT_FOUND, courseId);
         }
+    }
+
+    /** 后台绝对值调整：使用客户端读到的 version 做并发冲突检测。 */
+    public StockVO adjust(Long courseId, StockAdjustDTO dto) {
+        Course course = requireCourse(courseId);
+        if (!dto.version().equals(course.getVersion())) {
+            throw new BizException(ErrorCode.STOCK_VERSION_CONFLICT);
+        }
+        course.setStock(dto.stock());
+        if (courseStockMapper.updateById(course) == 0) {
+            throw new BizException(ErrorCode.STOCK_VERSION_CONFLICT);
+        }
+        return toVO(course);
+    }
+
+    private Course requireCourse(Long courseId) {
+        Course course = courseStockMapper.selectById(courseId);
+        if (course == null) {
+            throw new BizException(ErrorCode.COURSE_NOT_FOUND, courseId);
+        }
+        return course;
+    }
+
+    private void validateCount(int count) {
+        if (count <= 0) {
+            throw new BizException(ErrorCode.PARAM_ERROR);
+        }
+    }
+
+    private StockVO toVO(Course course) {
+        return new StockVO(course.getId(), course.getTitle(),
+                course.getStock(), course.getVersion());
     }
 }
 ```
 
-**为什么乐观锁失败要「重试」，而不是直接报错？**
-
-乐观锁的冲突不是「业务错误」，而是「刚好和别人撞了一下」。重试就是重新读最新值、再试一次。撞车的概率通常很低，重试几次基本都能成功。但也不能无限重试（自旋会占 CPU、拖长请求），所以设上限 `MAX_RETRY = 3`，超过就抛「系统繁忙」让用户重来。
+后台“把库存设为 80”属于**绝对值修改**，发生版本冲突时不能自动重试，否则可能覆盖别人刚设置的新值；正确做法是返回 409，让前端刷新后由用户重新决定。只有“库存 +1”这类可安全重放的交换式操作才适合自动重试。
 
 ::: tip 💡 面试题：MyBatis-Plus 的 `@Version` 乐观锁底层到底做了什么？
 **一句话**：`updateById` 时，乐观锁插件自动把 SQL 变成 `UPDATE ... SET version = version + 1, ... WHERE id = ? AND version = 读到的旧值`，然后看**影响行数**——等于 1 说明版本没变、更新成功；等于 0 说明版本已经被别人改了、更新失败。这就是 CAS（Compare-And-Swap）思想在数据库层的落地。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
@@ -358,64 +358,75 @@ public class StockService {
 
 ### 步骤 5：Controller + 并发测试
 
-**5.1 控制器** `E:\course-mall\mall-stock\src\main\java\com\mall\stock\controller\StockController.java`：
+**5.1 后台控制器** `E:\CourseMall\mall-stock\src\main\java\com\mall\stock\controller\StockAdminController.java`：
 
 ```java
 package com.mall.stock.controller;
 
-import com.mall.common.exception.BizException;
-import com.mall.common.result.ErrorCode;
 import com.mall.common.result.Result;
-import com.mall.stock.entity.CourseStock;
-import com.mall.stock.mapper.CourseStockMapper;
+import com.mall.stock.dto.StockAdjustDTO;
 import com.mall.stock.service.StockService;
+import com.mall.stock.vo.StockVO;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
-@RequestMapping("/api/stock")
 @RequiredArgsConstructor
-public class StockController {
+@RequestMapping("/api/admin/stocks")
+public class StockAdminController {
 
     private final StockService stockService;
-    private final CourseStockMapper courseStockMapper;
 
-    /** 查库存 */
+    @PreAuthorize("hasAuthority('stock:view')")
     @GetMapping("/{courseId}")
-    public Result<CourseStock> query(@PathVariable Long courseId) {
-        CourseStock stock = courseStockMapper.selectById(courseId);
-        if (stock == null) {
-            throw new BizException(ErrorCode.NOT_FOUND.getCode(), "课程不存在");
-        }
-        return Result.ok(stock);
+    public Result<StockVO> query(
+            @Positive(message = "{common.id-required}") @PathVariable Long courseId) {
+        return Result.ok(stockService.query(courseId));
     }
 
-    /** 扣减库存（生产走原子 SQL，乐观锁版本保留在同一 Service 里方便对照） */
-    @PostMapping("/deduct")
-    public Result<Void> deduct(@RequestParam Long courseId,
-                               @RequestParam(defaultValue = "1") Integer count) {
-        stockService.deductByAtomicSql(courseId, count);
-        return Result.ok();
-    }
-
-    /** 回补库存（取消订单/退款） */
-    @PostMapping("/restore")
-    public Result<Void> restore(@RequestParam Long courseId,
-                                @RequestParam(defaultValue = "1") Integer count) {
-        stockService.restoreStock(courseId, count);
-        return Result.ok();
+    @PreAuthorize("hasAuthority('stock:adjust')")
+    @PutMapping("/{courseId}")
+    public Result<StockVO> adjust(
+            @Positive(message = "{common.id-required}") @PathVariable Long courseId,
+            @Valid @RequestBody StockAdjustDTO dto) {
+        return Result.ok(stockService.adjust(courseId, dto));
     }
 }
 ```
 
-**5.2 并发测试**（证明不超卖）`E:\course-mall\mall-stock\src\test\java\com\mall\stock\StockConcurrencyTest.java`：
+扣减/回补没有 HTTP 入口，因为它们只能由下单、取消、退款等业务流程调用。Day11 完成后修改 Day10 `OrderService`：
+
+```java
+private final com.mall.course.mapper.CourseMapper courseMapper; // 查询课程与快照
+private final StockService stockService;
+
+// 下单
+stockService.deduct(course.getId(), 1);
+
+// 取消成功后
+stockService.restore(item.getCourseId(), 1);
+```
+
+删除 Day10 临时的 `com.mall.order.mapper.CourseStockMapper`。由于所有模块仍在同一应用、同一数据源中，订单方法外层的 `@Transactional` 仍会同时回滚订单、明细和库存。
+
+**5.2 并发测试**放在启动模块：`E:\CourseMall\mall-user\src\test\java\com\mall\stock\StockConcurrencyTest.java`。这样 `@SpringBootTest` 能找到唯一的 `MallUserApplication`：
 
 ```java
 package com.mall.stock;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.mall.common.exception.BizException;
-import com.mall.stock.entity.CourseStock;
+import com.mall.course.entity.Course;
 import com.mall.stock.mapper.CourseStockMapper;
 import com.mall.stock.service.StockService;
 import lombok.extern.slf4j.Slf4j;
@@ -426,9 +437,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @Slf4j
@@ -446,9 +459,9 @@ class StockConcurrencyTest {
         int buyers = 200;         // 200 个线程同时抢
 
         // 重置库存，保证测试可重复执行
-        courseStockMapper.update(null, new LambdaUpdateWrapper<CourseStock>()
-                .eq(CourseStock::getId, courseId)
-                .set(CourseStock::getStock, initialStock));
+        courseStockMapper.update(null, new LambdaUpdateWrapper<Course>()
+                .eq(Course::getId, courseId)
+                .set(Course::getStock, initialStock));
 
         ExecutorService pool = Executors.newFixedThreadPool(50);
         // CountDownLatch：让 200 个线程「同时起跑」，制造真正的并发
@@ -461,7 +474,7 @@ class StockConcurrencyTest {
             pool.execute(() -> {
                 try {
                     startGate.await();          // 等枪响
-                    stockService.deductByAtomicSql(courseId, 1);
+                    stockService.deduct(courseId, 1);
                     success.incrementAndGet();
                 } catch (BizException e) {
                     fail.incrementAndGet();     // 库存不足，扣减失败（这是预期的）
@@ -474,10 +487,11 @@ class StockConcurrencyTest {
         }
 
         startGate.countDown();   // 枪响，200 个线程同时抢
-        endGate.await();         // 等全部跑完
-        pool.shutdown();
+        boolean finished = endGate.await(30, TimeUnit.SECONDS);
+        pool.shutdownNow();
+        assertTrue(finished, "并发任务 30 秒内未完成");
 
-        CourseStock after = courseStockMapper.selectById(courseId);
+        Course after = courseStockMapper.selectById(courseId);
         log.info("成功 {} 次，失败 {} 次，剩余库存 {}", success.get(), fail.get(), after.getStock());
 
         // 核心断言：库存不能是负数；成功次数 = 库存量；失败次数 = 多出来的请求数
@@ -496,30 +510,31 @@ class StockConcurrencyTest {
 
 ### 步骤 6：启动验证
 
-在 `E:\course-mall\` 根目录执行：
+在 `E:\CourseMall\` 根目录执行：
 
 ```bash
-mvn clean install -DskipTests        # 编译安装（把 mall-stock 一起构建）
-mvn -pl mall-stock spring-boot:run   # 启动库存服务
+mvn clean verify -DskipTests
+mvn -pl mall-user -am spring-boot:run
 ```
 
 手动测接口：
 
 ```bash
-# 查库存（课程 1 应该显示 stock=100）
-curl http://localhost:8082/api/stock/1
+# 查库存（需要 stock:view）
+curl http://localhost:8080/api/admin/stocks/1 \
+  -H "Authorization: Bearer 你的ADMIN_TOKEN"
 
-# 扣减 2 件
-curl -X POST "http://localhost:8082/api/stock/deduct?courseId=1&count=2"
-
-# 回补 2 件
-curl -X POST "http://localhost:8082/api/stock/restore?courseId=1&count=2"
+# 用上一步返回的 version 调整库存；旧 version 重复提交应返回 409206
+curl -X PUT http://localhost:8080/api/admin/stocks/1 \
+  -H "Authorization: Bearer 你的ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"stock":80,"version":0}'
 ```
 
 跑并发测试（会打印 SQL，重点观察 `WHERE ... AND stock >= ?`）：
 
 ```bash
-mvn -pl mall-stock -am test -Dtest=StockConcurrencyTest
+mvn -pl mall-user -am test -Dtest=StockConcurrencyTest
 ```
 
 预期测试输出：`成功 100 次，失败 100 次，剩余库存 0`，测试绿条通过。
@@ -537,9 +552,11 @@ mvn -pl mall-stock -am test -Dtest=StockConcurrencyTest
 ## 六、✅ 完成后回填
 
 - [ ] 完成时间：`____年__月__日`
-- [ ] `course` 表已加 `stock` / `version` 字段，3 门课库存已设为 100：是 / 否
-- [ ] `mall-stock` 模块启动成功（8082），`curl /api/stock/1` 能查到库存：是 / 否
-- [ ] `deduct` / `restore` 接口手动 curl 都能正常扣减/回补：是 / 否
+- [ ] `course` 表已有 `stock` / `version` 字段：是 / 否
+- [ ] 只启动 `mall-user`，ADMIN 能查询和调整库存：是 / 否
+- [ ] 普通用户访问库存后台接口返回 403：是 / 否
+- [ ] 使用旧 version 重复调整返回 `STOCK_VERSION_CONFLICT`：是 / 否
+- [ ] Day10 下单/取消改为调用 `StockService`，原临时 Mapper 已删除：是 / 否
 - [ ] 并发测试跑通，输出「成功 100 次，失败 100 次，剩余库存 0」：是 / 否
 - [ ] 踩坑记录（连不上库、@Version 没生效、端口冲突等）：
 - [ ] 疑问（有就写，我来答）：
@@ -549,5 +566,5 @@ mvn -pl mall-stock -am test -Dtest=StockConcurrencyTest
 1. 「先查再改」为什么会在并发下超卖？check-then-act 竞态的具体时间窗口在哪？
 2. MyBatis-Plus 的 `@Version` 到底改了什么 SQL？为什么它能靠「影响行数」判断出冲突？
 3. 乐观锁和悲观锁的区别？库存扣减这种场景，为什么生产上更常用 `UPDATE ... WHERE stock >= n` 而不是乐观锁？
-4. 乐观锁冲突了怎么办？为什么不无限重试，而是设一个重试上限？
-5. 回补库存（`stock = stock + n`）会不会有「多回补」的风险？如果同一个退款请求被重复调用两次，会发生什么？（提示：引出「幂等」概念，为 Day 12 支付回调铺路）
+4. 后台把库存“设为 80”发生版本冲突时，为什么不能自动重试并覆盖？哪些操作适合自动重试？
+5. `stock = stock + n` 本身不幂等，为什么 Day10 的二次取消不会重复回补？幂等边界应该放在哪一层？
