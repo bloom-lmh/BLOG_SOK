@@ -2,6 +2,9 @@
 
 > **今天目标**：把 `mall-user` 的可动态业务配置放到 Nacos，实现集中管理、环境隔离和动态刷新。连接 Nacos 的最小配置仍留在本地，密码/私钥由环境变量或专用密钥系统注入。
 
+本日项目根目录统一为 `E:\CourseMall`。用户服务示例位于 `mall-user`；其他服务使用
+相同目录结构，但必须拥有独立的 Data ID、环境配置和配置前缀。
+
 ## 一、前置条件
 
 - 已完成 **Day 13（服务拆分 + Nacos 注册）**：Nacos Server 已启动，`mall-user` 已注册到 Nacos，控制台 `http://localhost:8848/nacos`（账号密码 `nacos/nacos`）能登录

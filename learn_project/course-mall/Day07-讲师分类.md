@@ -2,6 +2,9 @@
 
 > **今天目标**：把讲师、分类的关联查询做出来——讲师详情带出他名下的所有课程（一对多）、课程详情带出讲师（一对一）、分类按 `parent_id` 组装成树（自关联）。核心学 MyBatis 的 `resultMap` + `association` / `collection` 关联映射。
 
+本日项目根目录统一为 `E:\CourseMall`。Java 文件位于
+`mall-course\src\main\java`，Mapper XML 位于 `mall-course\src\main\resources\mapper`。
+
 ## 一、前置条件
 
 - **Day 01**：Maven 多模块骨架 + `Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler`（今天全部复用，不再重写）

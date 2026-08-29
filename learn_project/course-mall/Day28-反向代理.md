@@ -2,6 +2,9 @@
 
 > **今天目标**：为 course-mall 建立生产入口基线：Nginx 终止 TLS、限制请求并反向代理到网关集群。自签证书只用于本地验证，不能称为生产证书。
 
+本日项目根目录统一为 `E:\CourseMall`。Nginx 配置、证书和 Compose 文件统一放在
+`deploy\nginx` 与 `deploy`，不要散落到业务模块。
+
 ## 一、前置条件
 
 - 已完成 **Day 01**（Maven 多模块骨架，`/api/health` 能通）

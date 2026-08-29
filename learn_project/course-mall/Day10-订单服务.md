@@ -2,6 +2,9 @@
 
 > **今天目标**：新增 `mall-order` 订单领域模块，实现「幂等下单 + 明细快照 + 原子扣库存 + 本人取消」。Day01～Day12 仍只启动 `mall-user`，因此订单事务、JWT 当前用户和课程表操作都在同一个应用内完成。
 
+本日项目根目录统一为 `E:\CourseMall`。订单代码位于
+`mall-order\src\main\java`；模块化单体阶段仍由 `mall-user` 统一启动。
+
 ## 一、前置条件
 
 - 已完成 **Day 01**（`mall-common` 里的 `Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler`，`scanBasePackages="com.mall"`）

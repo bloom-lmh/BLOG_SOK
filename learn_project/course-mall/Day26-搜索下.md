@@ -2,6 +2,9 @@
 
 > **今天目标**：用 Canal 订阅课程库 binlog，把 MySQL 变更增量同步到 Elasticsearch；再用官方推荐的 `PIT + search_after` 完成稳定的深分页。重点是“不丢、不乱、不越权”，不是只让 Demo 跑起来。
 
+本日项目根目录是 `E:\CourseMall`。本节出现的 Java 文件全部给出完整路径；
+不要把配置类、消费者和 Controller 都堆进同一个 package。
+
 ## 一、最终链路
 
 ```text
@@ -19,7 +22,8 @@ MySQL 是事实源，ES 是可重建的查询副本。短暂延迟可以接受�
 
 ### 1. MySQL 开启行级 binlog
 
-`my.ini` 或 `my.cnf`：
+Windows MySQL 使用实际生效的 `my.ini`；Linux 使用 `my.cnf`。这是 MySQL
+安装目录的配置文件，不是 CourseMall 项目文件：
 
 ```ini
 [mysqld]
@@ -65,7 +69,7 @@ canal.instance.filter.regex=course_mall\\.course
 
 ## 三、依赖与配置
 
-`mall-search/pom.xml`：
+`E:\CourseMall\mall-search\pom.xml`：
 
 ```xml
 <dependency>
@@ -89,7 +93,7 @@ canal.instance.filter.regex=course_mall\\.course
 </dependency>
 ```
 
-`application.yml`：
+`E:\CourseMall\mall-search\src\main\resources\application.yml`：
 
 ```yaml
 canal:
@@ -102,9 +106,19 @@ canal:
   batch-size: 500
 ```
 
-配置对象：
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\config\CanalProperties.java`：
 
 ```java
+package com.mall.search.config;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/** Canal 连接和批量消费配置。 */
 @Validated
 @ConfigurationProperties(prefix = "canal")
 public record CanalProperties(
@@ -118,11 +132,36 @@ public record CanalProperties(
 }
 ```
 
-在启动类加 `@ConfigurationPropertiesScan`。
+把
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\MallSearchApplication.java`
+改成完整内容：
+
+```java
+package com.mall.search;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
+
+@SpringBootApplication(scanBasePackages = "com.mall")
+@ConfigurationPropertiesScan("com.mall.search.config")
+@EnableElasticsearchRepositories(basePackages = "com.mall.search.repository")
+@EnableFeignClients
+public class MallSearchApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(MallSearchApplication.class, args);
+    }
+}
+```
 
 ## 四、让 ES 文档拥有可排序字段
 
-Elasticsearch 的 `_id` 不能用于排序、聚合和脚本。Day25 的 `CourseDoc` 增加一份可排序副本：
+Elasticsearch 的 `_id` 不能用于排序、聚合和脚本。确认
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\doc\CourseDoc.java`
+中保留 Day25 已添加的可排序副本：
 
 ```java
 @Field(type = FieldType.Long)
@@ -140,9 +179,34 @@ doc.setSortId(courseId);   // 普通 Long 字段：供排序与 search_after 使
 
 ## 五、可靠的 Canal 消费循环
 
-下面省略的 `toCourseDoc(row)` 与 Day25 字段映射一致，但必须设置 `id/sortId`。关键点是：整批全部写 ES 成功才 `ack`；任何一条失败就 `rollback(batchId)`，并在重连后重试。
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\sync\CanalSyncWorker.java`。
+下面是完整实现，包括原来缺失的 `toCourseDoc(row)`。关键点是：整批全部写 ES
+成功才 `ack`；任何一条失败就 `rollback(batchId)`，并在重连后重试。
 
 ```java
+package com.mall.search.sync;
+
+import com.alibaba.otter.canal.client.CanalConnector;
+import com.alibaba.otter.canal.client.CanalConnectors;
+import com.alibaba.otter.canal.protocol.CanalEntry;
+import com.alibaba.otter.canal.protocol.Message;
+import com.mall.search.config.CanalProperties;
+import com.mall.search.doc.CourseDoc;
+import com.mall.search.repository.CourseDocRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.stereotype.Component;
+
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
+/** 将 Canal 捕获的 course 表变更同步到 Elasticsearch。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -268,6 +332,30 @@ public class CanalSyncWorker implements SmartLifecycle {
         repository.deleteById(Long.valueOf(require(row, "id")));
     }
 
+    /**
+     * 把 course 表的一行转换成 ES 文档。
+     *
+     * <p>任何必填数值解析失败都直接抛异常，使整个 Canal 批次回滚。</p>
+     */
+    private CourseDoc toCourseDoc(Map<String, String> row) {
+        Long id = Long.valueOf(require(row, "id"));
+
+        CourseDoc doc = new CourseDoc();
+        doc.setId(id);
+        doc.setSortId(id);
+        doc.setTitle(require(row, "title"));
+        doc.setDescription(row.getOrDefault("description", ""));
+        doc.setCover(row.getOrDefault("cover", ""));
+        doc.setCategoryId(Long.valueOf(require(row, "category_id")));
+        doc.setTeacherId(Long.valueOf(require(row, "teacher_id")));
+        doc.setPrice(Double.valueOf(require(row, "price")));
+        doc.setStatus(Integer.valueOf(require(row, "status")));
+        doc.setViewCount(Integer.valueOf(row.getOrDefault("view_count", "0")));
+        doc.setBuyCount(Integer.valueOf(row.getOrDefault("buy_count", "0")));
+        doc.setCreateTime(require(row, "create_time"));
+        return doc;
+    }
+
     private String require(Map<String, String> row, String key) {
         String value = row.get(key);
         if (value == null || value.isBlank()) {
@@ -287,7 +375,9 @@ public class CanalSyncWorker implements SmartLifecycle {
 }
 ```
 
-完整 `toCourseDoc` 至少映射：`id/sortId/title/description/cover/category_id/teacher_id/price/status/view_count/buy_count/create_time`。数值转换失败必须抛异常，让本批回滚；不能 `catch` 后跳过再确认。
+`toCourseDoc` 已完整映射
+`id/sortId/title/description/cover/category_id/teacher_id/price/status/view_count/buy_count/create_time`。
+数值转换失败会抛异常，让本批回滚；不能 `catch` 后跳过再确认。
 
 > 直连 Client 是“至少一次”投递：批次可能重复，但不会因先确认而丢失。ES `_id` 复用课程 ID，所以重复 save 只覆盖同一文档。生产还应监控同步延迟、失败次数和 Canal 位点，并准备死信/人工重放。
 
@@ -295,9 +385,15 @@ public class CanalSyncWorker implements SmartLifecycle {
 
 只用 `search_after` 时，两页之间若索引刷新，结果顺序可能变化。PIT（Point in Time）固定一个短期查询视图；每次请求使用上一页最后一条的 sort 值继续查询。
 
-返回对象：
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\vo\CursorPage.java`：
 
 ```java
+package com.mall.search.vo;
+
+import java.util.List;
+
+/** 游标分页响应。 */
 public record CursorPage<T>(
         List<T> items,
         String pitId,
@@ -306,9 +402,54 @@ public record CursorPage<T>(
 }
 ```
 
-Service：
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\converter\CourseSearchConverter.java`，
+用于把 ES 文档转换成接口 VO：
 
 ```java
+package com.mall.search.converter;
+
+import com.mall.search.doc.CourseDoc;
+import com.mall.search.vo.CourseHitVO;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+/** 搜索文档转换器。 */
+@Mapper(componentModel = "spring")
+public interface CourseSearchConverter {
+
+    @Mapping(target = "highlightTitle", ignore = true)
+    @Mapping(target = "highlightDescription", ignore = true)
+    @Mapping(target = "score", ignore = true)
+    CourseHitVO toVO(CourseDoc source);
+}
+```
+
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\service\CourseCursorSearchService.java`：
+
+```java
+package com.mall.search.service;
+
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldValue;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.elasticsearch.core.search.Hit;
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.search.converter.CourseSearchConverter;
+import com.mall.search.doc.CourseDoc;
+import com.mall.search.vo.CourseHitVO;
+import com.mall.search.vo.CursorPage;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Objects;
+
+/** 课程 PIT 游标搜索服务。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -372,9 +513,29 @@ public class CourseCursorSearchService {
 
 这个接口按 `sortId DESC` 展示“较新的课程”，适合无限滚动。Day25 的普通搜索仍按 `_score` 展示相关性并用于前 10000 条内的浅分页。若要“相关性排序 + 深分页”，排序必须同时带 `_score` 和唯一的 `sortId`，游标也要原样保存两个 sort 值。
 
-Controller：
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\controller\CourseCursorSearchController.java`：
 
 ```java
+package com.mall.search.controller;
+
+import com.mall.common.result.Result;
+import com.mall.search.service.CourseCursorSearchService;
+import com.mall.search.vo.CourseHitVO;
+import com.mall.search.vo.CursorPage;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/** 课程游标搜索接口。 */
 @Validated
 @RestController
 @RequestMapping("/api/search/courses")

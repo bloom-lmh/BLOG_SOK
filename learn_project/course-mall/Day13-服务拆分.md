@@ -2,6 +2,9 @@
 
 > **今天目标**：把 Day01～Day12 的模块化单体真正拆成独立进程，先完成 `mall-user` 和 `mall-course` 的独立启动、数据边界与 Nacos 注册。Day15 再用 OpenFeign 替代原来的 Java 模块直接调用。
 
+本日项目根目录统一为 `E:\CourseMall`。启动类和配置分别放在对应模块的
+`src\main\java`、`src\main\resources`，不再依赖 `mall-user` 扫描业务模块。
+
 ## 一、前置条件
 
 - 已完成 **Day 1–12（阶段一）**：已有 6 个 Maven 模块，但它们共享一个 Spring 容器，只有 `mall-user` 是启动模块。

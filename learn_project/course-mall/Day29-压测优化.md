@@ -2,6 +2,9 @@
 
 > **今天目标**：给 course-mall 做一次真正的性能测试——用 JMeter 压 `mall-course` 的课程查询接口，拿到基线 QPS；然后按「压测 → 找瓶颈 → 优化 → 复测」的闭环走一遍：开 MySQL 慢查询日志定位慢 SQL、用 EXPLAIN 分析加索引、调连接池和线程池，最后复测看 QPS 提升。完成后你拥有一份「压测报告」，这会是简历上最有说服力的性能优化素材。
 
+本日项目根目录统一为 `E:\CourseMall`。JMeter 计划和报告放在 `performance`，
+造数与索引脚本放在 `sql`，保证测试过程可重复。
+
 ## 一、前置条件
 
 - 已完成 **Day 06 + Day 08**：课程查询和 Redis 缓存已接入，压测统一从网关 `/api/courses/**` 进入
@@ -98,7 +101,9 @@ GUI 适合调脚本，正式压测用命令行（不占 GUI 资源、结果存�
 cd /e/tools/apache-jmeter/bin
 # 先在 GUI 里把测试计划保存为 course-cache-test.jmx，然后：
 # -n 非 GUI 模式  -t 测试计划  -l 结果文件  -e -o 生成 HTML 报告
-./jmeter.sh -n -t /e/course-mall/deploy/jmeter/course-cache-test.jmx -l result.jtl -e -o report
+./jmeter.sh -n -t /e/CourseMall/performance/course-cache-test.jmx \
+  -l /e/CourseMall/performance/result.jtl \
+  -e -o /e/CourseMall/performance/report
 ```
 
 HTML 报告在 `report/index.html`，有完整的 QPS/RT/P99 曲线图——压测报告直接截图它。
@@ -241,7 +246,7 @@ spring:
 
 ### 步骤 9：写压测报告（简历素材）
 
-`E:\course-mall\deploy\压测报告.md`：
+`E:\CourseMall\performance\压测报告.md`：
 
 ```markdown
 # course-mall 课程查询接口压测报告

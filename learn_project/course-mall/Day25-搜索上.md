@@ -627,9 +627,16 @@ public class SearchService {
 
 ### 步骤 8：用契约 DTO 获取重建数据
 
-在 `mall-contract` 定义 `CourseIndexDTO`，只包含搜索索引需要的字段；它不是 `mall-course` 的 Entity：
+在 `mall-contract` 定义只包含索引字段的契约。新建
+`E:\CourseMall\mall-contract\src\main\java\com\mall\contract\course\CourseIndexDTO.java`：
 
 ```java
+package com.mall.contract.course;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/** 课程服务提供给搜索服务的索引数据。 */
 public record CourseIndexDTO(
         Long id,
         Long teacherId,
@@ -645,9 +652,21 @@ public record CourseIndexDTO(
 }
 ```
 
-`mall-search` 通过 Feign 分批拉取：
+新建
+`E:\CourseMall\mall-search\src\main\java\com\mall\search\client\CourseClient.java`，
+搜索服务通过 Feign 分批拉取：
 
 ```java
+package com.mall.search.client;
+
+import com.mall.common.result.Result;
+import com.mall.contract.course.CourseIndexDTO;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+
 @FeignClient(name = "mall-course")
 public interface CourseClient {
 
@@ -658,23 +677,119 @@ public interface CourseClient {
 }
 ```
 
-`mall-course` 提供仅供内部重建使用的接口。查询条件必须包含 `status=1`、`deleted_at IS NULL`、`id > afterId`，并按 `id ASC LIMIT size`，避免 offset 深分页：
+在课程服务中新增专用查询 Mapper：
+
+`E:\CourseMall\mall-course\src\main\java\com\mall\course\mapper\CourseIndexMapper.java`：
 
 ```java
+package com.mall.course.mapper;
+
+import com.mall.course.entity.Course;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+
+/** 搜索索引重建使用的课程批量查询。 */
+public interface CourseIndexMapper {
+
+    @Select("""
+            SELECT * FROM course
+            WHERE status = 1
+              AND deleted_at IS NULL
+              AND id > #{afterId}
+            ORDER BY id ASC
+            LIMIT #{size}
+            """)
+    List<Course> selectBatch(
+            @Param("afterId") long afterId,
+            @Param("size") int size);
+}
+```
+
+新建转换器
+`E:\CourseMall\mall-course\src\main\java\com\mall\course\converter\CourseIndexConverter.java`：
+
+```java
+package com.mall.course.converter;
+
+import com.mall.contract.course.CourseIndexDTO;
+import com.mall.course.entity.Course;
+import org.mapstruct.Mapper;
+
+/** Course Entity 到搜索索引契约的转换器。 */
+@Mapper(componentModel = "spring")
+public interface CourseIndexConverter {
+    CourseIndexDTO toDTO(Course source);
+}
+```
+
+新建
+`E:\CourseMall\mall-course\src\main\java\com\mall\course\service\CourseIndexQueryService.java`：
+
+```java
+package com.mall.course.service;
+
+import com.mall.contract.course.CourseIndexDTO;
+import com.mall.course.converter.CourseIndexConverter;
+import com.mall.course.mapper.CourseIndexMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/** 搜索索引重建数据查询服务。 */
+@Service
+@RequiredArgsConstructor
+public class CourseIndexQueryService {
+
+    private final CourseIndexMapper mapper;
+    private final CourseIndexConverter converter;
+
+    public List<CourseIndexDTO> list(long afterId, int size) {
+        return mapper.selectBatch(afterId, size).stream()
+                .map(converter::toDTO)
+                .toList();
+    }
+}
+```
+
+`mall-course` 提供仅供内部重建使用的接口。新建
+`E:\CourseMall\mall-course\src\main\java\com\mall\course\controller\CourseInternalController.java`：
+
+```java
+package com.mall.course.controller;
+
+import com.mall.common.result.Result;
+import com.mall.contract.course.CourseIndexDTO;
+import com.mall.course.service.CourseIndexQueryService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
 @Validated
 @RestController
 @RequestMapping("/internal/courses")
 @RequiredArgsConstructor
 public class CourseInternalController {
 
-    private final CourseService courseService;
+    private final CourseIndexQueryService courseIndexQueryService;
 
     @GetMapping("/search-documents")
     @PreAuthorize("hasAuthority('search:sync')")
     public Result<List<CourseIndexDTO>> listForIndex(
             @RequestParam @PositiveOrZero long afterId,
             @RequestParam(defaultValue = "500") @Min(1) @Max(1000) int size) {
-        return Result.ok(courseService.listForSearchIndex(afterId, size));
+        return Result.ok(courseIndexQueryService.list(afterId, size));
     }
 }
 ```

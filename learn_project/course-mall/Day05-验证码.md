@@ -26,6 +26,101 @@
 - refreshToken 是高价值凭证。本文面向后续 Flutter 客户端，暂时通过 JSON 传输，客户端必须放入安全存储。
 - 删除 refreshToken 不能让已签发的 accessToken 立刻消失；它最多继续存活 30 分钟。
 
+### 补充：三条链路的完整时序
+
+#### 时序 1：获取图形验证码
+
+```text
+ 前端                CaptchaController      CaptchaService             Redis
+  │                        │                      │                      │
+  │  GET /api/captcha/image│                      │                      │
+  │───────────────────────>│                      │                      │
+  │                        │  generateImageCaptcha()                     │
+  │                        │─────────────────────>│                      │
+  │                        │                      │ ① UUID.randomUUID    │
+  │                        │                      │ ② SecureRandom 取4字符│
+  │                        │                      │ ③ SET image:{uuid}   │
+  │                        │                      │      = code EX 5min  │
+  │                        │                      │─────────────────────>│
+  │                        │                      │ ④ Java2D画图→PNG→Base64
+  │                        │   ImageCaptchaVO     │                      │
+  │                        │<─────────────────────│                      │
+  │  {uuid, image(base64)} │                      │                      │
+  │<───────────────────────│                      │                      │
+```
+
+此后 Redis 里：`captcha:image:{uuid}` = 答案，5 分钟后自动消失。
+
+#### 时序 2：发送短信验证码（四道闸）
+
+```text
+ 前端           Controller          CaptchaService                 Redis              短信
+  │                 │                     │                          │                 │
+  │ POST /api/captcha/sms                 │                          │                 │
+  │ {phone,uuid,imageCode}                │                          │                 │
+  │────────────────>│  sendSmsCaptcha()   │                          │                 │
+  │──────────────────────────────────────>│                          │                 │
+  │                 │                     │ 闸1  EXISTS sms-limit:{phone}               │
+  │                 │                     │─────────────────────────>│                 │
+  │                 │                     │   存在？→ 抛TOO_FREQUENT │                 │
+  │                 │                     │      （快速失败，图形码没被消耗）            │
+  │                 │                     │                          │                 │
+  │                 │                     │ 闸2 Lua原子校验图形码     │                 │
+  │                 │                     │  EVAL: GET image:{uuid}  │                 │
+  │                 │                     │    ├ 不存在      → -1 抛EXPIRED            │
+  │                 │                     │    ├ 对比失败    → INCR attempt            │
+  │                 │                     │    │   满5次 → 删码+删计数 → 0 抛INVALID     │
+  │                 │                     │    └ 对比成功    → DEL码+DEL计数 → 1 ✓     │
+  │                 │                     │─────────────────────────>│                 │
+  │                 │                     │                          │                 │
+  │                 │                     │ 闸3 SET sms-limit:{phone}│                 │
+  │                 │                     │      "1" NX EX 60s       │                 │
+  │                 │                     │─────────────────────────>│                 │
+  │                 │                     │   抢占失败？→ 抛TOO_FREQUENT（并发兜底）    │
+  │                 │                     │                          │                 │
+  │                 │                     │ ① 生成6位随机数字码       │                 │
+  │                 │                     │ ② DEL sms-attempt:{phone}（旧计数清零）    │
+  │                 │                     │ ③ SET sms:{phone}=code EX 5min            │
+  │                 │                     │─────────────────────────>│                 │
+  │                 │                     │ ④ sendVerificationCode(phone, code)        │
+  │                 │                     │──────────────────────────────────────────>│
+  │                 │                     │                          │      发送失败？  │
+  │                 │                     │  失败→DEL codeKey+limitKey│    （回滚重试）  │
+  │                 │                     │      → 抛OPERATION_FAILED│                 │
+  │  Result.ok()    │                     │                          │                 │
+  │<────────────────│<────────────────────│                          │                 │
+  │                 │                     │        （dev环境：code打印在日志里）         │
+```
+
+#### 时序 3：注册时消费短信验证码
+
+```text
+ 前端           LoginController      UserServiceImpl         CaptchaService            Redis
+  │                  │                     │                       │                     │
+  │ POST /api/user/register                │                       │                     │
+  │ {username,...,phone,smsCode}           │                       │                     │
+  │─────────────────>│   register(dto)     │                       │                     │
+  │───────────────────────────────────────>│ ①先查重username/phone/email（体验）          │
+  │                  │                     │ ②consumeSmsCaptcha(phone, smsCode)          │
+  │                  │                     │──────────────────────>│ EVAL Lua:           │
+  │                  │                     │                       │  GET sms:{phone}    │
+  │                  │                     │                       │   ├ 不存在→EXPIRED  │
+  │                  │                     │                       │   ├ 错误→INCR attempt│
+  │                  │                     │                       │   │  满5次→码作废   │
+  │                  │                     │                       │   └ 正确→DEL码+计数 │
+  │                  │                     │                       │────────────────────>│
+  │                  │   （一次性：此刻起这个码再也用不了，哪怕后面注册失败） │                     │
+  │                  │ ③ converter + encode密码 + INSERT         │                     │
+  │                  │ ④ 唯一索引冲突？→ DuplicateKeyException → 翻译错误码        │
+  │  Result.ok(id)   │                     │                       │                     │
+  │<─────────────────│                     │                       │                     │
+```
+
+两条关键时序约束：
+
+1. **闸1 在闸2 之前**——冷却期先拒绝，用户已输入的图形码不被烧掉。
+2. **消费在插入之前，且消费即删除**——注册后面任何一步失败，码都不复活；要重来就得走完整流程。
+
 ## 二、前置条件
 
 - Day04 登录、JWT 过滤器和 RBAC 授权已经跑通。
@@ -33,6 +128,8 @@
 - `mall-common` 已有 `ErrorCode`、`MessageKeys`、`ResultMessageAdvice` 和中英文 `messages*.properties`。
 
 ## 三、需要新增或修改的文件
+
+本日项目根目录统一为 `E:\CourseMall`。下面每段代码都会给出**完整文件路径**；文件夹不存在时，先在 IDEA 中按路径创建 package，不要凭感觉放到相近目录。
 
 ```text
 mall-user/src/main/java/com/mall/user/
@@ -63,7 +160,8 @@ mall-user/src/main/java/com/mall/user/
 
 ### 步骤 1：只增加 Day05 新依赖
 
-不要用一份不完整的 POM 覆盖 Day04。只在 `mall-user/pom.xml` 的 `dependencies` 末尾追加：
+不要用一份不完整的 POM 覆盖 Day04。只在
+`E:\CourseMall\mall-user\pom.xml` 的 `dependencies` 末尾追加：
 
 ```xml
 <!-- ==================== 第 4 次：Day05 验证码与会话续期 ==================== -->
@@ -82,7 +180,8 @@ JJWT、Security、Validation 都已经由 Day03/Day04 引入，不要重复添�
 `spring-boot-configuration-processor` 加入现有
 `maven-compiler-plugin.annotationProcessorPaths`；它不是运行所必需的依赖。
 
-在 `application.yml` 中追加 Redis 和业务配置，并把 Day04 的 accessToken 调整为 30 分钟：
+在 `E:\CourseMall\mall-user\src\main\resources\application.yml` 中追加 Redis
+和业务配置，并把 Day04 的 accessToken 调整为 30 分钟：
 
 ```yaml
 spring:
@@ -116,7 +215,42 @@ auth:
 
 #### 使用类型安全的配置对象
 
-`CaptchaProperties.java`：
+先认识这里第一次出现的 `record`。它和 `class` 一样，都是声明一种 Java
+类型的关键字；区别是 `record` 专门用于“主要负责保存数据”的类型。
+
+`record` 是 Java 16 正式提供的“数据载体类”语法，适合只保存数据、不需要修改字段的对象。下面这句：
+
+```java
+public record TokenProperties(Duration refreshTtl) {
+}
+```
+
+大致相当于下面这个普通类（省略 `equals`、`hashCode` 和 `toString`）：
+
+```java
+public final class TokenProperties {
+    private final Duration refreshTtl;
+
+    public TokenProperties(Duration refreshTtl) {
+        this.refreshTtl = refreshTtl;
+    }
+
+    public Duration refreshTtl() {
+        return refreshTtl;
+    }
+}
+```
+
+编译器会自动生成：
+
+- `private final Duration refreshTtl` 字段；
+- 接收全部字段的构造方法；
+- `refreshTtl()` 读取方法；
+- `equals()`、`hashCode()`、`toString()`。
+
+它不会生成 setter，读取时写 `properties.refreshTtl()`，不是 `getRefreshTtl()`。Spring Boot 3 会通过 record 的构造方法完成 `@ConfigurationProperties` 绑定，所以这里使用 record 很合适。它不是 Lombok，也不是 Spring 特有语法，本质上仍会编译成普通 Java 类。
+
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\config\properties\CaptchaProperties.java`：
 
 ```java
 package com.mall.user.config.properties;
@@ -141,7 +275,7 @@ public record CaptchaProperties(
 }
 ```
 
-`TokenProperties.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\config\properties\TokenProperties.java`：
 
 ```java
 package com.mall.user.config.properties;
@@ -161,9 +295,14 @@ public record TokenProperties(@NotNull Duration refreshTtl) {
 }
 ```
 
-启动类增加 `@ConfigurationPropertiesScan`：
+修改 `E:\CourseMall\mall-user\src\main\java\com\mall\user\MallUserApplication.java`，完整内容如下：
 
 ```java
+package com.mall.user;
+
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication(scanBasePackages = "com.mall")
@@ -176,11 +315,22 @@ public class MallUserApplication {
 }
 ```
 
+`@ConfigurationProperties` 只描述“绑定哪个前缀”，还要让 Spring 扫描并注册它。这里的 `@ConfigurationPropertiesScan("com.mall.user.config.properties")` 就负责把两个配置 record 注册为 Bean，之后才能在 Service 构造器中注入。
+
+::: warning 你当前项目里的两个路径需要先纠正
+你现在创建的是 `com.mall.user.config.CapchaProperties` 和
+`com.mall.user.config.TokenProperties`，但启动类扫描的是
+`com.mall.user.config.properties`。此外 `Capcha` 少写了字母 `t`。
+请按本文路径创建为 `config.properties.CaptchaProperties` 和
+`config.properties.TokenProperties`，并删除两个错误文件，否则配置类不会被扫描，
+`CaptchaService`、`TokenService` 也无法注入它们。
+:::
+
 相比到处写 `@Value`，配置类能集中管理字段、支持 `Duration`，IDE 也能提示配置项。
 
 ### 步骤 2：验证码 DTO、VO 与短信发送抽象
 
-`ImageCaptchaVO.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\vo\ImageCaptchaVO.java`：
 
 ```java
 package com.mall.user.vo;
@@ -199,7 +349,7 @@ public class ImageCaptchaVO {
 }
 ```
 
-`SmsCaptchaRequest.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\dto\SmsCaptchaRequest.java`：
 
 ```java
 package com.mall.user.dto;
@@ -230,7 +380,7 @@ public class SmsCaptchaRequest {
 
 真实短信供应商不要直接写死在 `CaptchaService` 中，先抽象接口：
 
-`SmsSender.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\service\SmsSender.java`：
 
 ```java
 package com.mall.user.service;
@@ -250,7 +400,7 @@ public interface SmsSender {
 }
 ```
 
-`LoggingSmsSender.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\service\impl\LoggingSmsSender.java`：
 
 ```java
 package com.mall.user.service.impl;
@@ -280,7 +430,7 @@ public class LoggingSmsSender implements SmsSender {
 
 ### 步骤 3：验证码服务——TTL、限频与原子消费
 
-`CaptchaService.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\service\CaptchaService.java`：
 
 ```java
 package com.mall.user.service;
@@ -330,25 +480,30 @@ public class CaptchaService {
      */
     private static final DefaultRedisScript<Long> VERIFY_AND_CONSUME_SCRIPT =
             new DefaultRedisScript<>("""
+                    -- KEYS[1]=验证码 key  KEYS[2]=错误次数 key  ARGV[1]=用户输入  ARGV[2]=最大尝试次数
                     local code = redis.call('GET', KEYS[1])
                     if not code then
-                        return -1
+                        return -1                          -- 没发过或已过期
                     end
 
+                    -- 比对成功（都转大写，大小写不敏感）：校验即消费
                     if string.upper(code) == string.upper(ARGV[1]) then
-                        redis.call('DEL', KEYS[1])
-                        redis.call('DEL', KEYS[2])
+                        redis.call('DEL', KEYS[1])         -- 验证码用完即删，防重放
+                        redis.call('DEL', KEYS[2])         -- 尝试计数一并清掉
                         return 1
                     end
 
+                    -- 比对失败：INCR 本身原子，并发失败也不会数漏
                     local attempts = redis.call('INCR', KEYS[2])
                     if attempts == 1 then
+                        -- 第一次失败才设 TTL，用验证码的剩余寿命对齐——两个 key 同生共死
                         local ttl = redis.call('TTL', KEYS[1])
-                        if ttl < 1 then ttl = 300 end
+                        if ttl < 1 then ttl = 300 end      -- 兜底：TTL 返回 -1/-2 时给默认 5 分钟
                         redis.call('EXPIRE', KEYS[2], ttl)
                     end
 
-                    if attempts >= tonumber(ARGV[2]) then
+                    -- 防爆破：错满上限，验证码作废（两个 key 一起删）
+                    if attempts >= tonumber(ARGV[2]) then  -- tonumber：Redis 里都是字符串，比较前转数字
                         redis.call('DEL', KEYS[1])
                         redis.call('DEL', KEYS[2])
                     end
@@ -536,7 +691,7 @@ public class CaptchaService {
 
 ### 步骤 4：验证码接口
 
-`CaptchaController.java`：
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\controller\CaptchaController.java`：
 
 ```java
 package com.mall.user.controller;
@@ -581,7 +736,8 @@ public class CaptchaController {
 ### 步骤 5：只在注册时消费短信验证码
 
 Day02 目前只有用户名唯一索引。手机号开始承担验证码身份后，也必须由数据库兜底唯一性；
-确认现有数据没有重复后执行一次：
+确认现有数据没有重复后，把下面 SQL 保存到
+`E:\CourseMall\sql\day05-user-unique-index.sql` 并执行一次：
 
 ```sql
 ALTER TABLE `user`
@@ -591,51 +747,140 @@ ALTER TABLE `user`
 
 MySQL 唯一索引允许多个 `NULL`，所以可选邮箱仍然可以为空。
 
-在 Day03 的 `UserRegisterDTO` 增加手机号必填和短信验证码：
+把 `E:\CourseMall\mall-user\src\main\java\com\mall\user\dto\UserRegisterDTO.java` 改成下面的完整内容：
 
 ```java
-@NotBlank(message = "{validation.user.phone.invalid}")
-@Pattern(regexp = "^1[3-9]\\d{9}$", message = "{validation.user.phone.invalid}")
-private String phone;
+package com.mall.user.dto;
 
-@NotBlank(message = "{validation.sms.code.not-blank}")
-private String smsCode;
-```
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
-在 `UserServiceImpl` 注入 `CaptchaService`：
+/** 用户注册请求参数。 */
+@Data
+@Schema(description = "用户注册请求")
+public class UserRegisterDTO {
 
-```java
-private final CaptchaService captchaService;
-```
+    @NotBlank(message = "{validation.user.username.not-blank}")
+    @Size(min = 3, max = 20, message = "{validation.user.username.size}")
+    @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "{validation.user.username.pattern}")
+    private String username;
 
-完成用户名唯一性检查后，再检查手机号；否则 Day03 把所有
-`DuplicateKeyException` 都翻译为 `USERNAME_EXISTS`，手机号冲突时文案会错误：
+    @NotBlank(message = "{validation.user.password.not-blank}")
+    @Size(min = 6, max = 20, message = "{validation.user.password.size}")
+    private String password;
 
-```java
-Long phoneCount = userMapper.selectCount(
-        new LambdaQueryWrapper<User>()
-                .eq(User::getPhone, dto.getPhone()));
-if (phoneCount > 0) {
-    throw new BizException(ErrorCode.PHONE_EXISTS);
+    @NotBlank(message = "{validation.user.nickname.not-blank}")
+    private String nickname;
+
+    @Email(message = "{validation.user.email.invalid}")
+    private String email;
+
+    @NotBlank(message = "{validation.user.phone.invalid}")
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "{validation.user.phone.invalid}")
+    private String phone;
+
+    @NotBlank(message = "{validation.sms.code.not-blank}")
+    private String smsCode;
 }
 ```
 
-然后在写数据库之前消费验证码：
+把 `E:\CourseMall\mall-user\src\main\java\com\mall\user\service\impl\UserServiceImpl.java` 改成下面的完整内容：
 
 ```java
-captchaService.consumeSmsCaptcha(dto.getPhone(), dto.getSmsCode());
+package com.mall.user.service.impl;
 
-User user = userConverter.toEntity(dto);
-if (!StringUtils.hasText(user.getEmail())) {
-    // 唯一索引下应把“未填写”统一存成 NULL，避免多个空字符串互相冲突。
-    user.setEmail(null);
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.user.converter.UserConverter;
+import com.mall.user.dto.UserRegisterDTO;
+import com.mall.user.entity.User;
+import com.mall.user.mapper.UserMapper;
+import com.mall.user.service.CaptchaService;
+import com.mall.user.service.UserService;
+import com.mall.user.vo.UserVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+/** 用户业务服务实现。 */
+@Service
+@RequiredArgsConstructor
+public class UserServiceImpl implements UserService {
+
+    private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
+    private final UserConverter userConverter;
+    private final CaptchaService captchaService;
+
+    @Override
+    public Long register(UserRegisterDTO dto) {
+        assertRegistrationFieldsAvailable(dto);
+
+        // 验证成功立即删除验证码，阻止并发重复注册。
+        captchaService.consumeSmsCaptcha(dto.getPhone(), dto.getSmsCode());
+
+        User user = userConverter.toEntity(dto);
+        if (!StringUtils.hasText(user.getEmail())) {
+            user.setEmail(null);
+        }
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setStatus(1);
+
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException ex) {
+            // 预检查不能消除并发竞争，唯一索引才是最终保障。
+            throw translateDuplicateKey(ex);
+        }
+        return user.getId();
+    }
+
+    @Override
+    public UserVO getById(Long id) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+        return userConverter.toVo(user);
+    }
+
+    private void assertRegistrationFieldsAvailable(UserRegisterDTO dto) {
+        if (exists(User::getUsername, dto.getUsername())) {
+            throw new BizException(ErrorCode.USERNAME_EXISTS);
+        }
+        if (exists(User::getPhone, dto.getPhone())) {
+            throw new BizException(ErrorCode.PHONE_EXISTS);
+        }
+        if (StringUtils.hasText(dto.getEmail()) && exists(User::getEmail, dto.getEmail())) {
+            throw new BizException(ErrorCode.EMAIL_EXISTS);
+        }
+    }
+
+    private <T> boolean exists(SFunction<User, T> column, T value) {
+        return userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(column, value)) > 0;
+    }
+
+    private BizException translateDuplicateKey(DuplicateKeyException ex) {
+        String message = ex.getMostSpecificCause().getMessage();
+        if (message != null && message.contains("uk_phone")) {
+            return new BizException(ErrorCode.PHONE_EXISTS);
+        }
+        if (message != null && message.contains("uk_email")) {
+            return new BizException(ErrorCode.EMAIL_EXISTS);
+        }
+        return new BizException(ErrorCode.USERNAME_EXISTS);
+    }
 }
-user.setPassword(passwordEncoder.encode(dto.getPassword()));
-user.setStatus(1);
-userMapper.insert(user);
 ```
-
-上面需要导入 `org.springframework.util.StringUtils`。
 
 验证码采用“验证成功立即作废”的安全语义。即使后续数据库写入失败，也不能让同一个验证码再次使用；用户需要重新获取验证码。
 
@@ -647,7 +892,7 @@ userMapper.insert(user);
 
 ### 步骤 6：refreshToken 轮换服务
 
-先把 Day04 的 `LoginVO` 替换为双令牌响应：
+把 `E:\CourseMall\mall-user\src\main\java\com\mall\user\vo\LoginVO.java` 替换为双令牌响应：
 
 ```java
 package com.mall.user.vo;
@@ -668,7 +913,7 @@ public class LoginVO {
 }
 ```
 
-`TokenService.java`：
+新建 `E:\CourseMall\mall-user\src\main\java\com\mall\user\service\TokenService.java`：
 
 ```java
 package com.mall.user.service;
@@ -816,33 +1061,74 @@ public class TokenService {
 
 ### 步骤 7：接入登录、刷新和登出接口
 
-Day04 的 `LoginController` 不再直接调用 `JwtUtil`，改为注入 `TokenService`：
+修改 `E:\CourseMall\mall-user\src\main\java\com\mall\user\controller\LoginController.java`：不再直接调用 `JwtUtil`，改为注入 `TokenService`。
 
 ```java
-private final AuthenticationManager authenticationManager;
-private final TokenService tokenService;
-private final UserConverter userConverter;
+package com.mall.user.controller;
 
-@PostMapping("/login")
-public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
-    Authentication authentication;
-    try {
-        authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()));
-    } catch (DisabledException e) {
-        throw new BizException(ErrorCode.ACCOUNT_DISABLED);
-    } catch (AuthenticationException e) {
-        throw new BizException(ErrorCode.BAD_CREDENTIALS);
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.common.result.Result;
+import com.mall.user.converter.UserConverter;
+import com.mall.user.dto.LoginRequest;
+import com.mall.user.security.LoginUser;
+import com.mall.user.service.TokenService;
+import com.mall.user.vo.LoginVO;
+import com.mall.user.vo.UserVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/user")
+@RequiredArgsConstructor
+@Tag(name = "用户登录认证接口", description = "用户登录认证以及登录用户信息查询")
+public class LoginController {
+
+    private final AuthenticationManager authenticationManager;
+    private final TokenService tokenService;
+    private final UserConverter userConverter;
+
+    @Operation(summary = "用户登录")
+    @PostMapping("/login")
+    public Result<LoginVO> login(@Valid @RequestBody LoginRequest request) {
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()));
+        } catch (DisabledException e) {
+            throw new BizException(ErrorCode.ACCOUNT_DISABLED);
+        } catch (AuthenticationException e) {
+            throw new BizException(ErrorCode.BAD_CREDENTIALS);
+        }
+
+        LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+        return Result.ok(tokenService.issue(loginUser.getUser()));
     }
 
-    LoginUser loginUser = (LoginUser) authentication.getPrincipal();
-    return Result.ok(tokenService.issue(loginUser.getUser()));
+    @Operation(summary = "查询登录用户信息")
+    @GetMapping("/info")
+    public Result<UserVO> info(@AuthenticationPrincipal LoginUser loginUser) {
+        return Result.ok(userConverter.toVo(loginUser.getUser()));
+    }
 }
 ```
 
-`RefreshTokenRequest.java`：
+新建 `E:\CourseMall\mall-user\src\main\java\com\mall\user\dto\RefreshTokenRequest.java`：
 
 ```java
 package com.mall.user.dto;
@@ -861,7 +1147,7 @@ public class RefreshTokenRequest {
 }
 ```
 
-`TokenController.java`：
+新建 `E:\CourseMall\mall-user\src\main\java\com\mall\user\controller\TokenController.java`：
 
 ```java
 package com.mall.user.controller;
@@ -906,29 +1192,79 @@ public class TokenController {
 
 ### 步骤 8：更新 Security 白名单
 
-验证码、登录、注册和刷新都发生在“尚未拥有有效 accessToken”时，必须在 `SecurityConfig` 放行：
+验证码、登录、注册和刷新都发生在“尚未拥有有效 accessToken”时，必须修改 `E:\CourseMall\mall-user\src\main\java\com\mall\user\config\SecurityConfig.java` 放行：
 
 ```java
-import org.springframework.http.HttpMethod;
+package com.mall.user.config;
 
-.authorizeHttpRequests(auth -> auth
-        .requestMatchers(HttpMethod.GET,
-                "/api/captcha/image",
-                "/doc.html",
-                "/webjars/**",
-                "/v3/api-docs/**",
-                "/swagger-ui/**",
-                "/favicon.ico")
-        .permitAll()
-        .requestMatchers(HttpMethod.POST,
-                "/api/captcha/sms",
-                "/api/user/register",
-                "/api/user/login",
-                "/api/auth/refresh",
-                "/api/auth/logout")
-        .permitAll()
-        .anyRequest()
-        .authenticated())
+import com.mall.user.security.JwtAuthFilter;
+import com.mall.user.security.RestAccessDeniedHandler;
+import com.mall.user.security.RestAuthenticationEntryPoint;
+import com.mall.user.util.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+@EnableConfigurationProperties(SecurityProperties.class)
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtUtil jwtUtil;
+    private final UserDetailsService userDetailsService;
+    private final RestAuthenticationEntryPoint authenticationEntryPoint;
+    private final RestAccessDeniedHandler accessDeniedHandler;
+    private final SecurityProperties securityProperties;
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/captcha/image")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/captcha/sms",
+                                "/api/user/register",
+                                "/api/user/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout")
+                        .permitAll()
+                        .requestMatchers(securityProperties.getPermitAllPaths()
+                                .toArray(String[]::new))
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .addFilterBefore(
+                        new JwtAuthFilter(jwtUtil, userDetailsService),
+                        UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+}
 ```
 
 `/api/auth/refresh` 必须放行，否则 accessToken 过期时反而无法刷新。`logout` 只凭 refreshToken 就能吊销当前会话，并且接口幂等，因此也可以放行。
@@ -936,6 +1272,24 @@ import org.springframework.http.HttpMethod;
 > 如果未来 Web 端把 refreshToken 放进 HttpOnly Cookie，这两个接口会重新涉及 CSRF；本文面向 Flutter/JSON 请求，refreshToken 不依赖浏览器自动携带的 Cookie。
 
 ### 步骤 9：为什么这套 i18n 能正常工作？
+
+Day05 使用消息之前，先确认下面三个资源文件都包含本日新增的验证码、
+refreshToken、手机号和邮箱消息键：
+
+```text
+E:\CourseMall\mall-common\src\main\resources\messages.properties
+E:\CourseMall\mall-common\src\main\resources\messages_zh_CN.properties
+E:\CourseMall\mall-common\src\main\resources\messages_en.properties
+```
+
+消息键常量和错误码分别放在：
+
+```text
+E:\CourseMall\mall-common\src\main\java\com\mall\common\i18n\MessageKeys.java
+E:\CourseMall\mall-common\src\main\java\com\mall\common\result\ErrorCode.java
+```
+
+你当前项目已经准备好了这些 key，Day05 不要再在业务类中复制中文文案。
 
 - DTO 的 `{validation...}` 由 `LocalValidatorFactoryBean` 解析。
 - `CaptchaService`、`TokenService` 只抛 `new BizException(ErrorCode.Xxx)`。

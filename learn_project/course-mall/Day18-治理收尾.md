@@ -2,6 +2,9 @@
 
 > **今天目标**：统一处理网关跨域、MVC/WebFlux 异常出口、Feign 远程错误和日志链路。从今天起，HTTP 状态码表达协议结果，`Result.code` 表达细分业务错误。
 
+本日项目根目录统一为 `E:\CourseMall`。`mall-common` 中的 MVC/Feign 代码供所有
+Servlet 业务服务复用；WebFlux 异常处理只放在 `mall-gateway`。
+
 ## 一、微服务为什么不应“所有响应都 HTTP 200”
 
 ```text
@@ -23,9 +26,38 @@ public int getHttpStatus() {
 
 ## 二、MVC 业务服务返回真实 HTTP 状态
 
-更新 `mall-common` 的 `GlobalExceptionHandler`：
+把
+`E:\CourseMall\mall-common\src\main\java\com\mall\common\web\advice\GlobalExceptionHandler.java`
+替换为下面的完整内容：
 
 ```java
+package com.mall.common.web.advice;
+
+import com.mall.common.exception.BizException;
+import com.mall.common.remote.RemoteCallException;
+import com.mall.common.result.ErrorCode;
+import com.mall.common.result.Result;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.util.stream.Collectors;
+
+/** MVC 服务统一异常出口。 */
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
 @ExceptionHandler(BizException.class)
 public ResponseEntity<Result<Void>> handleBiz(BizException e) {
     ErrorCode errorCode = e.getErrorCode();
@@ -46,11 +78,57 @@ public ResponseEntity<Result<Void>> handleValid(MethodArgumentNotValidException 
             .body(Result.fail(ErrorCode.PARAM_ERROR.getCode(), messageKey));
 }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Result<Void>> handleConstraintViolation(
+            ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .findFirst()
+                .map(ConstraintViolation::getMessage)
+                .orElse(ErrorCode.PARAM_ERROR.getMessageKey());
+        return ResponseEntity.badRequest()
+                .body(Result.fail(ErrorCode.PARAM_ERROR.getCode(), message));
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Result<Void>> handleBind(BindException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .collect(Collectors.joining("; "));
+        return ResponseEntity.badRequest()
+                .body(Result.fail(ErrorCode.PARAM_ERROR.getCode(), message));
+    }
+
+    @ExceptionHandler({
+            HttpMessageNotReadableException.class,
+            MethodArgumentTypeMismatchException.class
+    })
+    public ResponseEntity<Result<Void>> handleInvalidRequest(Exception e) {
+        log.warn("请求格式错误: {}", e.getMessage());
+        return ResponseEntity.badRequest()
+                .body(Result.fail(ErrorCode.INVALID_REQUEST));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Result<Void>> handleNotFound(NoResourceFoundException e) {
+        log.debug("请求资源不存在: {}", e.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Result.fail(ErrorCode.NOT_FOUND));
+    }
+
+    @ExceptionHandler(RemoteCallException.class)
+    public ResponseEntity<Result<Void>> handleRemote(RemoteCallException e) {
+        log.warn("远程调用失败: status={}, code={}",
+                e.getHttpStatus(), e.getBusinessCode());
+        return ResponseEntity.status(e.getHttpStatus())
+                .body(Result.fail(e.getBusinessCode(), e.getMessage()));
+    }
+
 @ExceptionHandler(Exception.class)
 public ResponseEntity<Result<Void>> handleOther(Exception e) {
     log.error("系统异常", e);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(Result.fail(ErrorCode.SYSTEM_ERROR));
+}
 }
 ```
 
@@ -59,6 +137,9 @@ public ResponseEntity<Result<Void>> handleOther(Exception e) {
 ## 三、Feign 远程错误保留业务码
 
 Feign 对非 2xx 响应默认抛 `FeignException`。它并非一定“丢掉响应体”，异常对象可保留内容；但业务层得到的仍是通用 Feign 异常，所以需要 `ErrorDecoder` 把统一 JSON 转为结构化远程异常。
+
+新建
+`E:\CourseMall\mall-common\src\main\java\com\mall\common\remote\RemoteCallException.java`：
 
 ```java
 package com.mall.common.remote;
@@ -77,6 +158,9 @@ public class RemoteCallException extends RuntimeException {
     public int getBusinessCode() { return businessCode; }
 }
 ```
+
+新建
+`E:\CourseMall\mall-common\src\main\java\com\mall\common\remote\ResultErrorDecoder.java`：
 
 ```java
 package com.mall.common.remote;
@@ -115,7 +199,18 @@ public class ResultErrorDecoder implements ErrorDecoder {
 }
 ```
 
+新建
+`E:\CourseMall\mall-common\src\main\java\com\mall\common\remote\FeignErrorConfig.java`：
+
 ```java
+package com.mall.common.remote;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import feign.codec.ErrorDecoder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/** Feign 远程错误解码配置。 */
 @Configuration
 public class FeignErrorConfig {
     @Bean
@@ -125,21 +220,15 @@ public class FeignErrorConfig {
 }
 ```
 
-再由调用方全局异常处理器保留其 HTTP status 和 business code：
-
-```java
-@ExceptionHandler(RemoteCallException.class)
-public ResponseEntity<Result<Void>> handleRemote(RemoteCallException e) {
-    log.warn("远程调用失败: status={}, code={}",
-            e.getHttpStatus(), e.getBusinessCode());
-    return ResponseEntity.status(e.getHttpStatus())
-            .body(Result.fail(e.getBusinessCode(), e.getMessage()));
-}
-```
+调用方对 `RemoteCallException` 的处理已经包含在本节完整
+`GlobalExceptionHandler` 中，会同时保留 HTTP status 和 business code。
 
 调用链要同时透传 `Authorization`、`Accept-Language` 和追踪上下文。Day15 已传 Authorization，现在给拦截器再加 `Accept-Language`，下游返回的 message 就与用户语言一致。
 
 ## 四、在网关统一 CORS
+
+把下面配置加入
+`E:\CourseMall\mall-gateway\src\main\resources\application.yml`：
 
 ```yaml
 spring:
@@ -164,7 +253,33 @@ spring:
 
 MVC 服务的 `@RestControllerAdvice` 不会处理 Gateway 路由过滤器异常。网关需要实现 `ErrorWebExceptionHandler`，并使用比默认处理器更高的优先级：
 
+新建
+`E:\CourseMall\mall-gateway\src\main\java\com\mall\gateway\web\GatewayExceptionHandler.java`：
+
 ```java
+package com.mall.gateway.web;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.result.ErrorCode;
+import com.mall.common.result.Result;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
+import org.springframework.context.MessageSource;
+import org.springframework.core.annotation.Order;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.Locale;
+
+/** Gateway 路由和 WebFlux 异常统一出口。 */
+@Slf4j
 @Component
 @Order(-2)
 @RequiredArgsConstructor
@@ -179,8 +294,30 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
                 : HttpStatus.SERVICE_UNAVAILABLE;
         ErrorCode code = status == HttpStatus.NOT_FOUND
                 ? ErrorCode.NOT_FOUND : ErrorCode.SERVICE_UNAVAILABLE;
-        // 参照 Day16 writeError：按 Accept-Language 解析 message，写入 DataBuffer。
-        return GatewayResponses.write(exchange, status, code, objectMapper, messageSource);
+
+        if (status.is5xxServerError()) {
+            log.error("网关请求失败 path={}", exchange.getRequest().getURI().getPath(), ex);
+        }
+        exchange.getResponse().setStatusCode(status);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        try {
+            List<Locale> locales = exchange.getRequest()
+                    .getHeaders()
+                    .getAcceptLanguageAsLocales();
+            Locale locale = locales.isEmpty()
+                    ? Locale.SIMPLIFIED_CHINESE : locales.get(0);
+            String message = messageSource.getMessage(
+                    code.getMessageKey(), null, locale);
+            byte[] bytes = objectMapper.writeValueAsBytes(
+                    Result.fail(code.getCode(), message));
+            DataBuffer buffer = exchange.getResponse()
+                    .bufferFactory()
+                    .wrap(bytes);
+            return exchange.getResponse().writeWith(Mono.just(buffer));
+        } catch (Exception writeException) {
+            log.error("网关异常响应写出失败", writeException);
+            return exchange.getResponse().setComplete();
+        }
     }
 }
 ```
@@ -189,20 +326,24 @@ JWT 401/403 仍由 Day16 的安全过滤器精确返回；这个处理器主要�
 
 ## 六、统一日志格式
 
-每个可执行服务放置同一份 `logback-spring.xml`：
+每个可执行服务的 `src/main/resources/logback-spring.xml` 放置同一份配置，
+例如 `E:\CourseMall\mall-order\src\main\resources\logback-spring.xml`：
 
 ```xml
 <configuration>
+    <springProperty name="APP_NAME"
+                    source="spring.application.name"
+                    defaultValue="app"/>
     <property name="PATTERN"
-              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%property{spring.application.name:-app},%X{traceId:-},%X{spanId:-}] [%thread] %logger{40} - %msg%n"/>
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${APP_NAME},%X{traceId:-},%X{spanId:-}] [%thread] %logger{40} - %msg%n"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder><pattern>${PATTERN}</pattern><charset>UTF-8</charset></encoder>
     </appender>
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/${spring.application.name}.log</file>
+        <file>logs/${APP_NAME}.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/archive/${spring.application.name}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <fileNamePattern>logs/archive/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>5GB</totalSizeCap>
@@ -235,6 +376,10 @@ Spring Cloud Sleuth 已归档，Boot 3 使用 Micrometer Tracing。每个网关/
     <groupId>io.github.openfeign</groupId>
     <artifactId>feign-micrometer</artifactId>
 </dependency>
+<dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
 ```
 
 ```yaml
@@ -258,7 +403,16 @@ WebClient/RestTemplate 要使用 Spring Boot 提供的 Builder 创建，Feign �
 4. 请求 `gateway -> order -> course` 时三个服务日志 traceId 一致，spanId 不同。
 5. `/actuator/health` 可供探活，`env/beans/configprops` 等敏感端点未对外暴露。
 
-## 九、知识点索引
+## 九、✅ 完成后回填
+
+- [ ] MVC 参数错误、业务冲突和未知异常返回正确 HTTP status
+- [ ] Feign 非 2xx 响应保留远程业务码
+- [ ] CORS 只允许配置的前端 Origin
+- [ ] Gateway 404/503 返回统一 JSON 和 i18n 文案
+- [ ] 日志文件包含 application name、traceId 和 spanId
+- [ ] Actuator 只暴露 health、info、prometheus
+
+## 十、知识点索引
 
 | 知识点 | 文档 |
 |---|---|
@@ -267,7 +421,7 @@ WebClient/RestTemplate 要使用 Spring Boot 提供的 Builder 创建，Feign �
 | Micrometer Tracing | [Spring Cloud](/learn_backend/java/微服务/Spring Cloud) |
 | Actuator | [Spring Boot](/learn_backend/java/基础/Spring Boot) |
 
-## 十、面试追问
+## 十一、面试追问
 
 1. HTTP status 和业务 code 为什么要同时保留？
 2. `ErrorDecoder` 的作用是什么？FeignException 真的一定丢响应体吗？

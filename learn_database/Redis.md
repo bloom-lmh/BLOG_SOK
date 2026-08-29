@@ -1475,6 +1475,41 @@ boolean exists = bloom.contains("order:1001");   // 一定存在 / 可能存在
 
 把多条命令写成一个 Lua 脚本，**在 Redis 服务端原子执行**（脚本执行期间其他命令排队），适合「需要多条命令原子 + 有逻辑判断」的场景（如分布式锁释放、限流）。
 
+> 精确说：原子 = 不可分割（期间不插入其他命令），**不是**可回滚——脚本中途报错，已执行的部分保持生效。
+
+**Lua 最小语法速览**（Redis 场景只用得到这些。Lua 与 Linux 无关，它是 1993 年诞生的嵌入式脚本语言，专为嵌进别的程序而生，游戏插件 / Nginx / Redis 都是宿主）：
+
+```lua
+-- 1. 变量：一律加 local（不加会变成全局变量）
+local stock = 10
+local name = 'redis'            -- 字符串单双引号都行
+
+-- 2. 条件：if ... then ... end（没有大括号，靠 then/end 收尾）
+if stock > 0 then
+    stock = stock - 1
+elseif stock == 0 then
+    return 0
+end
+
+-- 3. 循环：while / for（for 含两端）
+while stock > 0 do
+    stock = stock - 1
+end
+
+-- 4. 函数
+function add(a, b)
+    return a + b
+end
+```
+
+**Redis 特有的三个东西**：
+
+- `redis.call('命令', 参数...)`：在脚本里执行 Redis 命令，如 `redis.call('SET', KEYS[1], 'v')`
+- `KEYS[1]`、`KEYS[2]`…：EVAL 指定的 key，格式 `EVAL "脚本" numkeys key1 key2 arg1 arg2`
+- `ARGV[1]`、`ARGV[2]`…：普通参数（次数、过期时间这类值）
+
+> **两条工程铁律**：① 脚本必须短小快——单线程执行，死循环会阻塞所有请求（超过 5 秒开始回 BUSY 错误；没写过数据才能 `SCRIPT KILL` 强杀，写过只能重启）；② Redis 里存的都是字符串，和数字比较前要 `tonumber()` 转换。
+
 ```lua
 -- 限流：固定窗口计数器
 -- KEYS[1] 计数 key，ARGV[1] 限制次数，ARGV[2] 过期时间

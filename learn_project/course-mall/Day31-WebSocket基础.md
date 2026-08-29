@@ -1,121 +1,361 @@
-# Day 31 · WebSocket 基础（长连接 + STOMP + 实时在线人数）
+# Day 31 · WebSocket 基础（独立实时服务 + STOMP + JWT）
 
-> **今天目标**：把 WebSocket 集成到 Spring Boot 项目里，理解 HTTP 短连接和 WebSocket 长连接的本质区别，做一个「实时在线人数」功能。
+> **今天目标**：新增独立的 `mall-realtime:8087`，通过 STOMP `CONNECT` 帧认证商城 JWT，完成可验证的在线连接统计。WebSocket 不再塞进 `mall-user`，用户服务只负责身份与令牌。
 
-## 一、前置条件
+本日项目根目录统一为 `E:\CourseMall`。下面每段代码都给出完整路径；先直连 `8087` 验证，再接入 Day16 的 Gateway。
 
-- 已完成 Day 01 ~ Day 30（至少到 Day 16 网关，能跑通基本接口）
-- 了解 HTTP 协议基本概念
+## 一、先理解三层关系
 
-## 二、核心概念
-
-### HTTP vs WebSocket
-
-| | HTTP | WebSocket |
+| 层 | 作用 | 本项目中的例子 |
 |---|---|---|
-| 连接方式 | 请求-响应，用完即关 | 一次握手，持久连接 |
-| 谁主动 | 只能客户端主动请求 | 服务器可以主动推送 |
-| 协议 | HTTP/HTTPS | ws:// / wss:// |
-| 适用场景 | 查询、表单提交 | 聊天、通知、实时数据 |
+| WebSocket | 全双工长连接协议 | `ws://localhost:8087/ws` |
+| STOMP | 约定消息目的地、订阅和帧格式 | `/app/**`、`/topic/**`、`/user/**` |
+| Spring Messaging | 把 STOMP 帧分发到 Java 方法 | `@MessageMapping`、`SimpMessagingTemplate` |
 
-### 协议升级过程
+HTTP 只负责第一次 Upgrade 握手；升级成功后，同一条 TCP 连接上交换 WebSocket 帧。浏览器 WebSocket API 不能给握手随意增加 `Authorization` Header，因此本项目把 JWT 放在 STOMP `CONNECT` 帧中，并在 `ChannelInterceptor` 校验。
 
-```
-客户端 → 服务器：HTTP 请求，带上特殊头
-  GET /ws HTTP/1.1
-  Upgrade: websocket
-  Connection: Upgrade
+::: tip 💡 面试题：为什么不能只在 HTTP JWT Filter 中认证 WebSocket？
+**一句话**：HTTP Filter 只处理握手请求，后续 STOMP 消息不会再次经过 Servlet Filter；连接身份必须在 `CONNECT` 帧校验并绑定为 `Principal`，后续消息再从会话 Principal 取用户，不能相信客户端传来的 `userId`。
+:::
 
-服务器 → 客户端：HTTP 101 Switching Protocols
-  HTTP/1.1 101 Switching Protocols
-  Upgrade: websocket
-  Connection: Upgrade
+## 二、新建 `mall-realtime` 模块
 
-之后双方走 WebSocket 协议通信，不再走 HTTP
-```
+### 步骤 1：父工程和依赖
 
-## 三、步骤
-
-### 步骤 1：添加依赖
-
-`mall-user/pom.xml`：
+`E:\CourseMall\pom.xml` 的 `<modules>` 增加：
 
 ```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-websocket</artifactId>
-</dependency>
+<module>mall-realtime</module>
 ```
 
-### 步骤 2：WebSocket 配置类
+新建 `E:\CourseMall\mall-realtime\pom.xml`：
 
-`com/mall/user/config/WebSocketConfig.java`：
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.mall</groupId>
+        <artifactId>course-mall</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>mall-realtime</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>com.mall</groupId>
+            <artifactId>mall-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+### 步骤 2：启动类与配置
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\MallRealtimeApplication.java`：
 
 ```java
-package com.mall.user.config;
+package com.mall.realtime;
 
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication(scanBasePackages = "com.mall")
+public class MallRealtimeApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(MallRealtimeApplication.class, args);
+    }
+}
+```
+
+新建 `E:\CourseMall\mall-realtime\src\main\resources\application.yml`：
+
+```yaml
+server:
+  port: 8087
+spring:
+  application:
+    name: mall-realtime
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+jwt:
+  secret: ${JWT_SECRET}
+mall:
+  websocket:
+    allowed-origins:
+      - http://localhost:5173
+```
+
+### 步骤 3：WebSocket 属性和配置
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\config\WebSocketProperties.java`：
+
+```java
+package com.mall.realtime.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import java.util.List;
+
+@ConfigurationProperties(prefix = "mall.websocket")
+public record WebSocketProperties(List<String> allowedOrigins) {
+    public WebSocketProperties {
+        allowedOrigins = allowedOrigins == null ? List.of() : List.copyOf(allowedOrigins);
+    }
+}
+```
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\config\WebSocketConfig.java`：
+
+```java
+package com.mall.realtime.config;
+
+import com.mall.realtime.security.StompAuthChannelInterceptor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 @Configuration
-@EnableWebSocketMessageBroker  // 开启 STOMP 消息代理
+@EnableWebSocketMessageBroker
+@RequiredArgsConstructor
+@EnableConfigurationProperties(WebSocketProperties.class)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final WebSocketProperties properties;
+    private final StompAuthChannelInterceptor authChannelInterceptor;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")           // WebSocket 连接端点
-                .setAllowedOriginPatterns("*") // 允许跨域
-                .withSockJS();                 // 降级兜底（浏览器不支持 WebSocket 时用 HTTP 轮询）
+        registry.addEndpoint("/ws")
+                .setAllowedOrigins(properties.allowedOrigins().toArray(String[]::new));
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // 客户端订阅的前缀（服务端 → 客户端推送消息的目标前缀）
-        registry.enableSimpleBroker("/topic");  // 广播
-        // 客户端发送消息的前缀（客户端 → 服务端）
         registry.setApplicationDestinationPrefixes("/app");
+        registry.setUserDestinationPrefix("/user");
+        // Day31 先用单机内存 Broker；Day32 再解决多实例广播。
+        registry.enableSimpleBroker("/topic", "/queue");
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(authChannelInterceptor);
     }
 }
 ```
 
-### 步骤 3：在线人数统计
+没有加入 SockJS：CourseMall 的 Web 端与 Flutter 都支持原生 WebSocket，SockJS 会引入额外 HTTP 轮询路径和安全配置。只有确实需要兼容老旧浏览器时再加。
 
-`com/mall/user/websocket/OnlineCounter.java`：
+## 三、STOMP 连接认证
+
+### 步骤 4：Principal 与 JWT 解析器
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\security\StompPrincipal.java`：
 
 ```java
-package com.mall.user.websocket;
+package com.mall.realtime.security;
 
+import java.security.Principal;
+import java.util.List;
+
+public record StompPrincipal(Long userId, String username, List<String> authorities)
+        implements Principal {
+    @Override
+    public String getName() {
+        // convertAndSendToUser 使用 Principal.name 定位用户。
+        return userId.toString();
+    }
+}
+```
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\security\AccessTokenParser.java`：
+
+```java
+package com.mall.realtime.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@Component
+public class AccessTokenParser {
+    private final SecretKey key;
+
+    public AccessTokenParser(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public StompPrincipal parse(String token) {
+        Claims claims = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
+        List<?> rawAuthorities = claims.get("authorities", List.class);
+        List<String> authorities = rawAuthorities == null
+                ? List.of()
+                : rawAuthorities.stream().map(String::valueOf).toList();
+        return new StompPrincipal(Long.valueOf(claims.getSubject()),
+                claims.get("username", String.class), authorities);
+    }
+}
+```
+
+### 步骤 5：拦截 CONNECT 帧
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\security\StompAuthChannelInterceptor.java`：
+
+```java
+package com.mall.realtime.security;
+
+import io.jsonwebtoken.JwtException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.simp.stomp.StompCommand;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+@Component
+@RequiredArgsConstructor
+public class StompAuthChannelInterceptor implements ChannelInterceptor {
+    private final AccessTokenParser accessTokenParser;
+
+    @Override
+    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(
+                message, StompHeaderAccessor.class);
+        if (accessor == null || accessor.getCommand() != StompCommand.CONNECT) {
+            return message;
+        }
+        String authorization = accessor.getFirstNativeHeader(HttpHeaders.AUTHORIZATION);
+        if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
+            throw new BadCredentialsException("Missing access token");
+        }
+        try {
+            accessor.setUser(accessTokenParser.parse(authorization.substring(7)));
+            return message;
+        } catch (JwtException | IllegalArgumentException exception) {
+            throw new BadCredentialsException("Invalid access token", exception);
+        }
+    }
+}
+```
+
+## 四、在线连接统计
+
+### 步骤 6：会话注册表
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\presence\OnlineSessionRegistry.java`：
+
+```java
+package com.mall.realtime.presence;
+
+import org.springframework.stereotype.Component;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class OnlineCounter {
-    // AtomicInteger：原子操作，线程安全的自增/自减
-    private static final AtomicInteger count = new AtomicInteger(0);
+@Component
+public class OnlineSessionRegistry {
+    private final Map<String, Long> sessionUsers = new ConcurrentHashMap<>();
+    private final Map<Long, Set<String>> userSessions = new ConcurrentHashMap<>();
 
-    public static void increment() {
-        count.incrementAndGet();
+    public void connect(String sessionId, Long userId) {
+        if (sessionUsers.putIfAbsent(sessionId, userId) == null) {
+            userSessions.computeIfAbsent(userId, ignored -> ConcurrentHashMap.newKeySet())
+                    .add(sessionId);
+        }
     }
 
-    public static void decrement() {
-        count.decrementAndGet();
+    public void disconnect(String sessionId) {
+        Long userId = sessionUsers.remove(sessionId);
+        if (userId == null) {
+            return;
+        }
+        userSessions.computeIfPresent(userId, (ignored, sessions) -> {
+            sessions.remove(sessionId);
+            return sessions.isEmpty() ? null : sessions;
+        });
     }
 
-    public static int get() {
-        return count.get();
+    public int connectionCount() {
+        return sessionUsers.size();
+    }
+
+    public int userCount() {
+        return userSessions.size();
     }
 }
 ```
 
-### 步骤 4：连接事件监听
+使用 `sessionId` 去重，重复断开不会减成负数；同一用户开两个标签页时是 2 个连接、1 个在线用户。
 
-`com/mall/user/websocket/WebSocketEventListener.java`：
+### 步骤 7：监听连接与断开
+
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\presence\PresenceEventListener.java`：
 
 ```java
-package com.mall.user.websocket;
+package com.mall.realtime.presence;
 
+import com.mall.realtime.security.StompPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -128,74 +368,128 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WebSocketEventListener {
-
+public class PresenceEventListener {
+    private final OnlineSessionRegistry registry;
     private final SimpMessagingTemplate messagingTemplate;
-    // SimpMessagingTemplate：Spring 封装的消息发送工具，类似 JdbcTemplate 的思路
 
     @EventListener
-    public void handleConnect(SessionConnectedEvent event) {
-        OnlineCounter.increment();
-        log.info("用户上线，当前在线：{}", OnlineCounter.get());
-        // 向所有订阅了 /topic/online 的客户端广播最新在线人数
-        messagingTemplate.convertAndSend("/topic/online", OnlineCounter.get());
+    public void onConnected(SessionConnectedEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        if (accessor.getSessionId() != null && accessor.getUser() instanceof StompPrincipal user) {
+            registry.connect(accessor.getSessionId(), user.userId());
+            broadcast();
+            log.info("STOMP connected: sessionId={}, userId={}",
+                    accessor.getSessionId(), user.userId());
+        }
     }
 
     @EventListener
-    public void handleDisconnect(SessionDisconnectEvent event) {
-        OnlineCounter.decrement();
-        log.info("用户下线，当前在线：{}", OnlineCounter.get());
-        messagingTemplate.convertAndSend("/topic/online", OnlineCounter.get());
+    public void onDisconnected(SessionDisconnectEvent event) {
+        registry.disconnect(event.getSessionId());
+        broadcast();
+        log.info("STOMP disconnected: sessionId={}", event.getSessionId());
+    }
+
+    private void broadcast() {
+        messagingTemplate.convertAndSend("/topic/presence",
+                new PresenceMessage(registry.userCount(), registry.connectionCount()));
+    }
+
+    public record PresenceMessage(int onlineUsers, int connections) {
     }
 }
 ```
 
-### 步骤 5：测试接口
+### 步骤 8：只开放握手路径
 
-`com/mall/user/controller/WsTestController.java`：
+新建 `E:\CourseMall\mall-realtime\src\main\java\com\mall\realtime\config\RealtimeSecurityConfig.java`：
 
 ```java
-@RestController
-@RequestMapping("/api/ws")
-public class WsTestController {
+package com.mall.realtime.config;
 
-    @GetMapping("/online")
-    public Result<Integer> onlineCount() {
-        return Result.ok(OnlineCounter.get());
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class RealtimeSecurityConfig {
+    @Bean
+    public SecurityFilterChain realtimeFilterChain(HttpSecurity http) throws Exception {
+        http.csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/ws/**").permitAll()
+                        .anyRequest().denyAll());
+        return http.build();
     }
 }
 ```
 
-### 步骤 6：前端测试（浏览器控制台）
+`permitAll()` 只允许完成握手，不代表匿名用户能建立 STOMP 会话；真正的身份校验发生在 CONNECT 拦截器。
 
-```javascript
-// 连接 WebSocket
-const socket = new SockJS('http://localhost:8080/ws');
-const stompClient = Stomp.over(socket);
+## 五、接入 Gateway 并验证
 
-stompClient.connect({}, () => {
-    console.log('已连接');
+`E:\CourseMall\mall-gateway\src\main\resources\application.yml` 的 routes 增加：
 
-    // 订阅在线人数
-    stompClient.subscribe('/topic/online', (msg) => {
-        console.log('当前在线人数：', msg.body);
-        document.getElementById('online-count').textContent = msg.body;
-    });
-});
+```yaml
+- id: mall-realtime-ws
+  uri: lb:ws://mall-realtime
+  predicates:
+    - Path=/ws/**
 ```
 
-::: tip 💡 面试题：WebSocket 和 HTTP 轮询有什么区别？
-**一句话**：HTTP 轮询是客户端定期发请求问"有新消息吗"，大部分请求是空的浪费带宽；WebSocket 是长连接，服务器有新消息直接推，省带宽、延迟低。但 WebSocket 需要服务端维护连接状态，连接数多了有内存压力。
+如果 Gateway 全局过滤器强制检查 HTTP `Authorization`，把 `/ws` 握手路径加入其公开路径；不能删除 `Upgrade`、`Connection`、`Sec-WebSocket-*` 头。
+
+先登录取得 accessToken，再在已加载 `@stomp/stompjs` 的页面测试：
+
+```javascript
+const client = new StompJs.Client({
+  brokerURL: 'ws://localhost:9000/ws',
+  connectHeaders: { Authorization: `Bearer ${accessToken}` },
+  reconnectDelay: 5000,
+  heartbeatIncoming: 10000,
+  heartbeatOutgoing: 10000,
+});
+client.onConnect = () => {
+  client.subscribe('/topic/presence', frame => console.log(JSON.parse(frame.body)));
+};
+client.onStompError = frame => console.error(frame.headers.message);
+client.activate();
+```
+
+验证顺序：一个用户开两个页面，应看到 `onlineUsers=1, connections=2`；关闭一个页面后变为 `1/1`；关闭全部页面后变为 `0/0`；把 token 改错应连接失败。
+
+::: warning 当前边界
+`OnlineSessionRegistry` 是单实例内存状态。Day31 的验收只启动一个 `mall-realtime`；Day32 再处理多实例广播和异常掉线。不要把单机数字冒充成集群在线人数。
 :::
 
-::: tip 💡 面试题：WebSocket 连接建立后如何保持？心跳机制是什么？
-**一句话**：WebSocket 协议自带 Ping/Pong 帧，客户端或服务端发 Ping，对方回 Pong，超时没收到就断开。STOMP 协议在此基础上加了应用层心跳，`client.send('\\n')` 定期发空帧。如果不做心跳，Nginx/负载均衡器可能因为超时把连接断开。
-:::
+## 六、知识点索引
 
-## 四、✅ 完成后回填
+| 知识点 | 本日落点 |
+|---|---|
+| WebSocket Upgrade | `/ws` 首次 HTTP 握手 |
+| STOMP 目的地 | `/app` 入站、`/topic` 广播、`/user` 点对点 |
+| 身份绑定 | `CONNECT Authorization` → `StompPrincipal` |
+| 线程安全 | `ConcurrentHashMap` + 幂等 session 注册 |
+| 心跳与重连 | STOMP heartbeat + `reconnectDelay` |
+
+## 七、✅ 完成后回填
 
 - [ ] 完成时间：`____年__月__日`
-- [ ] WebSocket 配置成功，前端能连接：是 / 否
-- [ ] 在线人数统计正确（多人连接/断开）：是 / 否
+- [ ] `mall-realtime:8087` 已注册到 Nacos：是 / 否
+- [ ] 正确 token 能连接、错误 token 被拒绝：是 / 否
+- [ ] 同用户多标签页的用户数/连接数统计正确：是 / 否
+- [ ] Gateway 的 `ws://localhost:9000/ws` 可连接：是 / 否
 - [ ] 踩坑记录：
 - [ ] 疑问：
+
+## 八、我下次会追问的问题
+
+1. WebSocket、STOMP、Spring Messaging 分别负责哪一层？
+2. 为什么握手路径 `permitAll()` 仍然可以保证连接需要登录？
+3. 为什么消息体里的 `userId` 不能作为当前用户？
+4. `onlineUsers` 和 `connections` 为什么不是同一个数字？
+5. 单机内存统计部署两个实例后会出现什么问题？

@@ -2,6 +2,9 @@
 
 > **今天目标**：不盲目把生产主链路直接分表，而是在 `mall-order` 中完成一个可验证的水平分表 PoC：订单按 `user_id` 路由到 4 张表，主键使用雪花 ID，用户查询只访问一个分片，并明确迁移、扩容和与 Seata 组合时的风险。
 
+本日项目根目录统一为 `E:\CourseMall`，PoC 涉及的配置、Entity、Mapper、
+Service 和 Controller 都在 `mall-order` 模块中。
+
 ## 一、先做容量判断
 
 真实项目不会因为“技术高级”就立刻分表。先观察单表数据量、索引命中率、慢查询、写入 TPS、备份和 DDL 时间；单表仍能稳定支撑时，分表只会提前引入跨分片查询、唯一约束、分页、迁移和事务复杂度。
@@ -89,7 +92,7 @@ CREATE TABLE IF NOT EXISTS orders_3 LIKE orders_0;
 </properties>
 ```
 
-`mall-order/pom.xml`：
+`E:\CourseMall\mall-order\pom.xml`：
 
 ```xml
 <dependency>
@@ -103,7 +106,7 @@ CREATE TABLE IF NOT EXISTS orders_3 LIKE orders_0;
 
 ## 五、配置数据源与分片规则
 
-`mall-order/src/main/resources/application.yml`：
+`E:\CourseMall\mall-order\src\main\resources\application.yml`：
 
 ```yaml
 spring:
@@ -113,7 +116,7 @@ spring:
     url: jdbc:shardingsphere:classpath:sharding-orders.yaml?placeholder-type=environment
 ```
 
-新建 `mall-order/src/main/resources/sharding-orders.yaml`：
+新建 `E:\CourseMall\mall-order\src\main\resources\sharding-orders.yaml`：
 
 ```yaml
 databaseName: course_mall_order
@@ -157,7 +160,22 @@ ORDER_DB_PASSWORD=你的本地数据库密码
 
 ### 1. Entity 只负责持久化
 
+把 `E:\CourseMall\mall-order\src\main\java\com\mall\order\entity\Order.java`
+替换为下面的完整内容：
+
 ```java
+package com.mall.order.entity;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/** 订单持久化实体。 */
 @Data
 @TableName("orders")
 public class Order {
@@ -180,7 +198,20 @@ public class Order {
 
 ### 2. 所有高频查询携带分片键
 
+把 `E:\CourseMall\mall-order\src\main\java\com\mall\order\mapper\OrderMapper.java`
+替换为下面的完整内容：
+
 ```java
+package com.mall.order.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.mall.order.entity.Order;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+
+/** 订单分片表访问接口。 */
 public interface OrderMapper extends BaseMapper<Order> {
 
     @Select("""
@@ -201,35 +232,122 @@ public interface OrderMapper extends BaseMapper<Order> {
     Order selectOwnedOrder(
             @Param("userId") Long userId,
             @Param("orderNo") String orderNo);
+
+    @Select("""
+            SELECT COUNT(*) FROM orders
+            WHERE user_id = #{userId} AND deleted_at IS NULL
+            """)
+    long countByUserId(@Param("userId") Long userId);
+}
+```
+
+新建
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\service\OrderQueryService.java`，
+不要让 Controller 直接操作 Mapper：
+
+```java
+package com.mall.order.service;
+
+import com.mall.common.exception.BizException;
+import com.mall.common.page.PageResult;
+import com.mall.common.result.ErrorCode;
+import com.mall.order.entity.Order;
+import com.mall.order.mapper.OrderMapper;
+import com.mall.order.vo.OrderVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/** 当前用户的订单查询服务。 */
+@Service
+@RequiredArgsConstructor
+public class OrderQueryService {
+
+    private final OrderMapper orderMapper;
+
+    public PageResult<OrderVO> pageMine(Long userId, int page, int size) {
+        long offset = (long) (page - 1) * size;
+        List<OrderVO> records = orderMapper
+                .selectPageByUserId(userId, offset, size)
+                .stream()
+                .map(this::toVO)
+                .toList();
+        long total = orderMapper.countByUserId(userId);
+        return new PageResult<>(records, total, page, size);
+    }
+
+    public OrderVO detail(Long userId, String orderNo) {
+        Order order = orderMapper.selectOwnedOrder(userId, orderNo);
+        if (order == null) {
+            // 不区分订单不存在和不属于当前用户，避免泄露他人订单信息。
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, orderNo);
+        }
+        return toVO(order);
+    }
+
+    private OrderVO toVO(Order order) {
+        return new OrderVO(
+                order.getId(),
+                order.getOrderNo(),
+                order.getTotalAmount(),
+                order.getStatus(),
+                order.getCreateTime());
+    }
 }
 ```
 
 不要提供 `/api/orders/user/{userId}` 让客户端指定用户。用户身份必须来自 JWT：
 
+新建
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\controller\OrderQueryController.java`。
+它只负责 GET 查询；Day23 的 `SeataOrderController` 继续负责 POST 下单，
+两个 Controller 可以共用 `/api/orders` 前缀，只要 HTTP 方法和子路径不冲突：
+
 ```java
+package com.mall.order.controller;
+
+import com.mall.common.page.PageResult;
+import com.mall.common.result.Result;
+import com.mall.order.service.OrderQueryService;
+import com.mall.order.vo.OrderVO;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/** 当前用户订单查询接口。 */
 @Validated
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
-public class OrderController {
+public class OrderQueryController {
 
-    private final OrderService orderService;
+    private final OrderQueryService orderQueryService;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public Result<PageResult<OrderVO>> mine(
-            @AuthenticationPrincipal LoginUser loginUser,
+            @AuthenticationPrincipal(expression = "id") Long userId,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return Result.ok(orderService.pageMine(loginUser.getId(), page, size));
+        return Result.ok(orderQueryService.pageMine(userId, page, size));
     }
 
     @GetMapping("/{orderNo}")
     @PreAuthorize("isAuthenticated()")
     public Result<OrderVO> detail(
-            @AuthenticationPrincipal LoginUser loginUser,
+            @AuthenticationPrincipal(expression = "id") Long userId,
             @PathVariable @Pattern(regexp = "^[A-Za-z0-9]{10,64}$") String orderNo) {
-        return Result.ok(orderService.detail(loginUser.getId(), orderNo));
+        return Result.ok(orderQueryService.detail(userId, orderNo));
     }
 }
 ```

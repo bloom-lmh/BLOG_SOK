@@ -2,6 +2,9 @@
 
 > **今天目标**：给课程商城实现一个可复用的文件上传能力——课程封面（视频封面）上传，支持「本地磁盘 / 阿里云 OSS」两种存储可配置切换，并做好类型、大小、魔数三层校验，上传后返回可直接访问的 URL（回填到 Day 02 的 `course.cover` 字段）。
 
+本日项目根目录统一为 `E:\CourseMall`。Day09 仍处于模块化单体阶段，示例 Java
+文件放在 `mall-user\src\main\java`，配置放在 `mall-user\src\main\resources`。
+
 ## 一、前置条件
 
 - 已完成 **Day 01**（Maven 多模块骨架 + `Result` / `ErrorCode` / `GlobalExceptionHandler` 已就位）

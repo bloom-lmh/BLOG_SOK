@@ -2,6 +2,9 @@
 
 > **今天目标**：给 `mall-user` 接入 Sentinel，实现「接口级 QPS 流控、慢调用熔断 + 业务异常降级、热点参数限流」，并把规则持久化到 Nacos（服务重启后规则不丢）。
 
+本日项目根目录统一为 `E:\CourseMall`。Sentinel 依赖和配置应加入每个需要保护的
+可执行服务；示例 Java 路径均相对于对应模块的 `src\main\java`。
+
 ## 一、前置条件
 
 - 已完成 **Day 13（服务拆分 + Nacos 注册）**：父 pom 已引入 Spring Cloud Alibaba `2023.0.1.0` BOM

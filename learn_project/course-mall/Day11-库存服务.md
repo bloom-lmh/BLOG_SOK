@@ -2,6 +2,9 @@
 
 > **今天目标**：把 Day10 临时放在订单模块里的库存 SQL抽成 `mall-stock` 领域模块：订单内部调用原子扣减/回补，后台只开放有权限的库存查询/调整；同时用 `@Version` 学习乐观锁。
 
+本日项目根目录统一为 `E:\CourseMall`。库存代码位于
+`mall-stock\src\main\java`；Day11 仍由 `mall-user` 启动。
+
 ## 一、前置条件
 
 - 已完成 **Day 01**（Maven 多模块骨架：`Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler` 都在 `mall-common`）

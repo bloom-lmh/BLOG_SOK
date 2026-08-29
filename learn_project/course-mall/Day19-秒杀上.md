@@ -2,6 +2,9 @@
 
 > **今天目标**：新建 `mall-seckill` 秒杀服务，用 Redis 的**原子操作**（Lua 脚本扣库存）解决「超卖」，用 **SET NX EX 分布式锁 + 唯一索引**解决「一人多单」。今天只做「抢购」这一个功能，不做消息削峰和限流（那是 Day 20 的事）。
 
+本日项目根目录统一为 `E:\CourseMall`。Java 文件位于
+`mall-seckill\src\main\java`，配置位于 `mall-seckill\src\main\resources`。
+
 ## 一、前置条件
 
 - 已完成 **Day 01**：`mall-common` 里有 `Result` / `ErrorCode` / `BizException` / `GlobalExceptionHandler`

@@ -2,6 +2,9 @@
 
 > **今天目标**：新建 `mall-course` 课程领域模块，用 MyBatis-Plus 完成课程的「增删改查 + 分类 + 分页 + 条件查询 + 逻辑删除」。Day01～Day12 采用**模块化单体**：代码按 Maven 模块拆分，但只启动 `mall-user`，这样课程接口才能复用 Day04 的 JWT 认证、权限和统一异常处理。
 
+本日项目根目录统一为 `E:\CourseMall`。`com/mall/course/...` Java 文件位于
+`mall-course\src\main\java`，`com/mall/common/...` 位于 `mall-common\src\main\java`。
+
 ## 一、前置条件
 
 - 已完成 **Day 01～Day05**（统一响应、i18n、参数校验、JWT 认证与 RBAC 权限已可用）

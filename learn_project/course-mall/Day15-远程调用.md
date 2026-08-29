@@ -2,6 +2,9 @@
 
 > **今天目标**：用 OpenFeign 替代拆分前的跨模块 Mapper 调用。订单服务通过内部 API 查课程快照、扣减/回补库存；调用方只依赖 DTO 契约，不共享 Entity 或 Mapper。
 
+本日项目根目录统一为 `E:\CourseMall`。涉及 `mall-contract`、`mall-course`、
+`mall-stock` 和 `mall-order` 四个模块，下面按完整路径放置文件。
+
 ## 一、拆分前后的变化
 
 ```text
@@ -13,7 +16,7 @@ HTTP 边界带来四个新问题：超时、网络失败、身份传播和分布
 
 ## 二、依赖与启动配置
 
-`mall-order/pom.xml`：
+`E:\CourseMall\mall-order\pom.xml`：
 
 ```xml
 <dependency>
@@ -27,9 +30,17 @@ HTTP 边界带来四个新问题：超时、网络失败、身份传播和分布
 </dependency>
 ```
 
-`mall-order` 成为独立应用后，删除对 `mall-course` 和 `mall-stock` 的 Maven 依赖，并启用 Feign：
+`mall-order` 成为独立应用后，删除对 `mall-course` 和 `mall-stock` 的 Maven 依赖。
+新建 `E:\CourseMall\mall-order\src\main\java\com\mall\order\MallOrderApplication.java`：
 
 ```java
+package com.mall.order;
+
+import org.mybatis.spring.annotation.MapperScan;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+
 @EnableFeignClients(basePackages = "com.mall.order.client")
 @MapperScan("com.mall.order.mapper")
 @SpringBootApplication(scanBasePackages = "com.mall")
@@ -39,6 +50,8 @@ public class MallOrderApplication {
     }
 }
 ```
+
+在 `E:\CourseMall\mall-order\src\main\resources\application.yml` 中配置：
 
 ```yaml
 server:
@@ -70,8 +83,9 @@ spring:
 
 `mall-contract` 只需 `jakarta.validation-api`，父 pom 要将它加入 `<modules>` 和 `<dependencyManagement>`；`mall-course`、`mall-stock`、`mall-order` 各自依赖它。
 
+`E:\CourseMall\mall-contract\src\main\java\com\mall\contract\course\CourseSnapshotDTO.java`：
+
 ```java
-// mall-contract/src/main/java/com/mall/contract/course/CourseSnapshotDTO.java
 package com.mall.contract.course;
 
 import java.math.BigDecimal;
@@ -85,8 +99,9 @@ public record CourseSnapshotDTO(
 }
 ```
 
+`E:\CourseMall\mall-contract\src\main\java\com\mall\contract\stock\StockChangeRequest.java`：
+
 ```java
-// mall-contract/src/main/java/com/mall/contract/stock/StockChangeRequest.java
 package com.mall.contract.stock;
 
 import jakarta.validation.constraints.NotBlank;
@@ -105,9 +120,24 @@ public record StockChangeRequest(
 
 ## 四、课程/库存服务提供内部端点
 
-`mall-course` 使用真实数据库，不再写一份内存假课程：
+`mall-course` 使用真实数据库，不再写一份内存假课程。新建
+`E:\CourseMall\mall-course\src\main\java\com\mall\course\controller\InternalCourseController.java`：
 
 ```java
+package com.mall.course.controller;
+
+import com.mall.common.result.Result;
+import com.mall.contract.course.CourseSnapshotDTO;
+import com.mall.course.service.CourseService;
+import jakarta.validation.constraints.Positive;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 @Validated
 @RestController
 @RequestMapping("/internal/courses")
@@ -123,13 +153,120 @@ public class InternalCourseController {
 }
 ```
 
+先执行 `E:\CourseMall\sql\day15-stock-operation.sql`：
+
+```sql
+USE course_mall;
+
+CREATE TABLE IF NOT EXISTS stock_operation (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    request_id  VARCHAR(128) NOT NULL,
+    operation   VARCHAR(16)  NOT NULL COMMENT 'DEDUCT/RESTORE',
+    course_id   BIGINT       NOT NULL,
+    quantity    INT          NOT NULL,
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_request_id (request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='库存操作幂等记录';
+```
+
+新建
+`E:\CourseMall\mall-stock\src\main\java\com\mall\stock\mapper\StockOperationMapper.java`：
+
 ```java
+package com.mall.stock.mapper;
+
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Param;
+
+/** 库存操作幂等日志 Mapper。 */
+public interface StockOperationMapper {
+
+    @Insert("""
+            INSERT IGNORE INTO stock_operation
+                (request_id, operation, course_id, quantity, create_time)
+            VALUES
+                (#{requestId}, #{operation}, #{courseId}, #{quantity}, NOW())
+            """)
+    int insertIgnore(
+            @Param("requestId") String requestId,
+            @Param("operation") String operation,
+            @Param("courseId") Long courseId,
+            @Param("quantity") Integer quantity);
+}
+```
+
+新建
+`E:\CourseMall\mall-stock\src\main\java\com\mall\stock\service\IdempotentStockService.java`：
+
+```java
+package com.mall.stock.service;
+
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.stock.mapper.CourseStockMapper;
+import com.mall.stock.mapper.StockOperationMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** 支持远程重试的幂等库存服务。 */
+@Service
+@RequiredArgsConstructor
+public class IdempotentStockService {
+
+    private final StockOperationMapper operationMapper;
+    private final CourseStockMapper stockMapper;
+
+    @Transactional(rollbackFor = Exception.class)
+    public void deduct(Long courseId, int quantity, String requestId) {
+        if (operationMapper.insertIgnore(
+                requestId, "DEDUCT", courseId, quantity) == 0) {
+            return;
+        }
+        if (stockMapper.deductStock(courseId, quantity) == 0) {
+            // 抛异常后幂等日志一起回滚，补充库存后允许同一请求再次尝试。
+            throw new BizException(ErrorCode.STOCK_INSUFFICIENT);
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void restore(Long courseId, int quantity, String requestId) {
+        if (operationMapper.insertIgnore(
+                requestId, "RESTORE", courseId, quantity) == 0) {
+            return;
+        }
+        if (stockMapper.restoreStock(courseId, quantity) == 0) {
+            throw new BizException(ErrorCode.OPERATION_FAILED);
+        }
+    }
+}
+```
+
+新建
+`E:\CourseMall\mall-stock\src\main\java\com\mall\stock\controller\InternalStockController.java`：
+
+```java
+package com.mall.stock.controller;
+
+import com.mall.common.result.Result;
+import com.mall.contract.stock.StockChangeRequest;
+import com.mall.stock.service.IdempotentStockService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 @Validated
 @RestController
 @RequestMapping("/internal/stocks")
 @RequiredArgsConstructor
 public class InternalStockController {
-    private final StockService stockService;
+    private final IdempotentStockService stockService;
 
     @PostMapping("/deductions")
     @PreAuthorize("isAuthenticated()")
@@ -147,9 +284,12 @@ public class InternalStockController {
 }
 ```
 
-`StockService` 必须用 `requestId` + 唯一索引记录已执行的扣减/回补，否则任何网络重试都可能重复扣库存。Day23 会用最终一致方案完善整条下单链路。
+幂等日志和库存更新处于同一个本地事务。网络重试使用相同 `requestId` 时，
+第二次 `INSERT IGNORE` 影响 0 行并直接返回，不会重复扣减或回补。
 
 ## 五、Feign Client
+
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\client\CourseClient.java`：
 
 ```java
 package com.mall.order.client;
@@ -166,7 +306,17 @@ public interface CourseClient {
 }
 ```
 
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\client\StockClient.java`：
+
 ```java
+package com.mall.order.client;
+
+import com.mall.common.result.Result;
+import com.mall.contract.stock.StockChangeRequest;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 @FeignClient(name = "mall-stock", path = "/internal/stocks")
 public interface StockClient {
     @PostMapping("/deductions")
@@ -183,7 +333,22 @@ Feign 参数名要显式写在 `@PathVariable("id")` 中，不要依赖编译器
 
 每个业务服务都要独立验证 JWT 并建立自己的 `SecurityContext`。Feign 调用时要把入站请求的 `Authorization` 原样传给下游：
 
+新建
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\config\FeignAuthConfig.java`：
+
 ```java
+package com.mall.order.config;
+
+import feign.RequestInterceptor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+/** 将当前请求的 Authorization 头传给下游服务。 */
 @Configuration
 public class FeignAuthConfig {
     @Bean
@@ -227,7 +392,15 @@ public OrderVO createOrder(Long userId, String requestId, CreateOrderRequest req
 }
 ```
 
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\support\RemoteResult.java`：
+
 ```java
+package com.mall.order.support;
+
+import com.mall.common.exception.BizException;
+import com.mall.common.result.ErrorCode;
+import com.mall.common.result.Result;
+
 public final class RemoteResult {
     private RemoteResult() {}
 

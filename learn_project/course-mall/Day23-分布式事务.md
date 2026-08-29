@@ -197,7 +197,8 @@ public class MallOrderApplication {
 
 #### 3.3 配置文件补全（Nacos + Seata）
 
-`E:\course-mall\mall-order\src\main\resources\application.yml` 在 Day 21 的基础上补两段（**Day 21 的 `rocketmq` 段保持不变**——MQ 组件还挂在这个服务里，去掉配置反而可能导致启动报错）：
+`E:\CourseMall\mall-order\src\main\resources\application.yml` 在 Day21 的基础上补充
+数据源、Nacos 和 Seata 配置。Day21 的 `rocketmq` 段继续保留：
 
 ```yaml
 server:
@@ -266,48 +267,39 @@ Seata Spring Boot Starter 会自动将数据源代理为 `DataSourceProxy`。**�
 **一句话**：它拦截业务 SQL，生成前/后镜像和 `undo_log`，并将本地事务注册为全局分支。现代 Starter 通常自动完成代理，不需要再手写 Bean。
 :::
 
-#### 3.5 远程扣库存的 Feign 客户端
+#### 3.5 复用 Day15 的 Feign 客户端
 
-新建 `E:\course-mall\mall-order\src\main\java\com\mall\order\feign\StockClient.java`：
-
-```java
-package com.mall.order.feign;
-
-import com.mall.common.result.Result;
-import com.mall.contract.stock.StockChangeRequest;
-import jakarta.validation.Valid;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-
-// name = "mall-stock"：只写服务名不写 IP:端口（Day 15：Nacos 发现 + LoadBalancer 挑实例）
-@FeignClient(name = "mall-stock")
-public interface StockClient {
-    @PostMapping("/internal/stocks/deductions")
-    Result<Void> deduct(@Valid @RequestBody StockChangeRequest request);
-}
-```
+继续使用
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\client\StockClient.java`，
+不要再创建一份 `com.mall.order.feign.StockClient`。Day15 的客户端已经按服务名调用
+`POST /internal/stocks/deductions`，Seata 集成会在同一 Feign 调用上继续传播 XID。
 
 > **XID 怎么传过去？** `mall-order` 开启全局事务后生成一个 XID，SCA 的 Seata 集成会自动把 XID 塞进 Feign 请求头（`TX_XID`），`mall-stock` 侧自动取出挂到线程上下文——**全程不用你写一行代码**。这也是为什么分布式事务必须走带服务发现的调用链，不能自己裸发 HTTP。
 
 #### 3.6 核心：改造 OrderService（@GlobalTransactional）
 
-改 `E:\course-mall\mall-order\src\main\java\com\mall\order\service\OrderService.java`。**注意**：Day 21 加过 `rocketMQTemplate` 字段和 `syncSend` 调用，今天**删掉这两处**；`cancelOrder`（Day 10）、`createTx`、MQ 监听器全部保留不动。下面只列出改动后的 `createOrder` 和公共部分：
+新建同步强一致版本
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\service\SeataOrderService.java`。
+它与 Day21 的事务消息方案并列，方便面试时比较“可靠消息最终一致”和“Seata AT”。
+不要把两种下单流程同时映射到同一个公网路径：本日验证时让订单 Controller 调用
+`SeataOrderService`，Day21 的 `OrderCommandService` 暂时保留但不接公网入口。
 
 ```java
 package com.mall.order.service;
 
 import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
-import com.mall.common.result.Result;
 import com.mall.order.dto.CreateOrderRequest;
 import com.mall.order.entity.Order;
 import com.mall.order.entity.OrderItem;
 import com.mall.order.enums.OrderStatus;
-import com.mall.order.feign.CourseClient;
-import com.mall.order.feign.StockClient;
+import com.mall.order.client.CourseClient;
+import com.mall.order.client.StockClient;
 import com.mall.order.mapper.OrderItemMapper;
 import com.mall.order.mapper.OrderMapper;
+import com.mall.order.support.OrderFaultInjector;
+import com.mall.order.support.RemoteResult;
+import com.mall.order.vo.OrderVO;
 import com.mall.contract.course.CourseSnapshotDTO;
 import com.mall.contract.stock.StockChangeRequest;
 import io.seata.spring.annotation.GlobalTransactional;
@@ -324,12 +316,13 @@ import java.util.concurrent.ThreadLocalRandom;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OrderService {
+public class SeataOrderService {
 
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final CourseClient courseClient;
     private final StockClient stockClient;
+    private final OrderFaultInjector faultInjector;
 
     // 两个注解各管一摊，职责不同、缺一不可：
     // @GlobalTransactional：开启 Seata 全局事务（生成 XID 并分发给各分支），本方法就是 TM。
@@ -338,7 +331,7 @@ public class OrderService {
     //   本地事务边界内，业务数据和 undo_log 一起提交，并注册为全局分支。
     @GlobalTransactional
     @Transactional(rollbackFor = Exception.class)
-    public Order createOrder(Long userId, String requestId, CreateOrderRequest request) {
+    public OrderVO createOrder(Long userId, String requestId, CreateOrderRequest request) {
         // 跨服务只调 API，不再跨库直接查 course 表。
         CourseSnapshotDTO course = RemoteResult.unwrap(
                 courseClient.getSnapshot(request.getCourseId()));
@@ -368,8 +361,16 @@ public class OrderService {
         RemoteResult.unwrap(stockClient.deduct(new StockChangeRequest(
                 course.id(), count, "deduct:" + requestId)));
 
+        // 生产实现为空操作；集成测试 Profile 在这里模拟“库存已扣、订单服务随后故障”。
+        faultInjector.afterStockDeducted();
+
         log.info("下单成功 orderNo={} courseId={} count={}", order.getOrderNo(), course.id(), count);
-        return order;
+        return new OrderVO(
+                order.getId(),
+                order.getOrderNo(),
+                order.getTotalAmount(),
+                order.getStatus(),
+                order.getCreateTime());
     }
 
     // 订单号生成（Day 10 的实现，不动）：时间戳 + userId + 6 位随机数
@@ -377,6 +378,82 @@ public class OrderService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
         int rand = ThreadLocalRandom.current().nextInt(100000, 999999);
         return timestamp + userId + rand;
+    }
+}
+```
+
+删除 Day21 `OrderCommandController`（或至少移除它的 `POST /api/orders`），然后新建
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\controller\SeataOrderController.java`：
+
+```java
+package com.mall.order.controller;
+
+import com.mall.common.result.Result;
+import com.mall.order.dto.CreateOrderRequest;
+import com.mall.order.service.SeataOrderService;
+import com.mall.order.vo.OrderVO;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/** Seata AT 同步下单接口。 */
+@Validated
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class SeataOrderController {
+
+    private final SeataOrderService orderService;
+
+    @PostMapping
+    @PreAuthorize("isAuthenticated()")
+    public Result<OrderVO> create(
+            @AuthenticationPrincipal(expression = "id") Long userId,
+            @RequestHeader("Idempotency-Key")
+            @NotBlank @Size(max = 64) String requestId,
+            @Valid @RequestBody CreateOrderRequest request) {
+        return Result.ok(orderService.createOrder(userId, requestId, request));
+    }
+}
+```
+
+为了可重复测试全局回滚，不要在公网 Controller 留“故障开关”。新建生产环境空实现：
+
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\support\OrderFaultInjector.java`：
+
+```java
+package com.mall.order.support;
+
+/** 仅用于集成测试在指定事务位置注入故障。 */
+public interface OrderFaultInjector {
+    void afterStockDeducted();
+}
+```
+
+`E:\CourseMall\mall-order\src\main\java\com\mall\order\support\NoOpOrderFaultInjector.java`：
+
+```java
+package com.mall.order.support;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
+/** 正常运行时不注入任何故障。 */
+@Component
+@Profile("!seata-fail")
+public class NoOpOrderFaultInjector implements OrderFaultInjector {
+    @Override
+    public void afterStockDeducted() {
+        // 正常环境为空操作。
     }
 }
 ```
@@ -415,7 +492,7 @@ public class CreateOrderRequest {
 
 库存服务的扣减接口（Day 11 写的原子 SQL）**业务逻辑一行都不用改**——AT 模式对 RM 侧业务代码零侵入。但 Day 11 建的模块**还没注册到 Nacos**（那时还没拆微服务），Feign 按服务名找不到它，所以今天要做四件事：
 
-**① pom 新增两条依赖**（`E:\course-mall\mall-stock\pom.xml`）：
+**① pom 新增两条依赖**（`E:\CourseMall\mall-stock\pom.xml`）：
 
 ```xml
 <!-- Nacos 服务注册：今天才补上——Feign 要按服务名发现 mall-stock（Day 13 的 BOM 管版本） -->
@@ -430,7 +507,8 @@ public class CreateOrderRequest {
 </dependency>
 ```
 
-**② yml 加 Nacos + Seata 段 + 改端口**（`E:\course-mall\mall-stock\src\main\resources\application.yml`，Day 11 的 datasource / mybatis-plus 保持不变）：
+**② 创建完整配置文件**
+`E:\CourseMall\mall-stock\src\main\resources\application.yml`：
 
 ```yaml
 server:
@@ -441,14 +519,21 @@ server:
 spring:
   application:
     name: mall-stock
-  # ... Day 11 的 datasource、mybatis-plus 配置保持不变 ...
+  datasource:
+    url: ${STOCK_DB_URL:jdbc:mysql://127.0.0.1:3306/course_mall?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${STOCK_DB_USERNAME:root}
+    password: ${STOCK_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848   # 今天新增：注册到 Nacos
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
 
 # ---- 今天新增：Seata 客户端配置（tx-service-group 必须和 mall-order 完全一致）----
 seata:
+  enabled: true
+  enable-auto-data-source-proxy: true
+  data-source-proxy-mode: AT
   tx-service-group: course-mall-tx-group
   service:
     vgroup-mapping:
@@ -457,12 +542,23 @@ seata:
     type: nacos
     nacos:
       application: seata-server
-      server-addr: localhost:8848
+      server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       group: SEATA_GROUP
       namespace: ""
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deletedAt
+      logic-not-delete-value: 'null'
+      logic-delete-value: now()
 ```
 
-**③ 开启 Starter 自动数据源代理**：在 `mall-stock` 使用与 3.4 相同的 `enable-auto-data-source-proxy: true` 和 `data-source-proxy-mode: AT`。不要再复制手写 `DataSourceProxy` 配置类。
+**③ Starter 自动数据源代理已经包含在上面的完整 YAML 中**。不要再复制手写
+`DataSourceProxy` 配置类。
 
 **④（建议）给扣减方法加上本地事务边界**：改 `E:\course-mall\mall-stock\src\main\java\com\mall\stock\service\StockService.java` 的 `deductByAtomicSql`，方法上加 `@Transactional(rollbackFor = Exception.class)`（import `org.springframework.transaction.annotation.Transactional`）。和 TM 侧同理：RM 的 SQL 也要有明确的本地事务边界，AT 才能把它作为一个干净的分支交给 TC 管理。
 
@@ -500,12 +596,85 @@ curl -X POST http://localhost:9000/api/orders \
 
 预期：返回 `code=200` 的订单；`SELECT stock FROM course WHERE id=1;` 变成 99；`orders`/`order_item` 各多一条；`SELECT COUNT(*) FROM undo_log;` 为 **0**（全局提交后日志已清理）。
 
-**验证 2 · 模拟故障（全局回滚，今天的重头戏）**：
+**验证 2 · 模拟故障（全局回滚，今天的重头戏）**。
+
+新建测试故障实现
+`E:\CourseMall\mall-order\src\test\java\com\mall\order\support\FailingOrderFaultInjector.java`：
 
 ```java
-// 集成测试中用 test Profile 的 FaultInjector，在库存扣减后抛异常。
-assertThatThrownBy(() -> orderService.createOrder(userId, "seata-fail-001", request))
-        .isInstanceOf(IllegalStateException.class);
+package com.mall.order.support;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
+@Component
+@Profile("seata-fail")
+public class FailingOrderFaultInjector implements OrderFaultInjector {
+    @Override
+    public void afterStockDeducted() {
+        throw new IllegalStateException("seata rollback test");
+    }
+}
+```
+
+新建集成测试
+`E:\CourseMall\mall-order\src\test\java\com\mall\order\service\SeataRollbackIntegrationTest.java`：
+
+```java
+package com.mall.order.service;
+
+import com.mall.order.dto.CreateOrderRequest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@SpringBootTest
+@ActiveProfiles("seata-fail")
+class SeataRollbackIntegrationTest {
+
+    @Autowired
+    private SeataOrderService orderService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void prepare() {
+        jdbcTemplate.update("UPDATE course SET stock = 100 WHERE id = 1");
+        jdbcTemplate.update(
+                "DELETE FROM orders WHERE user_id = ? AND request_id = ?",
+                1L,
+                "seata-fail-001");
+    }
+
+    @Test
+    void shouldRollbackOrderAndRemoteStock() {
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setCourseId(1L);
+        request.setCount(1);
+
+        assertThatThrownBy(() -> orderService.createOrder(
+                1L, "seata-fail-001", request))
+                .isInstanceOf(IllegalStateException.class);
+
+        Integer orderCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM orders WHERE user_id = ? AND request_id = ?",
+                Integer.class,
+                1L,
+                "seata-fail-001");
+        Integer stock = jdbcTemplate.queryForObject(
+                "SELECT stock FROM course WHERE id = 1",
+                Integer.class);
+
+        assertThat(orderCount).isZero();
+        assertThat(stock).isEqualTo(100);
+    }
+}
 ```
 
 预期：测试捕获故障异常。然后查库：

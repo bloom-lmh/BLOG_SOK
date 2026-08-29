@@ -2,6 +2,9 @@
 
 > **今天目标**：把 Day 19 秒杀接口从「同步写库」升级成「Redis 预扣减 → 发 RocketMQ 消息异步落库 → 立即返回排队中」，用**消息队列削峰**保护数据库；再在入口加一层**令牌桶限流**，把并发压到系统能承受的范围。今天的技术点是 **削峰** 和 **限流**。
 
+本日项目根目录统一为 `E:\CourseMall`。新增代码位于 `mall-seckill`；被多个服务
+消费的消息契约应移动到 `mall-contract`，不要复制同名消息类。
+
 ## 一、前置条件
 
 - 已完成 **Day 19（秒杀上）**：`mall-seckill` 模块已建好（端口 **8082**），具备 `preload` 预热、`DistributedLock` 分布式锁、`RedisConfig` 里的扣库存 Lua Bean（`deductStockScript`）、限购（`seckill:user:` SETNX + `uk_user_activity` 唯一索引）
@@ -73,10 +76,19 @@ mqbroker.cmd -n localhost:9876
 **方式二 · Docker**（更省事，装好 Docker 就用这个）：
 
 ```bash
-docker run -d --name rmqnamesrv -p 9876:9876 apache/rocketmq:5.3.0 sh mqnamesrv
-docker run -d --name rmqbroker -p 10911:10911 -p 10909:10909 \
-  -e "NAMESRV_ADDR=rmqnamesrv:9876" apache/rocketmq:5.3.0 sh mqbroker
+docker network create course-mall-mq
+docker run -d --name rmqnamesrv --network course-mall-mq \
+  -p 9876:9876 apache/rocketmq:5.3.0 sh mqnamesrv
+docker run -d --name rmqbroker --network course-mall-mq \
+  -p 10911:10911 -p 10909:10909 \
+  -e "NAMESRV_ADDR=rmqnamesrv:9876" \
+  apache/rocketmq:5.3.0 sh mqbroker
 ```
+
+两个容器必须加入同一个自定义网络，否则 Broker 无法通过容器 DNS 解析
+`rmqnamesrv`。若 Windows 上的 Java 客户端拿到 Broker 容器内网地址后连接失败，
+应使用 Compose 和 `broker.conf` 显式配置宿主机可达的 `brokerIP1`，不要把
+`127.0.0.1` 写进 Broker 容器配置。
 
 > ⚠️ 版本配对说明：今天引入的 `rocketmq-spring-boot-starter 2.3.1` 底层用的是 rocketmq-client **5.x**。5.x 客户端官方保证向下兼容 4.9.x Broker（本地二进制方式没问题），但 Docker 建议直接用 5.x 镜像，最省心。
 >

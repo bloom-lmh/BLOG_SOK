@@ -355,6 +355,7 @@ export default defineConfig({
         {
           text: '工具',
           items: [
+            { text: 'RedisTemplate', link: '/learn_backend/java/工具/RedisTemplate' },
             { text: 'Lombok', link: '/learn_backend/java/工具/Lombok' },
             { text: 'MapStruct', link: '/learn_backend/java/工具/MapStruct' },
             { text: 'Knife4j', link: '/learn_backend/java/工具/Knife4j' },

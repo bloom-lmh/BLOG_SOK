@@ -2,6 +2,9 @@
 
 > **今天目标**：在 Day01～Day12 的模块化单体中新增 `mall-payment` 领域模块，完成发起支付、沙箱回调、签名与金额校验、订单/支付单一致更新和重复回调幂等。今天不接真实资金渠道，但代码边界按真实项目设计。
 
+本日项目根目录统一为 `E:\CourseMall`。支付 Java 文件位于
+`mall-payment\src\main\java`；本日仍由 `mall-user` 启动。
+
 ## 一、支付链路
 
 ```text
@@ -271,7 +274,7 @@ public class SandboxPaymentStrategy implements PaymentStrategy {
 
 ## 七、沙箱签名配置
 
-`mall-user/src/main/resources/application.yml`：
+`E:\CourseMall\mall-user\src\main\resources\application.yml`：
 
 ```yaml
 mall:
@@ -286,6 +289,9 @@ IDEA 启动配置的环境变量中加入：
 COURSE_MALL_PAYMENT_SANDBOX_SECRET=change-this-local-secret-at-least-32-bytes
 ```
 
+新建
+`E:\CourseMall\mall-payment\src\main\java\com\mall\payment\config\PaymentProperties.java`：
+
 ```java
 package com.mall.payment.config;
 
@@ -298,11 +304,23 @@ import org.springframework.validation.annotation.Validated;
 public record PaymentProperties(boolean sandboxEnabled, @NotBlank String sandboxSecret) {}
 ```
 
+新建
+`E:\CourseMall\mall-payment\src\main\java\com\mall\payment\config\PaymentConfig.java`：
+
 ```java
+package com.mall.payment.config;
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
 @Configuration
 @EnableConfigurationProperties(PaymentProperties.class)
-public class PaymentConfig {}
+public class PaymentConfig {
+}
 ```
+
+新建
+`E:\CourseMall\mall-payment\src\main\java\com\mall\payment\support\SandboxSigner.java`：
 
 ```java
 package com.mall.payment.support;
@@ -535,7 +553,26 @@ public class PaymentController {
 }
 ```
 
+新建
+`E:\CourseMall\mall-payment\src\main\java\com\mall\payment\controller\SandboxPaymentController.java`：
+
 ```java
+package com.mall.payment.controller;
+
+import com.mall.common.result.Result;
+import com.mall.payment.service.PaymentService;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 @Validated
 @RestController
 @RequiredArgsConstructor
@@ -590,10 +627,10 @@ Authorization: Bearer <access-token>
 | 今天用到的点 | 对应知识文档 |
 |---|---|
 | 唯一索引、条件更新、事务 | [MySQL](/learn_database/MySQL) |
-| `@Transactional` | [Spring 事务](/learn_backend/java/spring/spring事务) |
-| `@Valid` / `@Validated` | [Spring Boot 参数校验](/learn_backend/java/springboot/参数校验) |
-| `@PreAuthorize` | [Spring Security](/learn_backend/java/springsecurity/SpringSecurity) |
-| 策略模式 | [Java 设计模式](/learn_backend/java/设计模式) |
+| `@Transactional` | [Spring 事务](/learn_backend/java/基础/Spring) |
+| `@Valid` / `@Validated` | [Spring Boot 参数校验](/learn_backend/java/基础/Spring Boot) |
+| `@PreAuthorize` | [Spring Security](/learn_backend/java/基础/Spring Security) |
+| 策略模式 | [本节支付策略](#六、支付策略) |
 
 ## 十二、✅ 完成后回填
 

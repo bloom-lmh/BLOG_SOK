@@ -2,6 +2,11 @@
 
 > **今天目标**：在不推翻 Day04/Day05 JWT 登录体系的前提下，加入 GitHub 第三方登录。GitHub 负责证明“你是谁”，CourseMall 负责绑定本地用户，并继续签发自己的 accessToken + refreshToken。
 
+本日代码全部位于 `E:\CourseMall\mall-user`：文中的
+`com/mall/user/...` 均表示
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\...`，资源配置位于
+`E:\CourseMall\mall-user\src\main\resources`。
+
 ## 一、先把 OAuth2、OIDC、JWT 分清
 
 | 名称 | 它解决什么问题 | 在本项目里的作用 |
@@ -112,7 +117,6 @@ GitHub 是 Spring Security 内置的常见 Provider，因此授权地址、token
 在 `sql/schema.sql` 加入：
 
 ```sql
-DROP TABLE IF EXISTS `oauth_account`;
 CREATE TABLE `oauth_account` (
     `id`               BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `user_id`          BIGINT       NOT NULL                COMMENT 'CourseMall 本地用户ID',
@@ -123,6 +127,7 @@ CREATE TABLE `oauth_account` (
     `update_time`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_provider_user` (`provider`, `provider_user_id`),
+    UNIQUE KEY `uk_user_provider` (`user_id`, `provider`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='第三方账号与本地账号绑定表';
 ```
@@ -190,7 +195,6 @@ package com.mall.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.mall.common.exception.BizException;
-import com.mall.common.i18n.MessageKeys;
 import com.mall.common.result.ErrorCode;
 import com.mall.user.entity.OAuthAccount;
 import com.mall.user.entity.User;
@@ -215,23 +219,10 @@ public class OAuthAccountService {
 
     @Transactional
     public User loginOrRegister(String registrationId, OAuth2User principal) {
-        String provider = registrationId.toLowerCase(Locale.ROOT);
-        if (!"github".equals(provider)) {
-            throw new BizException(
-                    ErrorCode.PARAM_ERROR.getCode(),
-                    MessageKeys.Auth.OAUTH_PROVIDER_UNSUPPORTED,
-                    provider);
-        }
-
-        Object idAttribute = principal.getAttribute("id");
-        if (idAttribute == null) {
-            throw new BizException(
-                    ErrorCode.UNAUTHORIZED.getCode(),
-                    MessageKeys.Auth.OAUTH_LOGIN_FAILED);
-        }
-
-        String providerUserId = idAttribute.toString();
-        String providerUsername = principal.getAttribute("login");
+        OAuthIdentity identity = identity(registrationId, principal);
+        String provider = identity.provider();
+        String providerUserId = identity.providerUserId();
+        String providerUsername = identity.providerUsername();
 
         OAuthAccount boundAccount = oauthAccountMapper.selectOne(
                 new LambdaQueryWrapper<OAuthAccount>()
@@ -242,14 +233,10 @@ public class OAuthAccountService {
             User user = userMapper.selectById(boundAccount.getUserId());
             if (user == null) {
                 // 绑定记录存在但本地用户不存在，属于数据一致性问题，不能悄悄再创建一个账号
-                throw new BizException(
-                        ErrorCode.SYSTEM_ERROR.getCode(),
-                        MessageKeys.Auth.OAUTH_BINDING_INVALID);
+                throw new BizException(ErrorCode.OAUTH_BINDING_INVALID);
             }
             if (Integer.valueOf(0).equals(user.getStatus())) {
-                throw new BizException(
-                        ErrorCode.UNAUTHORIZED.getCode(),
-                        MessageKeys.Auth.ACCOUNT_DISABLED);
+                throw new BizException(ErrorCode.ACCOUNT_DISABLED);
             }
             return user;
         }
@@ -262,8 +249,12 @@ public class OAuthAccountService {
         user.setNickname(firstNonBlank(
                 principal.getAttribute("name"),
                 providerUsername,
-                "GitHub用户"));
-        user.setAvatar(principal.getAttribute("avatar_url"));
+                "第三方登录用户"));
+        String avatar = principal.getAttribute("avatar_url");
+        if (avatar == null || avatar.isBlank()) {
+            avatar = principal.getAttribute("picture");
+        }
+        user.setAvatar(avatar);
         user.setEmail(principal.getAttribute("email"));
         user.setStatus(1);
         user.setDeleted(0);
@@ -278,6 +269,74 @@ public class OAuthAccountService {
         return user;
     }
 
+    /**
+     * 把当前已登录的本地账号绑定到第三方身份，而不是再创建一个本地用户。
+     */
+    @Transactional
+    public User bind(Long localUserId, String registrationId, OAuth2User principal) {
+        OAuthIdentity identity = identity(registrationId, principal);
+        String provider = identity.provider();
+        String providerUserId = identity.providerUserId();
+        OAuthAccount existing = oauthAccountMapper.selectOne(
+                new LambdaQueryWrapper<OAuthAccount>()
+                        .eq(OAuthAccount::getProvider, provider)
+                        .eq(OAuthAccount::getProviderUserId, providerUserId));
+        if (existing != null) {
+            if (existing.getUserId().equals(localUserId)) {
+                return requiredEnabledUser(localUserId);
+            }
+            throw new BizException(ErrorCode.OAUTH_ACCOUNT_ALREADY_BOUND);
+        }
+
+        Long providerCount = oauthAccountMapper.selectCount(
+                new LambdaQueryWrapper<OAuthAccount>()
+                        .eq(OAuthAccount::getUserId, localUserId)
+                        .eq(OAuthAccount::getProvider, provider));
+        if (providerCount > 0) {
+            throw new BizException(ErrorCode.OAUTH_ACCOUNT_ALREADY_BOUND);
+        }
+
+        User user = requiredEnabledUser(localUserId);
+        OAuthAccount account = new OAuthAccount();
+        account.setUserId(localUserId);
+        account.setProvider(provider);
+        account.setProviderUserId(providerUserId);
+        account.setProviderUsername(identity.providerUsername());
+        oauthAccountMapper.insert(account);
+        return user;
+    }
+
+    private User requiredEnabledUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (Integer.valueOf(0).equals(user.getStatus())) {
+            throw new BizException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        return user;
+    }
+
+    private OAuthIdentity identity(String registrationId, OAuth2User principal) {
+        String provider = registrationId.toLowerCase(Locale.ROOT);
+        String idAttribute = switch (provider) {
+            case "github" -> "id";
+            case "google", "keycloak" -> "sub";
+            default -> throw new BizException(
+                    ErrorCode.OAUTH_PROVIDER_UNSUPPORTED, provider);
+        };
+        Object id = principal.getAttribute(idAttribute);
+        if (id == null) {
+            throw new BizException(ErrorCode.OAUTH_LOGIN_FAILED);
+        }
+        String username = "github".equals(provider)
+                ? principal.getAttribute("login")
+                : firstNonBlank(
+                        principal.getAttribute("preferred_username"),
+                        principal.getAttribute("email"));
+        return new OAuthIdentity(provider, id.toString(), username);
+    }
+
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -285,6 +344,12 @@ public class OAuthAccountService {
             }
         }
         return "CourseMall用户";
+    }
+
+    private record OAuthIdentity(
+            String provider,
+            String providerUserId,
+            String providerUsername) {
     }
 }
 ```
@@ -301,14 +366,15 @@ public class OAuthAccountService {
 package com.mall.user.service;
 
 import com.mall.common.exception.BizException;
-import com.mall.common.i18n.MessageKeys;
 import com.mall.common.result.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -318,6 +384,14 @@ public class OAuthLoginTicketService {
     private static final String KEY_PREFIX = "login:oauth:ticket:";
     private static final long TTL_SECONDS = 60;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final DefaultRedisScript<String> GET_AND_DELETE_SCRIPT =
+            new DefaultRedisScript<>("""
+                    local value = redis.call('GET', KEYS[1])
+                    if value then
+                        redis.call('DEL', KEYS[1])
+                    end
+                    return value
+                    """, String.class);
 
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -334,64 +408,32 @@ public class OAuthLoginTicketService {
     }
 
     public Long consume(String ticket) {
-        // GETDEL 是原子操作：两个并发请求拿同一 ticket，最多只有一个成功。
-        String userId = stringRedisTemplate.opsForValue().getAndDelete(KEY_PREFIX + ticket);
+        // 当前学习环境 Redis 3.x 没有 GETDEL，用 Lua 保证读取和删除原子完成。
+        String userId = stringRedisTemplate.execute(
+                GET_AND_DELETE_SCRIPT,
+                List.of(KEY_PREFIX + ticket));
         if (userId == null) {
-            throw new BizException(
-                    ErrorCode.UNAUTHORIZED.getCode(),
-                    MessageKeys.Auth.OAUTH_TICKET_INVALID);
+            throw new BizException(ErrorCode.OAUTH_TICKET_INVALID);
         }
         return Long.valueOf(userId);
     }
 }
 ```
 
-### 步骤 8：让 TokenService 一次签发商城双 token
+### 步骤 8：复用 Day05 的双 token 签发
 
-`com/mall/user/vo/TokenPairVO.java`：
+不要再创建一套 `TokenPairVO` 或弱化版 refreshToken。Day05 已经提供
+`TokenService.issue(User user)`，它会生成高熵 refreshToken、只在 Redis 保存 SHA-256
+摘要，并沿用统一的 TTL。密码登录和第三方登录都必须调用这一份实现。
 
-```java
-package com.mall.user.vo;
-
-public record TokenPairVO(
-        String accessToken,
-        String refreshToken,
-        String tokenType,
-        long expiresIn) {
-}
-```
-
-在 Day05 的 `TokenService` 增加统一签发方法，密码登录和第三方登录都调用它：
+因此本日只需要在 ticket 换 token 时根据 userId 重新查询 User，再调用：
 
 ```java
-public TokenPairVO issueTokenPair(Long userId) {
-    String accessToken = jwtUtil.generateAccessToken(userId);
-    String refreshToken = UUID.randomUUID().toString().replace("-", "");
-    storeRefreshToken(userId, refreshToken);
-    return new TokenPairVO(
-            accessToken,
-            refreshToken,
-            "Bearer",
-            jwtUtil.getExpireSeconds());
-}
+LoginVO login = tokenService.issue(user);
 ```
 
-需要的 import：
-
-```java
-import com.mall.user.vo.TokenPairVO;
-import java.util.UUID;
-```
-
-同时给 `JwtUtil` 增加：
-
-```java
-public long getExpireSeconds() {
-    return expireSeconds;
-}
-```
-
-这样登录方式只决定“怎样证明用户身份”，证明成功后统一走 `issueTokenPair(userId)`，后面的 JWT 鉴权完全不用改。
+这样第三方登录同样具备 Day05 的 refreshToken rotation、登出和账号禁用检查；JWT
+过滤器与后续 RBAC 完全不需要修改。
 
 ### 步骤 9：OAuth2 成功与失败处理器
 
@@ -439,9 +481,18 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             Authentication authentication) throws IOException, ServletException {
 
         OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
-        User user = oauthAccountService.loginOrRegister(
-                oauthToken.getAuthorizedClientRegistrationId(),
-                oauthToken.getPrincipal());
+        HttpSession session = request.getSession(false);
+        Long bindUserId = session == null
+                ? null
+                : (Long) session.getAttribute("OAUTH_BIND_USER_ID");
+        User user = bindUserId == null
+                ? oauthAccountService.loginOrRegister(
+                        oauthToken.getAuthorizedClientRegistrationId(),
+                        oauthToken.getPrincipal())
+                : oauthAccountService.bind(
+                        bindUserId,
+                        oauthToken.getAuthorizedClientRegistrationId(),
+                        oauthToken.getPrincipal());
 
         String ticket = ticketService.create(user.getId());
         clearTemporarySession(request);
@@ -522,9 +573,12 @@ public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
 ```java
 package com.mall.user.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
+@Schema(description = "OAuth2 一次性票据兑换请求")
 public record OAuthTicketRequest(
+        @Schema(description = "第三方登录成功后签发的 60 秒一次性票据")
         @NotBlank(message = "{validation.oauth.ticket.not-blank}") String ticket) {
 }
 ```
@@ -536,9 +590,13 @@ package com.mall.user.controller;
 
 import com.mall.common.result.Result;
 import com.mall.user.dto.OAuthTicketRequest;
+import com.mall.user.entity.User;
+import com.mall.user.mapper.UserMapper;
 import com.mall.user.service.OAuthLoginTicketService;
 import com.mall.user.service.TokenService;
-import com.mall.user.vo.TokenPairVO;
+import com.mall.user.vo.LoginVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -549,15 +607,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/user/oauth")
 @RequiredArgsConstructor
+@Tag(name = "OAuth2 登录", description = "使用一次性票据兑换商城令牌")
 public class OAuthLoginController {
 
     private final OAuthLoginTicketService ticketService;
     private final TokenService tokenService;
+    private final UserMapper userMapper;
 
+    @Operation(summary = "兑换 OAuth2 登录票据")
     @PostMapping("/exchange")
-    public Result<TokenPairVO> exchange(@Valid @RequestBody OAuthTicketRequest request) {
+    public Result<LoginVO> exchange(@Valid @RequestBody OAuthTicketRequest request) {
         Long userId = ticketService.consume(request.ticket());
-        return Result.ok(tokenService.issueTokenPair(userId));
+        User user = userMapper.selectById(userId);
+        if (user == null || Integer.valueOf(0).equals(user.getStatus())) {
+            throw new com.mall.common.exception.BizException(
+                    com.mall.common.result.ErrorCode.ACCOUNT_DISABLED);
+        }
+        return Result.ok(tokenService.issue(user));
     }
 }
 ```
@@ -592,6 +658,85 @@ private final OAuth2LoginFailureHandler oauth2LoginFailureHandler;
 ```
 
 保留 Day04 的 `SessionCreationPolicy.STATELESS`。OAuth2 授权跳转期间，默认的 `AuthorizationRequestRepository` 会短暂用 Session 保存授权请求和 `state`；成功/失败处理器已经立即销毁该临时 Session，商城业务登录态仍然只认 JWT。
+
+### 步骤 12：已登录用户绑定 GitHub
+
+“GitHub 登录”和“给当前账号绑定 GitHub”不能混为一谈。绑定入口必须先通过商城
+JWT 认证，把当前本地 userId 放进 OAuth2 临时 Session；回调成功处理器会读取它并调用
+上面新增的 `bind(...)`，这样不会再创建第二个本地账号。
+
+新建
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\controller\OAuthBindingController.java`：
+
+```java
+package com.mall.user.controller;
+
+import com.mall.common.result.Result;
+import com.mall.user.security.LoginUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/user/oauth")
+@RequiredArgsConstructor
+@Tag(name = "OAuth2 账号绑定", description = "给当前商城账号绑定第三方身份")
+public class OAuthBindingController {
+
+    @Operation(summary = "开始绑定 GitHub 账号")
+    @PostMapping("/github/bind/start")
+    @PreAuthorize("isAuthenticated()")
+    public Result<String> startGitHubBinding(
+            @AuthenticationPrincipal LoginUser loginUser,
+            HttpServletRequest request) {
+        request.getSession(true).setAttribute(
+                "OAUTH_BIND_USER_ID", loginUser.getId());
+        return Result.ok("/oauth2/authorization/github");
+    }
+}
+```
+
+该接口**不能加入白名单**。Web 前端用 Bearer token POST，并设置
+`credentials: 'include'` 保存临时 `JSESSIONID`，拿到地址后再执行浏览器跳转。成功或失败
+处理器都会销毁 Session。商城日常 API 仍然无状态，Session 只活在这一次 OAuth 跳转中。
+
+解绑要额外保证用户仍有另一种可用登录方式（已设置本地密码或绑定了其他 Provider），
+否则会把用户锁在账号外；因此本日不提供“无条件 DELETE 绑定”接口。
+
+### 步骤 13：增加一个 OIDC Provider 验证差异
+
+GitHub 跑通后，可用 Google 或本地 Keycloak 验证 OIDC。以 Google 为例，增加环境变量和
+registration；因为 scope 包含 `openid`，Spring Security 会使用 OIDC 流程并得到
+`OidcUser`，稳定身份字段是标准 claim `sub`：
+
+```yaml
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - profile
+              - email
+```
+
+访问 `/oauth2/authorization/google` 即可复用同一成功处理器、绑定表、一次性 ticket 和
+商城 JWT。上面的 `OAuthAccountService.identity(...)` 已明确：GitHub 使用数字 `id`，
+OIDC Provider 使用 `sub`；不要把 email 当稳定主键。
+
+如果用 Keycloak，则配置 `provider.keycloak.issuer-uri` 与 registration 的
+`authorization-grant-type: authorization_code`、`scope: openid,profile,email`。OIDC 的
+Provider 元数据、JWK 验签地址和 UserInfo 地址可由 issuer discovery 自动发现，不必硬编码。
 
 ::: tip 💡 面试题：OAuth2 的 `state` 是干什么的？
 **一句话**：客户端发起授权时生成随机 state，回调时必须完全一致，用于把“发起请求”和“收到回调”关联起来并抵御登录 CSRF。它不能用可预测字符串，也不能省略。
@@ -663,27 +808,38 @@ CourseMall 可以沿用本日后半段设计：
 
 PKCE 的 `code_verifier` 留在移动端，授权请求只发送它的 SHA-256 摘要 `code_challenge`，即使授权码被截获，攻击者没有 verifier 也换不到 token。
 
-## 七、生产级检查清单
+## 七、知识点索引
+
+| 知识点 | 本日实现 |
+|---|---|
+| OAuth2 授权码流程 | GitHub 授权、code 回调、UserInfo |
+| OIDC | 与 GitHub OAuth2 登录的边界和后续扩展 |
+| 登录 CSRF | Spring Security 自动生成并校验 state |
+| 本地账号映射 | `(provider, provider_user_id)` 唯一索引 |
+| 凭证防泄漏 | 60 秒一次性 ticket 换商城双 token |
+| 账号绑定 | JWT 当前用户 + OAuth2 临时 Session |
+
+## 八、生产级检查清单
 
 - GitHub Client Secret 只存在环境变量或密钥管理服务中。
 - 生产回调必须使用 HTTPS，并在 GitHub 后台精确登记地址。
 - 前端回调地址由后端配置固定，禁止用户传入任意 redirect URI。
 - 回调 URL 不放 accessToken、refreshToken、GitHub token 或异常详情。
-- ticket 至少 256 位随机数、TTL 不超过 60 秒、使用 Redis `GETDEL` 一次消费。
+- ticket 至少 256 位随机数、TTL 不超过 60 秒；Redis 3.x 使用 Lua 原子读删，Redis 6.2+ 可用 `GETDEL`。
 - 使用 GitHub 稳定 `id` 绑定，不用昵称或邮箱当第三方主键。
 - `(provider, provider_user_id)` 有数据库唯一索引。
 - 不需要调用第三方 API 时，不落库保存第三方 access token。
 - 登录、绑定、解绑要写审计日志，但日志不能打印 token、secret、code。
 - 对 `/api/user/oauth/exchange` 增加 IP/设备维度限流。
 
-## 八、官方参考
+## 九、官方参考
 
 - [Spring Security OAuth2 Login](https://docs.spring.io/spring-security/reference/servlet/oauth2/login/index.html)
 - [GitHub OAuth Web Application Flow](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
 - [RFC 9700：OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html)
 
-## 九、✅ 完成后回填
+## 十、✅ 完成后回填
 
 - [ ] 完成时间：`____年__月__日`
 - [ ] GitHub 授权后能创建或找到本地用户：是 / 否
@@ -694,7 +850,7 @@ PKCE 的 `code_verifier` 留在移动端，授权请求只发送它的 SHA-256 �
 - [ ] 踩坑记录：
 - [ ] 疑问：
 
-## 十、我下次会追问的问题
+## 十一、我下次会追问的问题
 
 1. OAuth2、OIDC、JWT 各自解决什么问题，为什么它们不是互相替代关系？
 2. 为什么 GitHub 回调成功后不能直接把商城 JWT 拼在 URL 上？一次性 ticket 解决了哪些泄漏风险？

@@ -11,8 +11,8 @@
 
 ## 二、今天完成后你会得到什么
 
-1. `E:\course-mall\mall-user\Dockerfile`、`mall-gateway\Dockerfile`（其余模块照葫芦画瓢）
-2. `E:\course-mall\deploy\docker-compose.yml`——首个纵向切片一键编排；其余服务按清单逐个加入
+1. `E:\CourseMall\mall-user\Dockerfile`、`E:\CourseMall\mall-gateway\Dockerfile`
+2. `E:\CourseMall\deploy\docker-compose.yml`——首个纵向切片一键编排；其余服务按清单逐个加入
 3. 一条命令启动或停止首个可部署纵向切片，并掌握扩展到其余服务的方法
 4. 三个容器基础设施（MySQL/Redis/Nacos）数据用数据卷持久化，容器删了数据还在
 
@@ -43,7 +43,7 @@
 
 ### 步骤 2：给 mall-user 写 Dockerfile（多阶段构建）
 
-创建 `E:\course-mall\mall-user\Dockerfile`：
+创建 `E:\CourseMall\mall-user\Dockerfile`：
 
 ```dockerfile
 # ============ 第 1 阶段：构建（builder） ============
@@ -52,22 +52,15 @@
 FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
 
-# 为什么先拷 pom、后拷源码：Docker 是分层构建 + 层缓存。
-# pom.xml 不常变，先 COPY 进去并下载依赖，这一层会被缓存；
-# 以后每次改业务代码重建镜像时，依赖不用重新下载，构建从几分钟降到几秒
-COPY pom.xml ./
-COPY mall-common/pom.xml mall-common/pom.xml
-COPY mall-user/pom.xml mall-user/pom.xml
-RUN mvn -B -q dependency:go-offline -DskipTests
-
-# 源码最后拷（最常变，放最后保证前面的层都能命中缓存）
-COPY mall-common/src mall-common/src
-COPY mall-user/src mall-user/src
+# 多模块父 pom 会读取 modules 中所有子模块。为了避免漏拷 mall-security、
+# mall-contract 等依赖模块导致 Maven 报错，这里复制经过 .dockerignore 过滤的完整仓库。
+COPY . .
 
 # -pl mall-user：只打包 mall-user 模块
 # -am：同时把依赖的模块（mall-common）一起构建
 # -DskipTests：镜像构建阶段跳过测试（单测在 CI/本地跑，不在打包镜像时跑）
-RUN mvn -B -q package -pl mall-user -am -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -q package -pl mall-user -am -DskipTests
 
 # ============ 第 2 阶段：运行（只留运行时） ============
 # 为什么第 2 阶段换 JRE 镜像：构建阶段那个镜像有 Maven+JDK+缓存，几百 MB；
@@ -93,6 +86,11 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-Duser.timezone=GMT+8", "-jar", "/app/app.jar"]
 ```
 
+这里优先保证多模块构建不会漏文件，因此使用 `COPY . .`；`.dockerignore` 负责缩小上下文，
+BuildKit 的 `/root/.m2` cache mount 负责复用 Maven 依赖。大型 CI 项目可以进一步为所有
+子模块 POM 单独建立依赖缓存层，但必须把父 POM 中列出的模块 POM 全部复制，不能只复制
+`mall-common` 和当前模块。
+
 ::: tip 💡 面试题：ENTRYPOINT 和 CMD 有什么区别？
 **一句话**：`docker run 镜像 参数` 时，**追加的参数会替换 CMD 的内容，但会作为参数追加在 ENTRYPOINT 后面**。所以「固定执行的命令」用 ENTRYPOINT，「可变的默认参数」用 CMD。常见组合：`ENTRYPOINT ["java","-jar","app.jar"]` + `CMD ["--spring.profiles.active=dev"]`，这样 `docker run 镜像 --spring.profiles.active=prod` 可以覆盖默认参数。详见 [Docker](/learn_maintenance/Docker)。
 :::
@@ -117,21 +115,14 @@ docker images | grep course-mall
 # 如果 SIZE 有 700MB+，说明你的 Dockerfile 没有写多阶段（只有 FROM maven 一个阶段）
 ```
 
-给 mall-gateway 写一份一样的（注意网关没有 jar 依赖问题，但同样适用）：
+创建 `E:\CourseMall\mall-gateway\Dockerfile`，下面是完整内容：
 
 ```dockerfile
-# mall-gateway/Dockerfile —— 内容和 mall-user 基本一样，只有两个区别：
-# 1. COPY 的模块名换成 mall-gateway
-# 2. EXPOSE 的端口换成 9000
 FROM maven:3.9-eclipse-temurin-17 AS builder
 WORKDIR /build
-COPY pom.xml ./
-COPY mall-common/pom.xml mall-common/pom.xml
-COPY mall-gateway/pom.xml mall-gateway/pom.xml
-RUN mvn -B -q dependency:go-offline -DskipTests
-COPY mall-common/src mall-common/src
-COPY mall-gateway/src mall-gateway/src
-RUN mvn -B -q package -pl mall-gateway -am -DskipTests
+COPY . .
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -q package -pl mall-gateway -am -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
@@ -144,6 +135,18 @@ ENTRYPOINT ["java", "-Duser.timezone=GMT+8", "-jar", "/app/app.jar"]
 
 ```bash
 docker build -f mall-gateway/Dockerfile -t course-mall/mall-gateway:1.0 .
+```
+
+在仓库根目录新建 `E:\CourseMall\.dockerignore`，避免把构建产物、Git 历史、
+本地密钥和日志发送进 Docker 构建上下文：
+
+```text
+.git
+.idea
+**/target
+**/logs
+deploy/.env
+*.log
 ```
 
 ### 步骤 4：先单独跑一次容器（理解容器网络）
@@ -175,7 +178,7 @@ docker run --rm -p 8080:8080 \
 
 ### 步骤 5：写 docker-compose.yml（一键编排全部基础设施）
 
-创建 `E:\course-mall\deploy\docker-compose.yml`：
+创建 `E:\CourseMall\deploy\docker-compose.yml`：
 
 ```yaml
 # deploy/docker-compose.yml —— 首个纵向切片；敏感值从同目录 .env 读取
@@ -261,7 +264,7 @@ services:
       SPRING_DATA_REDIS_PORT: "6379"
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
       SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
-      JWT_SECRET: ${JWT_SECRET:?请在deploy/.env配置}
+      COURSE_MALL_JWT_SECRET: ${COURSE_MALL_JWT_SECRET:?请在deploy/.env配置}
       TZ: Asia/Shanghai
     restart: unless-stopped
     read_only: true
@@ -288,7 +291,7 @@ services:
     environment:
       # 网关只连 Nacos（路由 lb:// 走服务发现），不需要数据库
       SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
-      JWT_SECRET: ${JWT_SECRET:?请在deploy/.env配置}
+      COURSE_MALL_JWT_SECRET: ${COURSE_MALL_JWT_SECRET:?请在deploy/.env配置}
       TZ: Asia/Shanghai
     restart: unless-stopped
     read_only: true
@@ -309,7 +312,7 @@ volumes:
 ```dotenv
 MYSQL_ROOT_PASSWORD=请替换为本地强密码
 MYSQL_APP_PASSWORD=请替换为应用账号密码
-JWT_SECRET=至少32字节且不要提交Git
+COURSE_MALL_JWT_SECRET=至少32字节且不要提交Git
 ```
 
 `init.sql` 还要创建最小权限业务账号，业务容器不能使用 root：
@@ -331,7 +334,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON course_mall.* TO 'course_mall_app'@'%';
 
 ### 步骤 6：准备 init.sql，启动纵向切片
 
-1. 把 **Day 02 的建库建表 SQL** 保存到 `E:\course-mall\deploy\mysql\init.sql`（Day02 文档里的 11 张表 DDL，加一行 `CREATE DATABASE IF NOT EXISTS course_mall DEFAULT CHARACTER SET utf8mb4;` 和 `USE course_mall;`）
+1. 把 **Day 02 的建库建表 SQL** 保存到 `E:\CourseMall\deploy\mysql\init.sql`（Day02 文档里的 11 张表 DDL，加一行 `CREATE DATABASE IF NOT EXISTS course_mall DEFAULT CHARACTER SET utf8mb4;` 和 `USE course_mall;`）
 2. 启动（第一次会自动 build 两个业务镜像 + 拉三个基础镜像，耐心等几分钟）：
 
 ```bash

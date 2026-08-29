@@ -135,8 +135,6 @@ package com.mall.gateway.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
@@ -296,16 +294,330 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
 ## 七、下游仍要建立 SecurityContext
 
-把 Day04 的 JWT 通用验证逻辑抽取为 `mall-security` 普通 jar，让 user/course/order/stock/payment 都依赖它。拆分后不能再让过滤器每次去 user 表查用户；JWT 需携带 `sub` 和 authorities，资源服务验签后构造本进程的 `Authentication`。
+把 JWT 通用验证逻辑抽取为 `mall-security` 普通 jar，让
+course/order/stock/payment/seckill/search 等资源服务依赖它。`mall-user` 是令牌签发方，
+继续使用自己的 Day04 Security 配置，不启用资源服务配置。拆分后不能让过滤器每次去
+user 表查用户；JWT 携带 `sub`、`username` 和 `authorities`，资源服务验签后在本进程
+构造 `Authentication`。
+
+### 1. `mall-security` 依赖
+
+新建 `E:\CourseMall\mall-security\pom.xml`，并把模块加入父工程。该模块至少包含：
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.mall</groupId>
+        <artifactId>mall-common</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jjwt.version}</version>
+        <scope>runtime</scope>
+    </dependency>
+    <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jjwt.version}</version>
+        <scope>runtime</scope>
+    </dependency>
+</dependencies>
+```
+
+父 POM 的 `dependencyManagement` 管理 `mall-security` 版本，各资源服务只需添加：
+
+```xml
+<dependency>
+    <groupId>com.mall</groupId>
+    <artifactId>mall-security</artifactId>
+</dependency>
+```
+
+### 2. 当前用户和公开路径配置
+
+新建
+`E:\CourseMall\mall-security\src\main\java\com\mall\security\ResourcePrincipal.java`：
 
 ```java
-@EnableMethodSecurity
-@Configuration
-public class ResourceSecurityConfig {
-    // 保留各服务各自的精确白名单；其余请求都要 JWT。
-    // Controller 中的 @PreAuthorize 继续检查 Authentication.authorities。
+package com.mall.security;
+
+/** 资源服务从 JWT 中恢复出的当前用户。 */
+public record ResourcePrincipal(Long id, String username) {
 }
 ```
+
+新建
+`E:\CourseMall\mall-security\src\main\java\com\mall\security\ResourceSecurityProperties.java`：
+
+```java
+package com.mall.security;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/** 每个资源服务自己的公开 GET/POST 路径。 */
+@Data
+@ConfigurationProperties(prefix = "security.resource")
+public class ResourceSecurityProperties {
+    private boolean enabled;
+    private List<String> publicGetPaths = new ArrayList<>();
+    private List<String> publicPostPaths = new ArrayList<>();
+}
+```
+
+### 3. JWT 过滤器
+
+新建
+`E:\CourseMall\mall-security\src\main\java\com\mall\security\ResourceJwtFilter.java`：
+
+```java
+package com.mall.security;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import javax.crypto.SecretKey;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+/** 资源服务 JWT 验签过滤器。 */
+public class ResourceJwtFilter extends OncePerRequestFilter {
+
+    private final SecretKey key;
+
+    public ResourceJwtFilter(String secret) {
+        this.key = Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
+        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(authorization)
+                && authorization.startsWith("Bearer ")
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                Claims claims = Jwts.parser()
+                        .verifyWith(key)
+                        .build()
+                        .parseSignedClaims(authorization.substring(7))
+                        .getPayload();
+
+                Long userId = Long.valueOf(claims.getSubject());
+                String username = claims.get("username", String.class);
+                List<?> authorityValues = claims.get(
+                        "authorities", List.class);
+                List<SimpleGrantedAuthority> authorities = authorityValues == null
+                        ? List.of()
+                        : authorityValues.stream()
+                                .map(String::valueOf)
+                                .map(SimpleGrantedAuthority::new)
+                                .toList();
+
+                ResourcePrincipal principal =
+                        new ResourcePrincipal(userId, username);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                principal, null, authorities);
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(request));
+                SecurityContextHolder.getContext()
+                        .setAuthentication(authentication);
+            } catch (JwtException | IllegalArgumentException ex) {
+                // 保持未认证，后面的 AuthorizationFilter 会进入统一 401 入口。
+                SecurityContextHolder.clearContext();
+            }
+        }
+        filterChain.doFilter(request, response);
+    }
+}
+```
+
+### 4. 完整资源服务 Security 配置
+
+新建
+`E:\CourseMall\mall-security\src\main\java\com\mall\security\ResourceSecurityConfig.java`：
+
+```java
+package com.mall.security;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.result.ErrorCode;
+import com.mall.common.result.Result;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+/** Servlet 资源服务通用安全配置。 */
+@EnableMethodSecurity
+@Configuration
+@RequiredArgsConstructor
+@EnableConfigurationProperties(ResourceSecurityProperties.class)
+@ConditionalOnProperty(
+        prefix = "security.resource",
+        name = "enabled",
+        havingValue = "true")
+public class ResourceSecurityConfig {
+
+    private final ResourceSecurityProperties properties;
+    private final ObjectMapper objectMapper;
+    private final MessageSource messageSource;
+
+    @Bean
+    public SecurityFilterChain resourceFilterChain(
+            HttpSecurity http,
+            @Value("${jwt.secret}") String secret)
+            throws Exception {
+        ResourceJwtFilter jwtFilter = new ResourceJwtFilter(secret);
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> {
+                    if (!properties.getPublicGetPaths().isEmpty()) {
+                        auth.requestMatchers(
+                                        HttpMethod.GET,
+                                        properties.getPublicGetPaths()
+                                                .toArray(String[]::new))
+                                .permitAll();
+                    }
+                    if (!properties.getPublicPostPaths().isEmpty()) {
+                        auth.requestMatchers(
+                                        HttpMethod.POST,
+                                        properties.getPublicPostPaths()
+                                                .toArray(String[]::new))
+                                .permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                })
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, exception) ->
+                                writeError(response, request.getLocale(),
+                                        ErrorCode.UNAUTHORIZED))
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeError(response, request.getLocale(),
+                                        ErrorCode.FORBIDDEN)))
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    private void writeError(
+            HttpServletResponse response,
+            java.util.Locale locale,
+            ErrorCode errorCode) throws IOException {
+        response.setStatus(errorCode.getHttpStatus());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        String message = messageSource.getMessage(
+                errorCode.getMessageKey(), null, locale);
+        objectMapper.writeValue(
+                response.getOutputStream(),
+                Result.fail(errorCode.getCode(), message));
+    }
+}
+```
+
+`mall-security` 必须位于各启动类 `scanBasePackages = "com.mall"` 的范围内。
+Gateway 是 WebFlux，不依赖这个 Servlet 模块。
+
+### 5. 每个服务配置自己的公开路径
+
+例如 `E:\CourseMall\mall-course\src\main\resources\application.yml`：
+
+```yaml
+jwt:
+  secret: ${COURSE_MALL_JWT_SECRET}
+
+security:
+  resource:
+    enabled: true
+    public-get-paths:
+      - /api/courses
+      - /api/courses/**
+      - /api/categories/**
+      - /api/teachers/**
+      - /upload/**
+    public-post-paths: []
+```
+
+其他服务按职责配置：`mall-order`、`mall-stock` 默认没有公开路径；
+`mall-payment` 只公开支付回调 POST；`mall-search` 只公开课程搜索 GET。
+`/internal/**` 不放白名单，Feign 必须传播合法身份或后续改用 OAuth2 Client Credentials。
+
+### 6. 签发 Token 时写入权限
+
+Day04/05 的认证服务必须把权限放进 Token，否则资源服务只能完成认证，
+`@PreAuthorize("hasAuthority(...) ")` 会因为权限列表为空而返回 403。签发时增加：
+
+```java
+List<String> authorities = loginUser.getAuthorities().stream()
+        .map(GrantedAuthority::getAuthority)
+        .toList();
+
+String token = Jwts.builder()
+        .subject(String.valueOf(loginUser.getId()))
+        .claim("username", loginUser.getUsername())
+        .claim("authorities", authorities)
+        .issuedAt(now)
+        .expiration(expire)
+        .signWith(key())
+        .compact();
+```
+
+这段应合并到
+`E:\CourseMall\mall-user\src\main\java\com\mall\user\util\JwtUtil.java` 的签发方法，
+并让 `TokenService.issue(...)` 接收 `LoginUser`，而不是只接收丢失权限信息的 `User`。
+修改后旧 Token 没有 authorities，需要重新登录获取新 Token。
 
 生产网络还应通过安全组/Kubernetes NetworkPolicy 禁止公网直连 8080～8084，只暴露网关 9000。代码鉴权与网络隔离要同时存在。
 
