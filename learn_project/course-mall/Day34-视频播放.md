@@ -24,6 +24,8 @@ CREATE TABLE video_asset (
     duration_seconds INT NOT NULL DEFAULT 0,
     status TINYINT NOT NULL DEFAULT 0 COMMENT '0待转码 1转码中 2就绪 3失败',
     failure_reason VARCHAR(500) DEFAULT NULL,
+    created_by BIGINT DEFAULT NULL COMMENT '媒资上传人ID',
+    updated_by BIGINT DEFAULT NULL COMMENT '最后人工修改人ID',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -86,10 +88,14 @@ mall:
 ```java
 package com.mall.media.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+
+import java.time.LocalDateTime;
 
 @Data
 @TableName("video_asset")
@@ -102,8 +108,16 @@ public class VideoAsset {
     private Integer durationSeconds;
     private Integer status;
     private String failureReason;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
 ```
+
+转码线程没有登录用户，因此自动转码更新不会生成新的 `updatedBy`；该字段记录后台人员最后一次人工修改，`createdBy` 则记录上传人。
 
 新建 `E:\CourseMall\mall-media\src\main\java\com\mall\media\mapper\VideoAssetMapper.java`：
 

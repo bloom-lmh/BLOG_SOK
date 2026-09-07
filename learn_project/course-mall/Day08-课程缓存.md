@@ -227,6 +227,12 @@ public class CourseCacheService {
 }
 ```
 
+**步骤五小结：**
+
+1. 多个线程读取同一个课程详情时，先查询 Redis；缓存命中就直接返回。
+2. 缓存未命中时，各线程竞争该课程对应的互斥锁。抢到锁的线程查询 MySQL 并重建 Redis 缓存；没抢到锁的线程短暂等待后有限重试，避免所有请求同时访问数据库。
+3. 抢到锁后还要再次查询缓存（double-check），因为等待锁期间，前一个线程可能已经完成缓存重建；再次检查可以避免重复查询 MySQL 和重复写缓存。
+
 ::: tip 💡 面试题：`setIfAbsent`（SETNX）为什么能保证并发下只有一个线程回源？
 **一句话**：SETNX 是 Redis 的**原子命令**——「key 不存在才 set，存在就返回失败」，中间不可能被别的线程插进来。所以并发下多个线程同时 `setIfAbsent(lockKey)`，**只有第一个返回 true**，其余都返回 false 走重试/降级。详见 [Redis](/learn_database/Redis)。
 :::

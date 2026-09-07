@@ -63,6 +63,10 @@ CREATE TABLE live_gift (
     icon_url VARCHAR(500) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     enabled TINYINT NOT NULL DEFAULT 1,
+    created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+    updated_by BIGINT DEFAULT NULL COMMENT '最后修改人ID',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='直播礼物';
 
@@ -107,7 +111,9 @@ CREATE TABLE gift_event_outbox (
 ```java
 package com.mall.live.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -133,6 +139,12 @@ public class LiveRoom {
     private Integer replayDurationSeconds;
     private String replayFailureReason;
     private Integer version;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
     @TableLogic
     private Integer deleted;
 }
@@ -475,11 +487,14 @@ public record SendGiftRequest(
 ```java
 package com.mall.live.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @TableName("live_gift")
@@ -490,6 +505,12 @@ public class LiveGift {
     private String iconUrl;
     private BigDecimal price;
     private Integer enabled;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }
 ```
 

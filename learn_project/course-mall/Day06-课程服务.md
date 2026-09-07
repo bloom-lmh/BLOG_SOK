@@ -22,8 +22,7 @@ E:\CourseMall\
    ├─ pom.xml
    └─ src/main/java/com/mall/course/
       ├─ config/
-      │  ├─ MybatisPlusConfig.java            # 分页插件
-      │  └─ MyMetaObjectHandler.java          # 自动填充 create_time/update_time
+      │  └─ MybatisPlusConfig.java            # 分页插件
       ├─ entity/Course.java                   # 课程实体（deleted_at 逻辑删除）
       ├─ entity/Category.java                 # 分类实体
       ├─ mapper/CourseMapper.java             # 继承 BaseMapper，零 SQL
@@ -34,6 +33,8 @@ E:\CourseMall\
       ├─ vo/                                  # CourseVO / CategoryTreeVO
       └─ controller/                          # 对外接口
 ```
+
+审计填充器位于唯一启动模块 `mall-user/config`，安全工具位于 `mall-user/security`；它们不放进 `mall-course` 的目录树。
 
 ## 三、先搞懂：MyBatis-Plus 到底解决了什么
 
@@ -69,6 +70,7 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
     <mybatis-plus.version>3.5.7</mybatis-plus.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+    <swagger-annotations.version>2.2.19</swagger-annotations.version>
 </properties>
 
 <dependencyManagement>
@@ -92,6 +94,11 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
             <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
+            <version>${swagger-annotations.version}</version>
         </dependency>
     </dependencies>
 </dependencyManagement>
@@ -156,6 +163,11 @@ MyBatis-Plus（简称 MP）在 MyBatis 之上做了增强：**只要你的实体
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
+        </dependency>
+        <!-- OpenAPI 模型注解：CategoryVO 等返回对象使用 @Schema -->
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations-jakarta</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -277,35 +289,77 @@ public class MybatisPlusConfig {
 }
 ```
 
-自动填充配置 `E:\CourseMall\mall-course\src\main\java\com\mall\course\config\MyMetaObjectHandler.java`：
+Day01～Day12 只有 `mall-user` 是启动模块，而且当前登录人的 `LoginUser` 也属于用户模块。因此安全工具和审计填充器暂时放在启动模块，不能放进不依赖 Spring Security 的 `mall-common`，也不能让 `mall-course` 反向依赖 `mall-user`。
+
+安全工具 `E:\CourseMall\mall-user\src\main\java\com\mall\user\security\SecurityUtils.java`：
 
 ```java
-package com.mall.course.config;
+package com.mall.user.security;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+/** 获取当前请求认证用户的安全工具类。 */
+public final class SecurityUtils {
+    private SecurityUtils() {
+    }
+
+    public static Long getCurrentUserIdOrNull() {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof LoginUser loginUser)) {
+            return null;
+        }
+        return loginUser.getId();
+    }
+}
+```
+
+自动填充配置 `E:\CourseMall\mall-user\src\main\java\com\mall\user\config\MyMetaObjectHandler.java`：
+
+```java
+package com.mall.user.config;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.mall.user.security.SecurityUtils;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
-// 自动填充：insert 时自动塞 create_time/update_time，update 时自动塞 update_time
-// 这样业务代码里就不用每次手动 set 时间了
+/** 为带有 MyBatis-Plus 填充标记的实体写入时间和操作人。 */
 @Component
 public class MyMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void insertFill(MetaObject metaObject) {
-        // strictInsertFill 只在「字段为 null」时才填充，不会覆盖你显式传入的值
-        this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        Long userId = SecurityUtils.getCurrentUserIdOrNull();
+
+        strictInsertFill(metaObject, "createTime", LocalDateTime.class, now);
+        strictInsertFill(metaObject, "updateTime", LocalDateTime.class, now);
+        if (userId != null) {
+            strictInsertFill(metaObject, "createdBy", Long.class, userId);
+            strictInsertFill(metaObject, "updatedBy", Long.class, userId);
+        }
     }
 
     @Override
     public void updateFill(MetaObject metaObject) {
-        this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
+        // 更新字段必须覆盖旧值；strictUpdateFill 遇到实体中已有值时不会覆盖
+        setFieldValByName("updateTime", LocalDateTime.now(), metaObject);
+
+        Long userId = SecurityUtils.getCurrentUserIdOrNull();
+        if (userId != null) {
+            setFieldValByName("updatedBy", userId, metaObject);
+        }
     }
 }
 ```
+
+这里暂时不抽 `BaseEntity`：`course/category/teacher` 有四个完整审计字段，`user/orders` 却只有 `updated_by`，关系表又只有 `created_by`。强行继承一个基类会让实体声明数据库中不存在的列。Day16 新建 `mall-security` 后，再把跨服务的当前用户能力迁入该模块。
 
 ::: tip 💡 面试题：MyBatis-Plus 的分页为什么必须手动配 `PaginationInnerInterceptor`？
 **一句话**：MP 的分页是「插件式」的，不注册拦截器就不生效——因为分页本质是拦截到你的 SQL 后干两件事：① 额外执行一条 `SELECT COUNT(*)` 拿总条数；② 在原 SQL 末尾拼 `LIMIT offset, size`。你没配插件，`page()` 拿到的就是全量数据而不是一页。详见 [MyBatis-Plus](/learn_backend/java/基础/MyBatis-Plus)。
@@ -357,6 +411,12 @@ public class Course {
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
 
     // fill = FieldFill.INSERT：insert 时由 MyMetaObjectHandler 自动填充
     @TableField(fill = FieldFill.INSERT)
@@ -891,6 +951,12 @@ public class Category {
     private Integer sort;       // 排序值，越小越靠前
 
     @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
@@ -1000,18 +1066,30 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
 }
 ```
 
-下拉选项对象 `CategoryVO.java`：
+下拉选项对象 `E:\CourseMall\mall-course\src\main\java\com\mall\course\vo\CategoryVO.java`：
 
 ```java
 package com.mall.course.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * 分类下拉选项。
+ */
 @Data
+@Schema(description = "分类下拉选项")
 public class CategoryVO {
+    @Schema(description = "分类 ID", example = "1")
     private Long id;
+
+    @Schema(description = "父分类 ID，0 表示顶级分类", example = "0")
     private Long parentId;
+
+    @Schema(description = "分类名称", example = "Java 开发")
     private String name;
+
+    @Schema(description = "排序值，越小越靠前", example = "1")
     private Integer sort;
 }
 ```
@@ -1021,18 +1099,31 @@ public class CategoryVO {
 ```java
 package com.mall.course.vo;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 分类树节点。
+ */
 @Data
+@Schema(description = "分类树节点")
 public class CategoryTreeVO {
+    @Schema(description = "分类 ID", example = "1")
     private Long id;
+
+    @Schema(description = "父分类 ID，0 表示顶级分类", example = "0")
     private Long parentId;
+
+    @Schema(description = "分类名称", example = "后端开发")
     private String name;
+
+    @Schema(description = "排序值，越小越靠前", example = "1")
     private Integer sort;
-    // children：子分类列表，new 一个空列表避免前端拿到 null
+
+    @Schema(description = "子分类列表")
     private List<CategoryTreeVO> children = new ArrayList<>();
 }
 ```

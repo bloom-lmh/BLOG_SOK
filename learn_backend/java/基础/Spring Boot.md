@@ -1653,7 +1653,7 @@ public class Result<T> {
 
 #### 4.1 定义
 
-用 JSR-303（Hibernate Validator 实现）在实体字段上加注解，配合 `@Valid`/`@Validated` 自动校验入参。
+用 Bean Validation 规范（JSR-303/JSR-380，通常由 Hibernate Validator 实现）给字段或方法参数添加约束，再配合 `@Valid`/`@Validated` 自动校验入参。
 
 #### 4.2 常用校验注解
 
@@ -1664,6 +1664,8 @@ public class Result<T> {
 | `@NotBlank`         | 不能为 null 且去掉首尾空格后长度 > 0  |
 | `@Size(min, max)`   | 长度/大小在范围内                     |
 | `@Min` / `@Max`     | 数值范围                              |
+| `@Positive`         | 数值必须大于 0，允许为 null            |
+| `@PositiveOrZero`   | 数值必须大于或等于 0，允许为 null      |
 | `@Email`            | 邮箱格式                              |
 | `@Pattern(regexp)`  | 正则匹配                              |
 | `@Past` / `@Future` | 过去/未来时间                         |
@@ -1693,6 +1695,33 @@ public Result save(@Valid @RequestBody UserDTO user) {
     return Result.ok(userService.save(user));
 }
 ```
+
+`@Positive` 通常用于校验单个数值字段或方法参数：
+
+```java
+@Validated
+@RestController
+public class CourseController {
+
+    @GetMapping("/{id}")
+    public Result<CourseVO> getCourse(
+            @NotNull(message = "{common.id-required}")
+            @Positive(message = "{common.id-positive}")
+            @PathVariable Long id) {
+        return Result.ok(courseService.getCourseById(id));
+    }
+}
+```
+
+```properties
+common.id-required=ID 不能为空
+common.id-positive=ID 必须大于 0
+```
+
+- `@NotNull` 负责校验“不能为空”。
+- `@Positive` 负责校验“非空时必须大于 0”，它本身不会拒绝 `null`。
+- DTO 字段由方法参数上的 `@Valid` 触发；`@PathVariable`、`@RequestParam` 这类单个方法参数的约束，Controller 上要添加 `@Validated`。
+- Spring Boot 3 的导包是 `jakarta.validation.constraints.Positive`。
 
 #### 4.3 如何提取校验错误
 
@@ -2011,7 +2040,38 @@ public class UserDTO {
 | 敏感词   | 遍历黑名单列表                  |
 | 金额精度 | 检查小数点后不超过 2 位         |
 
-#### 4.7 小结
+#### 4.7 跨字段校验：@AssertTrue
+
+前面所有注解都是「单字段」——一个注解只校验自己的字段，管不了字段和字段之间的关系。但业务里经常要校验「组合条件」：`minPrice ≤ maxPrice`、开始时间早于结束时间、两次输入的密码一致。
+
+JSR-303 内置的 `@AssertTrue` 解决这个：**贴在一个无参 `boolean` 方法上，校验时自动调用，返回 `true` 通过、`false` 拒绝**。校验逻辑写在方法体里，天然能同时读到多个字段：
+
+```java
+public class CourseQueryDTO {
+    private BigDecimal minPrice;
+    private BigDecimal maxPrice;
+
+    @AssertTrue(message = "{common.param-error}")
+    public boolean isPriceRangeValid() {            // 无参 boolean 方法，命名用 isXxx 属性风格
+        return minPrice == null || maxPrice == null   // 先判空，null 交给 @NotNull 负责
+                || minPrice.compareTo(maxPrice) <= 0; // 两个字段都非空才比较大小
+    }
+}
+```
+
+三个要点：
+
+| 要点 | 说明 |
+| --- | --- |
+| 为什么用方法而不是注解字段 | 字段级注解只能看「这一个值」；跨字段要同时读两个字段，只能写进一个方法体 |
+| 为什么不用自定义校验器 | `@AssertTrue` 本身就是内置约束注解，方法体就是校验逻辑，不用像 4.6 那样写「注解 + ConstraintValidator」两个类 |
+| 为什么要先判空 | `minPrice == null` 短路放行，null 交给 `@NotNull`；不判空时只要一个字段为 null，`compareTo` 直接 NPE |
+
+触发机制和普通注解完全一样：接口参数 `@Valid @RequestBody CourseQueryDTO` 校验时会一并执行，失败照样抛 `MethodArgumentNotValidException`（由全局异常处理器接住）；`message` 写 `{key}` 就是走国际化（见 16.7）。
+
+面试一句话：**单字段校验用字段注解，跨字段校验用 `@AssertTrue` 挂在方法上**——`minPrice/maxPrice` 这类成对入参就是标准用法。
+
+#### 4.8 小结
 
 参数校验把「非法参数」挡在业务逻辑之外，`@Valid`（单层）+ `@Validated`（分组/嵌套）+ 自定义注解 + 全局异常处理器组合使用是标准姿势。
 

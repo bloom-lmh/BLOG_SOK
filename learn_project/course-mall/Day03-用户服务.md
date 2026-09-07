@@ -152,6 +152,7 @@ mybatis-plus:
 ```java
 package com.mall.user.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -182,6 +183,10 @@ public class User {
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+
+    // 用户自己注册时没有“创建操作人”；后台修改用户时记录最后操作人
+    @TableField(fill = FieldFill.UPDATE)
+    private Long updatedBy;
 
     private LocalDateTime createTime;   // 数据库 DEFAULT CURRENT_TIMESTAMP 自动填
     private LocalDateTime updateTime;
@@ -304,6 +309,7 @@ public interface UserConverter {
     @Mapping(target = "avatar", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "createTime", ignore = true)
     @Mapping(target = "updateTime", ignore = true)
     User toEntity(UserRegisterDTO dto);
@@ -366,7 +372,7 @@ public interface UserService {
     Long register(UserRegisterDTO dto);
 
     // 按 id 查询，返回裁剪后的 VO（不含密码）
-    UserVO getById(Long id);
+    UserVO getUserById(Long id);
 }
 ```
 
@@ -429,7 +435,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserVO getById(Long id) {
+    public UserVO getUserById(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND, id);
@@ -491,10 +497,10 @@ public class UserController {
     // @PathVariable：从 URL 路径 /{id} 里取参数
     @Operation(summary = "按 ID 查询用户")
     @GetMapping("/{id}")
-    public Result<UserVO> getById(
+    public Result<UserVO> getUserById(
             @Parameter(description = "用户 ID", example = "1")
             @PathVariable("id") Long id) {
-        return Result.ok(userService.getById(id));
+        return Result.ok(userService.getUserById(id));
     }
 }
 ```

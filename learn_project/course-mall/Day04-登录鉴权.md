@@ -50,7 +50,7 @@ E:\course-mall\mall-user\src\main\java\com\mall\user\
 ├─ converter/
 │  └─ UserConverter.java             # 沿用 Day03 的 MapStruct 转换器
 ├─ dto/
-│  └─ LoginRequest.java              # 登录入参
+│  └─ LoginDTO.java                 # 登录入参
 ├─ entity/
 │  └─ User.java                      # user 表实体（Day03 已建，今天贴全）
 ├─ mapper/
@@ -143,6 +143,7 @@ jwt:
 ```java
 package com.mall.user.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -181,6 +182,10 @@ public class User {
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+
+    // 用户自己注册时没有“创建操作人”；后台修改用户时记录最后操作人
+    @TableField(fill = FieldFill.UPDATE)
+    private Long updatedBy;
 
     // 下面两个时间字段由数据库 DEFAULT CURRENT_TIMESTAMP / ON UPDATE 填充，
     // MyBatis-Plus 默认不插入 null 字段，所以不用手动赋值
@@ -761,10 +766,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @Operation(summary = "按 ID 查询用户")
 @PreAuthorize("hasAuthority('user:list')")
 @GetMapping("/{id}")
-public Result<UserVO> getById(
+public Result<UserVO> getUserById(
         @Parameter(description = "用户 ID", example = "1")
         @PathVariable("id") Long id) {
-    return Result.ok(userService.getById(id));
+    return Result.ok(userService.getUserById(id));
 }
 ```
 
@@ -836,20 +841,24 @@ public class SecurityExceptionHandler {
 
 ### 步骤 8：登录接口 + 当前用户信息接口
 
-`LoginRequest.java`（`com/mall/user/dto/LoginRequest.java`）：
+`LoginDTO.java`（`com/mall/user/dto/LoginDTO.java`）：
 
 ```java
 package com.mall.user.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+@Schema(description = "用户登录请求")
 @Data
-public class LoginRequest {
+public class LoginDTO {
 
+    @Schema(description = "登录账号", example = "zhangsan")
     @NotBlank(message = "{validation.user.username.not-blank}")
     private String username;
 
+    @Schema(description = "登录密码", example = "Mall@123456")
     @NotBlank(message = "{validation.user.password.not-blank}")
     private String password;
 }
@@ -903,7 +912,7 @@ import com.mall.common.exception.BizException;
 import com.mall.common.result.ErrorCode;
 import com.mall.common.result.Result;
 import com.mall.user.converter.UserConverter;
-import com.mall.user.dto.LoginRequest;
+import com.mall.user.dto.LoginDTO;
 import com.mall.user.security.LoginUser;
 import com.mall.user.util.JwtUtil;
 import com.mall.user.vo.LoginVO;
@@ -928,7 +937,7 @@ public class LoginController {
     private final UserConverter userConverter;
 
     @PostMapping("/login")
-    public Result<LoginVO> login(@Valid @RequestBody LoginRequest req) {
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO req) {
         Authentication authentication;
         try {
             // 交给 Spring Security：查用户 + PasswordEncoder 根据 {bcrypt} 前缀比对 + 检查状态

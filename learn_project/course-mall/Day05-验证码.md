@@ -934,6 +934,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -954,10 +955,13 @@ public class TokenService {
     private static final DefaultRedisScript<String> GET_AND_DELETE_SCRIPT =
             new DefaultRedisScript<>("""
                     local value = redis.call('GET', KEYS[1])
-                    if value then
-                        redis.call('DEL', KEYS[1])
+                    if not value then
+                        return nil
                     end
-                    return value
+                    local ttl = redis.call('TTL', KEYS[1])
+                    redis.call('DEL', KEYS[1])
+                    -- 返回 value 与剩余 TTL，让新令牌继承绝对到期时刻（非滑动续期）。
+                    return value .. ':' .. ttl
                     """, String.class);
 
     private final StringRedisTemplate redisTemplate;
@@ -966,12 +970,22 @@ public class TokenService {
     private final TokenProperties properties;
 
     /**
-     * 登录成功后签发一对令牌。
+     * 登录成功后签发一对令牌，refreshToken 给满额 TTL。
      *
      * @param user 已认证用户
      * @return 双令牌
      */
     public LoginVO issue(User user) {
+        return issue(user, properties.refreshTtl());
+    }
+
+    /**
+     * 按指定 TTL 签发双令牌。
+     *
+     * <p>登录时给满额 7 天；刷新时继承旧令牌的剩余寿命，实现「绝对过期」——
+     * 无论中间刷新多少次，会话总在首次登录 + refreshTtl 处到期，不做滑动续期。</p>
+     */
+    private LoginVO issue(User user, Duration refreshTtl) {
         String accessToken =
                 jwtUtil.generateToken(user.getId(), user.getUsername());
         String refreshToken = randomRefreshToken();
@@ -980,7 +994,7 @@ public class TokenService {
         redisTemplate.opsForValue().set(
                 refreshKey(refreshToken),
                 user.getId().toString(),
-                properties.refreshTtl());
+                refreshTtl);
 
         return new LoginVO(
                 accessToken,
@@ -996,10 +1010,18 @@ public class TokenService {
      * @return 新双令牌
      */
     public LoginVO refresh(String refreshToken) {
-        String userId = redisTemplate.execute(
+        String payload = redisTemplate.execute(
                 GET_AND_DELETE_SCRIPT,
                 List.of(refreshKey(refreshToken)));
-        if (userId == null) {
+        if (payload == null) {
+            throw new BizException(ErrorCode.REFRESH_TOKEN_INVALID);
+        }
+
+        int separator = payload.lastIndexOf(':');
+        String userId = payload.substring(0, separator);
+        long remainingSeconds = Long.parseLong(payload.substring(separator + 1));
+        if (remainingSeconds <= 0) {
+            // TTL 已耗尽（0=即将过期，-1=无 TTL）：会话已到绝对期限，拒绝续期。
             throw new BizException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 
@@ -1011,8 +1033,7 @@ public class TokenService {
             throw new BizException(ErrorCode.ACCOUNT_DISABLED);
         }
 
-        // rotation：旧 refreshToken 已删除，返回新的 accessToken + refreshToken。
-        return issue(user);
+        return issue(user, Duration.ofSeconds(remainingSeconds));
     }
 
     /**
@@ -1051,7 +1072,7 @@ public class TokenService {
 - 每次刷新都会删除旧 refreshToken 并返回新 refreshToken。
 - Lua 保证并发刷新时旧 token 只能成功一次。
 - Redis 中只保存 token 摘要，不保存客户端持有的原始 refreshToken。
-- 不做无限滑动续期；每个新 refreshToken 都有明确的 7 天 TTL。
+- 绝对过期（非滑动续期）：刷新时新 refreshToken 继承旧令牌的剩余 TTL，会话总在首次登录 + 7 天处到期，活跃刷新不会无限续命。
 
 轮换也有代价：如果后端已经轮换成功，但响应在网络中丢失，客户端手里的旧 token 已失效，只能重新登录。大型系统会增加很短的重试宽限窗口和“令牌家族”复用检测，当前阶段先不展开。
 

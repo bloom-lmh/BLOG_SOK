@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS orders_0 (
     pay_type     TINYINT        NULL,
     pay_time     DATETIME       NULL,
     deleted_at   DATETIME       NULL COMMENT '逻辑删除时间',
+    updated_by   BIGINT         NULL COMMENT '最后修改人ID',
     create_time  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -166,7 +167,9 @@ ORDER_DB_PASSWORD=你的本地数据库密码
 ```java
 package com.mall.order.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -191,6 +194,8 @@ public class Order {
 
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+    @TableField(fill = FieldFill.UPDATE)
+    private Long updatedBy;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

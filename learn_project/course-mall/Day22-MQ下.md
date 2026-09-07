@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS mq_parking_lot (
     status           TINYINT      NOT NULL DEFAULT 0 COMMENT '0待处理 1已重放 2已忽略',
     first_failed_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_failed_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    handled_by       BIGINT       NULL COMMENT '人工处理人ID',
+    handled_at       DATETIME     NULL COMMENT '人工处理时间',
     PRIMARY KEY (id),
     KEY idx_status_time (status, first_failed_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='永久失败消息隔离表';
@@ -142,8 +144,12 @@ public class ParkingLotMessage {
     private Integer status;
     private LocalDateTime firstFailedAt;
     private LocalDateTime lastFailedAt;
+    private Long handledBy;
+    private LocalDateTime handledAt;
 }
 ```
+
+`handledBy/handledAt` 只在人工重放或忽略消息时写入；消息首次进入停车场属于系统行为，不使用通用的 `createdBy/updatedBy`。
 
 ## 四、Mapper
 

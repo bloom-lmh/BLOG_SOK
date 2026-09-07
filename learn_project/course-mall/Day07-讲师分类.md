@@ -73,7 +73,9 @@ mybatis-plus:
 ```java
 package com.mall.course.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -89,6 +91,10 @@ public class Teacher {
     private String avatar;
     private String intro;
     private String position;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

@@ -351,6 +351,7 @@ CREATE TABLE `user_role` (
     `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
     `user_id`     BIGINT      NOT NULL                COMMENT '用户ID（逻辑外键 → user.id）',
     `role_id`     BIGINT      NOT NULL                COMMENT '角色ID（逻辑外键 → role.id）',
+    `created_by`  BIGINT      DEFAULT NULL             COMMENT '授权操作人ID',
     `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),  -- 同一个人不能重复分配同一个角色
@@ -365,6 +366,7 @@ CREATE TABLE `role_permission` (
     `id`            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
     `role_id`       BIGINT      NOT NULL                COMMENT '角色ID',
     `permission_id` BIGINT      NOT NULL                COMMENT '权限ID',
+    `created_by`    BIGINT      DEFAULT NULL             COMMENT '授权操作人ID',
     `create_time`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_role_permission` (`role_id`, `permission_id`),
@@ -379,6 +381,7 @@ CREATE TABLE `role_menu` (
     `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
     `role_id`     BIGINT      NOT NULL                COMMENT '角色ID',
     `menu_id`     BIGINT      NOT NULL                COMMENT '菜单ID',
+    `created_by`  BIGINT      DEFAULT NULL             COMMENT '授权操作人ID',
     `create_time` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`),

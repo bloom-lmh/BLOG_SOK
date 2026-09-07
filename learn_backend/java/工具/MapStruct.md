@@ -19,8 +19,9 @@
   - [2. 基础映射](#2-基础映射)
   - [3. 多个对象合并](#3-多个对象合并)
   - [4. 集合转换](#4-集合转换)
-  - [5. 自定义填值：`default` 与 `expression`](#5-自定义填值default-与-expression)
-- [6. `unmappedTargetPolicy`：未映射字段的编译级别](#6-unmappedtargetpolicy未映射字段的编译级别)
+  - [5. `@MappingTarget`：更新已有对象](#5-mappingtarget更新已有对象)
+  - [6. 自定义填值：`default` 与 `expression`](#6-自定义填值default-与-expression)
+  - [7. `unmappedTargetPolicy`：未映射字段的编译级别](#7-unmappedtargetpolicy未映射字段的编译级别)
 - [四、MapStruct + Lombok 配合](#四mapstruct--lombok-配合)
 - [五、项目中的典型用法](#五项目中的典型用法)
 - [六、小结](#六小结)
@@ -233,11 +234,74 @@ public interface UserConverter {
 }
 ```
 
-### 5. 自定义填值：`default` 与 `expression`
+### 5. `@MappingTarget`：更新已有对象
+
+普通转换方法会创建一个新对象：
+
+```java
+Course toEntity(CourseSaveDTO source);
+```
+
+参数添加 `@MappingTarget` 后，MapStruct 不再创建新对象，而是把来源对象的数据写入调用方传入的已有对象：
+
+```java
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
+public interface CourseConverter {
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "viewCount", ignore = true)
+    @Mapping(target = "buyCount", ignore = true)
+    @Mapping(target = "stock", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "createTime", ignore = true)
+    @Mapping(target = "updateTime", ignore = true)
+    void updateEntity(CourseSaveDTO source, @MappingTarget Course target);
+}
+```
+
+两个参数的职责：
+
+- `CourseSaveDTO source`：数据来源，MapStruct 从中读取字段。
+- `@MappingTarget Course target`：修改目标，MapStruct 直接调用它的 setter。
+
+业务代码先查询数据库中的原对象，再把允许修改的字段覆盖进去：
+
+```java
+Course course = courseMapper.selectById(id);
+courseConverter.updateEntity(dto, course);
+courseMapper.updateById(course);
+```
+
+MapStruct 生成的实现大致如下：
+
+```java
+@Override
+public void updateEntity(CourseSaveDTO source, Course target) {
+    if (source == null) {
+        return;
+    }
+    if (source.getTitle() != null) {
+        target.setTitle(source.getTitle());
+    }
+    if (source.getPrice() != null) {
+        target.setPrice(source.getPrice());
+    }
+}
+```
+
+`NullValuePropertyMappingStrategy.IGNORE` 表示来源字段为 `null` 时保留目标对象原值，因此常用于部分更新。`id`、库存、版本号和审计字段通过 `ignore = true` 禁止 MapStruct 修改，分别交给数据库、专用业务和审计填充器处理。
+
+> 如果字段需要区分“没有传”和“明确修改为 `null`”，不能只依赖该策略；同时，更新 DTO 的可选数字字段应使用 `Integer/Long` 等包装类型，基本类型 `int/long` 无法表达“没有传”。
+
+### 6. 自定义填值：`default` 与 `expression`
 
 普通字段靠 MapStruct **自动映射**；需要特殊逻辑的字段，有两种「让 converter 自己填」的方式：`default` 方法（按类型自动调用）和 `expression`（按字段精确取值）。
 
-#### 5.1 `default`：自定义转换方法（按类型自动调用）
+#### 6.1 `default`：自定义转换方法（按类型自动调用）
 
 ```java
 @Mapper(componentModel = "spring")
@@ -253,11 +317,11 @@ public interface UserConverter {
 }
 ```
 
-> ⚠️ **注意上面的写法有隐患**：`componentModel = "spring"` 的接口里，`default` 方法无法注入 `PasswordEncoder`（接口里不能有字段）。要真正注入依赖，得用 `abstract class`（见 5.2 的例子）。而且 `password` 如果同时标的 `ignore=true`，这个 `default` 方法根本不会被调用（见第 6 节「unmappedTargetPolicy 与 ignore」）。
+> ⚠️ **注意上面的写法有隐患**：`componentModel = "spring"` 的接口里，`default` 方法无法注入 `PasswordEncoder`（接口里不能有字段）。要真正注入依赖，得用 `abstract class`（见 6.2 的例子）。而且 `password` 如果同时标的 `ignore=true`，这个 `default` 方法根本不会被调用（见第 7 节「unmappedTargetPolicy 与 ignore」）。
 
 **`default` 的触发规则（重点）**：它按**类型**匹配——只要「源类型 → 目标类型」对得上，MapStruct 就会自动插入调用。所以 `default String encodePassword(String s)` 会影响**所有 String→String 的字段**（除非某字段有更精确的 `@Mapping`）。优点是一次定义全部复用；坑是**可能误伤**别的类型相同的字段。
 
-#### 5.2 `expression`：表达式填值（按字段精确取值）
+#### 6.2 `expression`：表达式填值（按字段精确取值）
 
 `expression` 让某个目标字段**不靠自动映射，而是执行一段 Java 代码来取值**。适合「转换器内部就能直接算出值」的场景（如当前时间、拼接、格式化）。
 
@@ -304,7 +368,7 @@ public abstract class UserConverter {   // 用 abstract class，不是 interface
 
 项目选 `ignore` + Service 手写的原因：converter 保持「纯字段拷贝器」，`password`/`status` 归业务层、`createTime`/`id` 归数据库，特殊字段靠 `@Mapping(ignore=true)` 显式声明「谁填」而不是塞进 converter。
 
-### 6. `unmappedTargetPolicy`：未映射字段的编译级别
+### 7. `unmappedTargetPolicy`：未映射字段的编译级别
 
 **`unmapped`** = 目标类里有、但源里找不到对应字段的属性。比如 `UserPO` 有 `password`、`createTime`，而 `UserDTO` 没有——这些就是 "unmapped target fields"（未被映射的目标字段）。
 

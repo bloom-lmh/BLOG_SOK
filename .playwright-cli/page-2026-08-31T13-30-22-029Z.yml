@@ -1,0 +1,446 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - button "收起左侧栏" [ref=f1e4] [cursor=pointer]:
+        - generic [ref=f1e5]: ‹
+      - link "JOBUP官网" [ref=f1e6] [cursor=pointer]:
+        - /url: /
+        - img "JOBUP" [ref=f1e8]
+        - strong [ref=f1e10]: JOBUP
+      - navigation "主导航" [ref=f1e11]:
+        - generic [ref=f1e12]:
+          - generic [ref=f1e13]: 功能区
+          - generic [ref=f1e14]:
+            - link "校招汇总表 校招 / 秋招 / 实习" [ref=f1e15] [cursor=pointer]:
+              - /url: /
+              - generic [ref=f1e19]:
+                - text: 校招汇总表
+                - generic [ref=f1e20]: 校招 / 秋招 / 实习
+            - link "论文降AI率 零感AI · 合作服务" [ref=f1e21] [cursor=pointer]:
+              - /url: /ai-rewrite
+              - generic [ref=f1e26]:
+                - text: 论文降AI率
+                - generic [ref=f1e27]: 零感AI · 合作服务
+            - link "AI填网申表 浏览器插件 · 一键填表" [ref=f1e28] [cursor=pointer]:
+              - /url: /resume
+              - generic [ref=f1e32]:
+                - text: AI填网申表
+                - generic [ref=f1e33]: 浏览器插件 · 一键填表
+        - generic [ref=f1e34]:
+          - generic [ref=f1e35]: 投递管理
+          - link "投递进展 跟踪每一次申请" [ref=f1e37] [cursor=pointer]:
+            - /url: /progress
+            - generic [ref=f1e41]:
+              - text: 投递进展
+              - generic [ref=f1e42]: 跟踪每一次申请
+        - generic [ref=f1e43]:
+          - generic [ref=f1e44]: 账户
+          - generic [ref=f1e45]:
+            - link "用户中心 登录 · 注册 · 找回密码" [ref=f1e46] [cursor=pointer]:
+              - /url: /account
+              - generic [ref=f1e50]:
+                - text: 用户中心
+                - generic [ref=f1e51]: 登录 · 注册 · 找回密码
+            - button "联系客服 企业微信 · 零感云科技" [ref=f1e53] [cursor=pointer]:
+              - generic [ref=f1e57]:
+                - text: 联系客服
+                - generic [ref=f1e58]: 企业微信 · 零感云科技
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]:
+          - generic [ref=f1e61]: 登
+          - generic [ref=f1e62]:
+            - strong [ref=f1e63]: 登录后同步进展
+            - generic [ref=f1e64]: 用户名或手机号均可登录
+        - generic [ref=f1e65]:
+          - link "登录" [ref=f1e66] [cursor=pointer]:
+            - /url: /account?mode=login
+          - link "注册" [ref=f1e67] [cursor=pointer]:
+            - /url: /account?mode=register
+      - generic [ref=f1e68]:
+        - generic [ref=f1e69]: ★ JOBUP
+        - strong [ref=f1e70]: 职位更清晰 · 投递更有序 · 成长更进一步
+    - generic [ref=f1e71]:
+      - main [ref=f1e72]:
+        - generic [ref=f1e73]:
+          - generic [ref=f1e74]:
+            - generic [ref=f1e75]:
+              - text: JOBUP 校招信息汇总网站 · CAREER OPPORTUNITIES 2027
+              - heading "JOBUP官网｜27届校招/秋招/实习最新信息免费汇总表" [level=1] [ref=f1e76]
+              - paragraph [ref=f1e77]:
+                - generic [ref=f1e78]: ★
+                - text: 职位更清晰，成长更进一步。
+              - paragraph [ref=f1e79]: JOBUP是面向校招、秋招和实习求职者的校招信息汇总网站，提供招聘信息筛选、简历管理、AI网申助手和投递进展记录。
+            - generic [ref=f1e80]:
+              - paragraph [ref=f1e81]:
+                - text: 近一周更新企业：
+                - strong [ref=f1e82]: "573"
+              - paragraph [ref=f1e83]:
+                - text: 最近更新 8月31日 · 累计发布
+                - strong [ref=f1e84]: "12202"
+                - text: 条岗位信息 · 已启用 3 个筛选条件
+          - generic [ref=f1e85]:
+            - textbox [ref=f1e87]:
+              - /placeholder: 搜索公司、岗位、城市或行业
+              - text: Java
+            - generic [ref=f1e88]:
+              - generic [ref=f1e89]: 更新日期
+              - textbox "更新日期" [ref=f1e90]
+            - generic [ref=f1e91]:
+              - generic [ref=f1e92]: 发布时间
+              - combobox "发布时间" [ref=f1e93] [cursor=pointer]:
+                - option "全部时间"
+                - option "近7天发布"
+                - option "近30天发布" [selected]
+                - option "近3个月发布"
+            - generic [ref=f1e94]:
+              - generic [ref=f1e95]: 招聘类型
+              - combobox "招聘类型" [ref=f1e96] [cursor=pointer]:
+                - option "全部类型" [selected]
+                - option "校招"
+                - option "秋招"
+                - option "秋招提前批"
+                - option "实习"
+                - option "日常实习"
+                - option "官网"
+                - option "公众号"
+                - option "政府"
+            - generic [ref=f1e97]:
+              - generic [ref=f1e98]: 所属行业
+              - combobox "所属行业" [ref=f1e99] [cursor=pointer]:
+                - option "全部行业" [selected]
+                - option "互联网/人工智能"
+                - option "软件/信息技术"
+                - option "电子/半导体"
+                - option "通信"
+                - option "汽车/新能源"
+                - option "金融/证券"
+                - option "先进制造/工业"
+                - option "建筑/工程"
+                - option "交通/物流"
+                - option "能源/化工"
+                - option "医药/医疗"
+                - option "消费/零售"
+                - option "教育/培训"
+                - option "文化/传媒"
+                - option "航空航天/国防"
+                - option "政府/公共服务"
+                - option "科研/高校"
+                - option "其他"
+            - generic [ref=f1e100]:
+              - generic [ref=f1e101]: 企业性质
+              - combobox "企业性质" [ref=f1e102] [cursor=pointer]:
+                - option "全部性质" [selected]
+                - option "央企"
+                - option "国企"
+                - option "民营"
+                - option "外企"
+                - option "合资"
+                - option "事业单位"
+                - option "政府机关"
+                - option "高校/科研院所"
+                - option "社会组织"
+                - option "其他"
+            - generic [ref=f1e103]:
+              - generic [ref=f1e104]: 工作地点
+              - textbox "工作地点" [ref=f1e105]:
+                - /placeholder: 如：上海
+                - text: 成都
+            - generic [ref=f1e106]:
+              - button "筛选" [ref=f1e107] [cursor=pointer]
+              - link "清除" [ref=f1e108] [cursor=pointer]:
+                - /url: /
+          - note [ref=f1e109]:
+            - generic [ref=f1e110]: →
+            - text: 向右滑动表格，查看更多列信息
+          - region "校招信息表格，可横向滚动查看更多字段" [ref=f1e111]:
+            - table [ref=f1e112]:
+              - rowgroup [ref=f1e128]:
+                - row [ref=f1e129]:
+                  - columnheader "编号" [ref=f1e130]
+                  - columnheader "更新日期" [ref=f1e131]
+                  - columnheader "公司" [ref=f1e132]
+                  - columnheader "行业" [ref=f1e133]
+                  - columnheader "性质" [ref=f1e134]
+                  - columnheader "招聘岗位" [ref=f1e135]
+                  - columnheader "工作地点" [ref=f1e136]
+                  - columnheader "应届生平均 薪资（仅参考）" [ref=f1e137]: 应届生平均薪资（仅参考）
+                  - columnheader "企业说明" [ref=f1e138]
+                  - columnheader "招聘公告" [ref=f1e139]
+                  - columnheader "批次 / 类型" [ref=f1e140]
+                  - columnheader "截止时间" [ref=f1e141]
+                  - columnheader "投递入口" [ref=f1e142]
+                  - columnheader "投递进展" [ref=f1e143]
+              - rowgroup [ref=f1e144]:
+                - row [ref=f1e145]:
+                  - cell "260828001" [ref=f1e146]:
+                    - generic "记录编号 260828001" [ref=f1e147]: "260828001"
+                  - cell [ref=f1e148]:
+                    - time [ref=f1e149]: 08-28
+                  - cell [ref=f1e150]:
+                    - strong [ref=f1e151]: 中国电科32所
+                  - cell "电子/半导体" [ref=f1e152]
+                  - cell "央企" [ref=f1e154]
+                  - cell "总体设计工程师、芯片算法工程师、硬件研发工程师、嵌入式软件工程师、C++算法工程师、Java开发工程师、AI应用工程师、数据分析工程师、IC验证/测试工程师、智能算法测试工程师、渗透测试工程师、嵌入式......" [ref=f1e156]
+                  - cell "北京、上海、南京、武汉、广州、深圳、成都" [ref=f1e158]
+                  - cell "约 18k/月" [ref=f1e160]
+                  - cell "中国电科32所（华东计算技术研究所）隶属中国电科集团，是央企科研单位，主要从事计算机、软件、微电子及网络通信技术研发，业务涵盖芯片设计、嵌入式系统与信息化装备研制。在北京、上海等多地布局" [ref=f1e162]
+                  - cell [ref=f1e164]:
+                    - link "查看公告 ↗" [ref=f1e165] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/iiYejH9932MT8WKvMTj2Ig
+                  - cell "27秋招 官网" [ref=f1e166]:
+                    - generic [ref=f1e167]:
+                      - generic [ref=f1e168]: 27秋招
+                      - generic [ref=f1e169]: 官网
+                  - cell "2026-10-26" [ref=f1e170]
+                  - cell [ref=f1e171]:
+                    - link "投递官网 ↗" [ref=f1e172] [cursor=pointer]:
+                      - /url: https://wecruit.hotjob.cn/SU66c447a01eb805432564cfaf/mc/position/campus
+                  - cell [ref=f1e173]:
+                    - button "+ 进展表" [ref=f1e174] [cursor=pointer]
+                - row [ref=f1e175]:
+                  - cell "260825001" [ref=f1e176]:
+                    - generic "记录编号 260825001" [ref=f1e177]: "260825001"
+                  - cell [ref=f1e178]:
+                    - time [ref=f1e179]: 08-25
+                  - cell [ref=f1e180]:
+                    - strong [ref=f1e181]: 电科金仓
+                  - cell "软件/信息技术" [ref=f1e182]
+                  - cell "央企" [ref=f1e184]
+                  - cell "C语言研发工程师、Java研发工程师、测试工程师、售前管培生、销售管培生" [ref=f1e186]
+                  - cell "北京、天津、上海、青岛、成都、西安" [ref=f1e188]
+                  - cell "约 12k/月" [ref=f1e190]
+                  - cell "电科金仓是央企旗下的数据库软件企业，核心产品为KingbaseES等国产数据库，提供研发、测试、售前与销售服务，布局北京、上海等多地" [ref=f1e192]
+                  - cell [ref=f1e194]:
+                    - link "查看公告 ↗" [ref=f1e195] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/BlYp6lXekH_Oo_kvRaAnYA
+                  - cell "27秋招 官网" [ref=f1e196]:
+                    - generic [ref=f1e197]:
+                      - generic [ref=f1e198]: 27秋招
+                      - generic [ref=f1e199]: 官网
+                  - cell "2026-10-23" [ref=f1e200]
+                  - cell [ref=f1e201]:
+                    - link "投递官网 ↗" [ref=f1e202] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/kingbase/47259#/
+                  - cell [ref=f1e203]:
+                    - button "+ 进展表" [ref=f1e204] [cursor=pointer]
+                - row [ref=f1e205]:
+                  - cell "260823001" [ref=f1e206]:
+                    - generic "记录编号 260823001" [ref=f1e207]: "260823001"
+                  - cell [ref=f1e208]:
+                    - time [ref=f1e209]: 08-23
+                  - cell [ref=f1e210]:
+                    - strong [ref=f1e211]: 昂纳科技集团
+                  - cell "电子/半导体" [ref=f1e212]
+                  - cell "民营" [ref=f1e214]
+                  - cell "硅光工艺工程师、硅光测试工程师、封装工艺工程师、硬件工程师、FPGA工程师、电路工程师、SI信号完整性工程师、嵌入式软件工程师、JAVA开发工程师、嵌入式软件测试工程师、泵浦研发工程师、光学工程师、模块开发工程师、镀膜工程师、光学测试工程师、微光学研发工程师、光学验证测试工程师、产品工程师、NPI工程师、测试工程师、胶工艺工程师、工艺工程师、SMT工艺工程师、电气工程师、结构设计工程师、机械工程师、设备工程师、耦合工程师、工装设计工程师、视觉工程师、工业工程师、采购工程师、PMC工程师、进出口报关工程师、仓库管理工程师、QE工程师、SQE工程师、RE工程师、FAE工程师、项目管理工程师" [ref=f1e216]
+                  - cell "杭州、武汉、深圳、成都" [ref=f1e218]
+                  - cell "约 12k/月" [ref=f1e220]
+                  - cell "昂纳科技集团是民营光通信与光电子企业，从事光器件、模块及子系统研发制造，覆盖硅光、光学、封装等方向，在深圳、武汉、杭州、成都等地布局研发与制造业务" [ref=f1e222]
+                  - cell [ref=f1e224]:
+                    - link "查看公告 ↗" [ref=f1e225] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/q9QwVhN4zCxIwpW86do79g
+                  - cell "27秋招 公众号" [ref=f1e226]:
+                    - generic [ref=f1e227]:
+                      - generic [ref=f1e228]: 27秋招
+                      - generic [ref=f1e229]: 公众号
+                  - cell "2026-10-21" [ref=f1e230]
+                  - cell [ref=f1e231]:
+                    - link "投递官网 ↗" [ref=f1e232] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/q9QwVhN4zCxIwpW86do79g
+                  - cell [ref=f1e233]:
+                    - button "+ 进展表" [ref=f1e234] [cursor=pointer]
+                - row [ref=f1e235]:
+                  - cell "260822001" [ref=f1e236]:
+                    - generic "记录编号 260822001" [ref=f1e237]: "260822001"
+                  - cell [ref=f1e238]:
+                    - time [ref=f1e239]: 08-22
+                  - cell [ref=f1e240]:
+                    - strong [ref=f1e241]: 华诺星空
+                  - cell "电子/半导体" [ref=f1e242]
+                  - cell "民营" [ref=f1e244]
+                  - cell "系统总师、信号处理工程师、雷达数据处理工程师、AI算法工程师、射频工程师、硬件电路工程师、FPGA工程师、嵌入式软件工程师、JAVA开发工程师、雷达算法测试工程师、产品测试工程师、国内技术支持工程师、......" [ref=f1e246]
+                  - cell "北京、杭州、济南、长沙、深圳、成都、西安、海外" [ref=f1e248]
+                  - cell "约 11k/月" [ref=f1e250]
+                  - cell "华诺星空是民营科技企业，核心业务为雷达与智能感知装备的研发制造，提供信号处理、射频等相关产品，在多地及海外有业务布局" [ref=f1e252]
+                  - cell [ref=f1e254]:
+                    - link "查看公告 ↗" [ref=f1e255] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/oeQ-u9zgnhog4ipz5bkblg
+                  - cell "27秋招 官网" [ref=f1e256]:
+                    - generic [ref=f1e257]:
+                      - generic [ref=f1e258]: 27秋招
+                      - generic [ref=f1e259]: 官网
+                  - cell "2026-10-20" [ref=f1e260]
+                  - cell [ref=f1e261]:
+                    - link "投递官网 ↗" [ref=f1e262] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/m/campus-recruitment/novasky/146544?locale=zh-CN
+                  - cell [ref=f1e263]:
+                    - button "+ 进展表" [ref=f1e264] [cursor=pointer]
+                - row [ref=f1e265]:
+                  - cell "260820001" [ref=f1e266]:
+                    - generic "记录编号 260820001" [ref=f1e267]: "260820001"
+                  - cell [ref=f1e268]:
+                    - time [ref=f1e269]: 08-20
+                  - cell [ref=f1e270]:
+                    - strong [ref=f1e271]: 易点云
+                  - cell "互联网/人工智能" [ref=f1e272]
+                  - cell "民营" [ref=f1e274]
+                  - cell "商业运营、分析管培、财务定向管培生、组织部高潜管培、产品定向管培生、高管培训生、商业产品经理、商业策略经理、市场策略创新、风控策略经理、硬件产品经理、服务产品经理、研发产品经理、Java技术、前端开发、......" [ref=f1e276]
+                  - cell "北京、上海、苏州、杭州、合肥、武汉、广州、深圳、成都" [ref=f1e278]
+                  - cell "约 11k/月" [ref=f1e280]
+                  - cell "易点云是一家民营办公IT综合服务商，总部位于北京。核心业务为办公设备租赁与IT服务，提供硬件产品、SaaS管理及技术服务，在多地设有业务布局" [ref=f1e282]
+                  - cell [ref=f1e284]:
+                    - link "查看公告 ↗" [ref=f1e285] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/ILuBDH8N6J6tkg9PN05U3w
+                  - cell "27秋招 官网" [ref=f1e286]:
+                    - generic [ref=f1e287]:
+                      - generic [ref=f1e288]: 27秋招
+                      - generic [ref=f1e289]: 官网
+                  - cell "2026-10-18" [ref=f1e290]
+                  - cell [ref=f1e291]:
+                    - link "投递官网 ↗" [ref=f1e292] [cursor=pointer]:
+                      - /url: https://recruit-pro.edianyun.com/#/wap/recruitment-collect
+                  - cell [ref=f1e293]:
+                    - button "+ 进展表" [ref=f1e294] [cursor=pointer]
+                - row [ref=f1e295]:
+                  - cell "260819001" [ref=f1e296]:
+                    - generic "记录编号 260819001" [ref=f1e297]: "260819001"
+                  - cell [ref=f1e298]:
+                    - time [ref=f1e299]: 08-19
+                  - cell [ref=f1e300]:
+                    - strong [ref=f1e301]: 金证科技
+                  - cell "互联网/人工智能" [ref=f1e302]
+                  - cell "民营" [ref=f1e304]
+                  - cell "C/c++开发工程师、Java开发工程师、Web开发工程师、大模型应用开发工程师、测试工程师、实施工程师、维护工程师、售前工程师、产品设计师、销售经理" [ref=f1e306]
+                  - cell "深圳、长沙、上海、成都" [ref=f1e308]
+                  - cell "约 13k/月" [ref=f1e310]
+                  - cell "金证科技是民营金融科技企业，核心产品为证券、资管等金融IT系统及大模型应用，提供软件开发、测试与实施服务，业务布局深圳、长沙、上海、成都等地" [ref=f1e312]
+                  - cell [ref=f1e314]:
+                    - link "查看公告 ↗" [ref=f1e315] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/ySJTFgVw9fNEooD5F_6NOA
+                  - cell "27秋招 官网" [ref=f1e316]:
+                    - generic [ref=f1e317]:
+                      - generic [ref=f1e318]: 27秋招
+                      - generic [ref=f1e319]: 官网
+                  - cell "2026-11-30" [ref=f1e320]
+                  - cell [ref=f1e321]:
+                    - link "投递官网 ↗" [ref=f1e322] [cursor=pointer]:
+                      - /url: https://szkingdom.zhiye.com/campus/jobs?sessionid=
+                  - cell [ref=f1e323]:
+                    - button "+ 进展表" [ref=f1e324] [cursor=pointer]
+                - row [ref=f1e325]:
+                  - cell "260814001" [ref=f1e326]:
+                    - generic "记录编号 260814001" [ref=f1e327]: "260814001"
+                  - cell [ref=f1e328]:
+                    - time [ref=f1e329]: 08-14
+                  - cell [ref=f1e330]:
+                    - strong [ref=f1e331]: 顺丰科技
+                  - cell "交通/物流" [ref=f1e332]
+                  - cell "民营" [ref=f1e334]
+                  - cell "大模型算法工程师、运筹优化算法工程师、大数据挖掘与分析工程师、AI开发工程师、AI全栈研发工程师、Java开发工程师、前端开发工程师、测试开发工程师、运维开发工程师、产品经理、数据产品经理、信息安全运......" [ref=f1e336]
+                  - cell "武汉、深圳、成都" [ref=f1e338]
+                  - cell "约 12k/月" [ref=f1e340]
+                  - cell "顺丰科技是顺丰旗下的科技公司，聚焦物流领域数字化与智能化。核心业务包括大模型、运筹优化、大数据及AI研发，为顺丰物流体系提供技术支撑，在武汉、深圳、成都等地开展研发" [ref=f1e342]
+                  - cell [ref=f1e344]:
+                    - link "查看公告 ↗" [ref=f1e345] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/SiVTThdNuPY2ELuvPma-WA
+                  - cell "27秋招 官网" [ref=f1e346]:
+                    - generic [ref=f1e347]:
+                      - generic [ref=f1e348]: 27秋招
+                      - generic [ref=f1e349]: 官网
+                  - cell "2026-10-12" [ref=f1e350]
+                  - cell [ref=f1e351]:
+                    - link "投递官网 ↗" [ref=f1e352] [cursor=pointer]:
+                      - /url: https://campus.sf-express.com/#/positionList
+                  - cell [ref=f1e353]:
+                    - button "+ 进展表" [ref=f1e354] [cursor=pointer]
+                - row [ref=f1e355]:
+                  - cell "260805001" [ref=f1e356]:
+                    - generic "记录编号 260805001" [ref=f1e357]: "260805001"
+                  - cell [ref=f1e358]:
+                    - time [ref=f1e359]: 08-05
+                  - cell [ref=f1e360]:
+                    - strong [ref=f1e361]: 中国电信天翼云
+                  - cell "通信" [ref=f1e362]
+                  - cell "央企" [ref=f1e364]
+                  - cell "后端开发工程师（AI方向、为主）、算法工程师、产品经理、云计算研究员、大数据开发工程师、测试开发工程师、信息安全工程师、项目管理岗、客户端开发工程师（C++/java）、前端开发工程师、采购经理、建设规..." [ref=f1e366]
+                  - cell "北京,上海,厦门,广州,深圳,成都" [ref=f1e368]
+                  - cell "约 18k/月" [ref=f1e370]
+                  - cell "中国电信旗下云计算子公司，提供云主机、云存储、云网络等公有云与行业云服务，主营政务、金融等政企客户上云。作为央企云服务商，布局全国多区域节点" [ref=f1e372]
+                  - cell [ref=f1e374]:
+                    - link "查看公告 ↗" [ref=f1e375] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/xP3hIhkw49dNdDarMqgTCA
+                  - cell "秋招 秋招" [ref=f1e376]:
+                    - generic [ref=f1e377]:
+                      - generic [ref=f1e378]: 秋招
+                      - generic [ref=f1e379]: 秋招
+                  - cell "招满为止" [ref=f1e380]
+                  - cell [ref=f1e381]:
+                    - link "投递官网 ↗" [ref=f1e382] [cursor=pointer]:
+                      - /url: https://wecruit.hotjob.cn/SU62b2ae672f9d24458d72f9cc/pb/school.html
+                  - cell [ref=f1e383]:
+                    - button "+ 进展表" [ref=f1e384] [cursor=pointer]
+          - navigation "分页" [ref=f1e385]:
+            - generic "每页显示条数" [ref=f1e386]:
+              - generic [ref=f1e387]: 每页显示
+              - link "20条" [ref=f1e388] [cursor=pointer]:
+                - /url: /?q=Java&range=30&location=%E6%88%90%E9%83%BD&pageSize=20
+              - link "50条" [ref=f1e389] [cursor=pointer]:
+                - /url: /?q=Java&range=30&location=%E6%88%90%E9%83%BD&pageSize=50
+            - generic [ref=f1e390]:
+              - link "上一页":
+                - /url: /?q=Java&range=30&location=%E6%88%90%E9%83%BD&page=1
+              - generic [ref=f1e391]: 第 1 / 1 页
+              - link "下一页":
+                - /url: /?q=Java&range=30&location=%E6%88%90%E9%83%BD&page=1
+            - generic [ref=f1e392]:
+              - generic [ref=f1e393]: 跳至
+              - spinbutton "输入要跳转的页码" [ref=f1e394]: "1"
+              - generic [ref=f1e395]: 页
+              - button "跳转" [ref=f1e396] [cursor=pointer]
+        - generic [ref=f1e397]:
+          - generic [ref=f1e398]:
+            - text: WHY US
+            - heading "精调细选，让每次求职都有戏" [level=2] [ref=f1e399]
+          - list [ref=f1e400]:
+            - listitem [ref=f1e401]:
+              - generic [ref=f1e402]: "01"
+              - generic [ref=f1e403]:
+                - strong [ref=f1e404]: 多维核验
+                - text: 交叉确认公司、岗位、日期与投递入口
+            - listitem [ref=f1e405]:
+              - generic [ref=f1e406]: "02"
+              - generic [ref=f1e407]:
+                - strong [ref=f1e408]: 统一标准
+                - text: 规范行业、性质、岗位和地点，信息更清晰
+            - listitem [ref=f1e409]:
+              - generic [ref=f1e410]: "03"
+              - generic [ref=f1e411]:
+                - strong [ref=f1e412]: 审慎发布
+                - text: 重点字段确认后上线，减少错漏与重复
+      - contentinfo [ref=f1e413]:
+        - link "JOBUP官网" [ref=f1e414] [cursor=pointer]:
+          - /url: /
+          - img "JOBUP" [ref=f1e416]
+          - strong [ref=f1e418]: JOBUP
+        - generic [ref=f1e419]:
+          - generic [ref=f1e420]:
+            - generic [ref=f1e421]: EXPLORE
+            - strong [ref=f1e422]: 网站信息
+          - navigation "页脚导航" [ref=f1e423]:
+            - link "01 网站介绍" [ref=f1e424] [cursor=pointer]:
+              - /url: /introduction
+              - generic [ref=f1e425]: "01"
+              - generic [ref=f1e426]: 网站介绍
+            - link "02 联系方式" [ref=f1e427] [cursor=pointer]:
+              - /url: /contact
+              - generic [ref=f1e428]: "02"
+              - generic [ref=f1e429]: 联系方式
+            - link "03 关于我们" [ref=f1e430] [cursor=pointer]:
+              - /url: /about
+              - generic [ref=f1e431]: "03"
+              - generic [ref=f1e432]: 关于我们
+        - generic [ref=f1e433]:
+          - paragraph [ref=f1e434]: 每条信息均经过整理、去重与审核；关键投递要求请以企业官方招聘页面为准。
+          - link "沪ICP备2026007149号-4" [ref=f1e435] [cursor=pointer]:
+            - /url: https://beian.miit.gov.cn/
+  - alert [ref=f1e436]

@@ -229,7 +229,9 @@ mybatis-plus:
 ```java
 package com.mall.seckill.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
@@ -248,7 +250,12 @@ public class SeckillActivity {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Integer status;        // 0未开始 1进行中 2已结束
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
     private LocalDateTime createTime;
+    private LocalDateTime updateTime;
     // 注意：seckill_activity 表没有 deleted 字段，所以不写 @TableLogic
 }
 ```

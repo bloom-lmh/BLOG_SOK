@@ -153,6 +153,7 @@ ALTER TABLE `orders`
 ```java
 package com.mall.order.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -179,6 +180,9 @@ public class Order {
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+    // 下单人已经由 userId 表达；只记录客服、管理员等最后修改人
+    @TableField(fill = FieldFill.UPDATE)
+    private Long updatedBy;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

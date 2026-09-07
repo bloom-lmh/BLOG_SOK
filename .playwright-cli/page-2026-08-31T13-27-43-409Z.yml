@@ -1,0 +1,3982 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - link "Logo 求职方舟AI" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Logo" [ref=e7]
+        - generic [ref=e8]: 求职方舟AI
+      - navigation [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: AI × 5
+          - link " AI填网申" [ref=e12] [cursor=pointer]:
+            - /url: /autofill
+            - generic [ref=e13]: 
+            - generic [ref=e14]: AI填网申
+          - link " AI找工作" [ref=e15] [cursor=pointer]:
+            - /url: /job
+            - generic [ref=e16]: 
+            - generic [ref=e17]: AI找工作
+          - link " AI改简历" [ref=e18] [cursor=pointer]:
+            - /url: /resume
+            - generic [ref=e19]: 
+            - generic [ref=e20]: AI改简历
+          - link " AI笔面试" [ref=e21] [cursor=pointer]:
+            - /url: /interview
+            - generic [ref=e22]: 
+            - generic [ref=e23]: AI笔面试
+          - link " AI写论文" [ref=e24] [cursor=pointer]:
+            - /url: /paper
+            - generic [ref=e25]: 
+            - generic [ref=e26]: AI写论文
+        - generic [ref=e27]:
+          - generic [ref=e28]: Excel × 4
+          - link " 网申表格" [ref=e29] [cursor=pointer]:
+            - /url: /campus
+            - generic [ref=e30]: 
+            - generic [ref=e31]: 网申表格
+        - generic [ref=e32]:
+          - generic [ref=e33]: HUMAN × 3
+          - link " 求职服务" [ref=e34] [cursor=pointer]:
+            - /url: /friend
+            - generic [ref=e35]: 
+            - generic [ref=e36]: 求职服务
+        - generic [ref=e37]:
+          - generic [ref=e38]: Captain
+          - generic [ref=e39] [cursor=pointer]:
+            - generic [ref=e40]: 
+            - generic [ref=e41]: 登录/注册
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - generic [ref=e46]: 
+          - generic [ref=e47]: 找工作
+          - generic [ref=e48]: 关键点
+        - generic [ref=e49]:
+          - generic [ref=e50] [cursor=pointer]:
+            - generic [ref=e51]: "1"
+            - generic [ref=e52]:
+              - heading "制作简历 · 简历诊断" [level=4] [ref=e53]
+              - paragraph [ref=e54]: 简历不过关，投再多也是白投
+              - paragraph [ref=e55]: 徐老师免费诊断，20分钟理清逻辑
+              - button "开始诊断" [ref=e56]
+          - generic [ref=e59] [cursor=pointer]:
+            - generic [ref=e60]: "2"
+            - generic [ref=e61]:
+              - heading "投简历 · 每日刷岗" [level=4] [ref=e62]
+              - paragraph [ref=e63]: AI找工作，帮你自动全网搜岗位
+              - paragraph [ref=e64]: 每天至少要把监控出的岗位刷一遍
+              - button "前往刷岗" [ref=e65]
+          - generic [ref=e68] [cursor=pointer]:
+            - generic [ref=e69]: "3"
+            - generic [ref=e70]:
+              - heading "投简历 · 自动网申" [level=4] [ref=e71]
+              - paragraph [ref=e72]: 校招找到工作，平均需投50-800家
+              - paragraph [ref=e73]: 安装AI填网申插件，投递数先拉起来
+              - button "前往体验" [ref=e74]
+          - generic [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]: "4"
+            - generic [ref=e79]:
+              - heading "笔面试 · 学霸方案" [level=4] [ref=e80]
+              - paragraph [ref=e81]: 24小时给你搞到公司岗位备考资料
+              - paragraph [ref=e82]: 笔试面试真题背起来
+              - button "前往查看" [ref=e83]
+          - generic [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]: "5"
+            - generic [ref=e88]:
+              - heading "笔面试 · 学渣方案" [level=4] [ref=e89]
+              - paragraph [ref=e90]: 资料背不下来，就用AI助力工具
+              - paragraph [ref=e91]: AI秒答，笔试面试一键通关
+              - button "前往体验" [ref=e92]
+      - generic [ref=e95]:
+        - button "投递进展表" [ref=e96] [cursor=pointer]
+        - button "24h最新网申 NEW" [ref=e97] [cursor=pointer]:
+          - text: 24h最新网申
+          - generic [ref=e98]: NEW
+        - button "27届热门秋招" [ref=e99] [cursor=pointer]
+        - button "国企央企汇总" [ref=e100] [cursor=pointer]
+        - button "大厂实习汇总" [ref=e101] [cursor=pointer]
+        - button "笔试真题汇总 HOT" [ref=e102] [cursor=pointer]:
+          - text: 笔试真题汇总
+          - generic [ref=e103]: HOT
+        - button "专属备考资料" [ref=e104] [cursor=pointer]
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]: 城市：
+              - generic [ref=e111]:
+                - button "不限" [ref=e112] [cursor=pointer]
+                - button "北京" [ref=e113] [cursor=pointer]
+                - button "上海" [ref=e114] [cursor=pointer]
+                - button "广州" [ref=e115] [cursor=pointer]
+                - button "深圳" [ref=e116] [cursor=pointer]
+                - button "西安" [ref=e117] [cursor=pointer]
+                - button "武汉" [ref=e118] [cursor=pointer]
+                - button "南京" [ref=e119] [cursor=pointer]
+                - button "成都" [ref=e120] [cursor=pointer]
+                - button "重庆" [ref=e121] [cursor=pointer]
+                - button "天津" [ref=e122] [cursor=pointer]
+                - button "杭州" [ref=e123] [cursor=pointer]
+                - button "长沙" [ref=e124] [cursor=pointer]
+                - button "济南" [ref=e125] [cursor=pointer]
+            - generic [ref=e126]:
+              - generic [ref=e127]: 来源：
+              - generic [ref=e128]:
+                - button "不限" [ref=e129] [cursor=pointer]
+                - button "公众号" [ref=e130] [cursor=pointer]
+                - button "官网" [ref=e133] [cursor=pointer]
+                - button "政府" [ref=e136] [cursor=pointer]
+            - generic [ref=e139]:
+              - generic [ref=e140]: 筛选：
+              - button "更多筛选条件" [ref=e141] [cursor=pointer]
+          - heading "求职方舟AI · 27届秋招网申公告汇总表" [level=3] [ref=e145]
+        - generic [ref=e146]:
+          - generic [ref=e147]: 1 - 200 共 1,927. 页 1 共 10
+          - treegrid [ref=e148]:
+            - rowgroup [ref=e149]:
+              - row [ref=e150]:
+                - columnheader [ref=e151]:
+                  - checkbox "Column with Header Selection" [ref=e152]
+                  - text: 
+                  - generic [ref=e153] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "更新" [ref=e154]:
+                  - text: 
+                  - generic [ref=e156] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "公司" [ref=e158]:
+                  - text: 
+                  - generic [ref=e160] [cursor=pointer]: 
+                  - generic:    
+            - rowgroup [ref=e162]:
+              - row [ref=e163]:
+                - columnheader "公告链接" [ref=e164]:
+                  - text:  
+                  - generic:    
+                - columnheader "投递链接" [ref=e167]:
+                  - text:  
+                  - generic:    
+                - columnheader "行业" [ref=e170]:
+                  - text: 
+                  - generic [ref=e172] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "标签" [ref=e174]:
+                  - text: 
+                  - generic [ref=e176] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "批次" [ref=e178]:
+                  - text: 
+                  - generic [ref=e180] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "热门" [ref=e182]:
+                  - text: 
+                  - generic [ref=e184] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "职位" [ref=e186]:
+                  - text: 
+                  - generic [ref=e188] [cursor=pointer]: 
+                  - generic:    
+                - columnheader "地点" [ref=e190]:
+                  - text: 
+                  - generic [ref=e192] [cursor=pointer]: 
+                  - generic:    
+            - rowgroup [ref=e194]:
+              - row [ref=e195]:
+                - gridcell [ref=e196]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e197]
+                  - text: 
+                - gridcell "08-31" [ref=e198]
+                - gridcell "中兴通讯" [ref=e199]
+              - row [ref=e203]:
+                - gridcell [ref=e204]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e205]
+                  - text: 
+                - gridcell "08-31" [ref=e206]
+                - gridcell "重庆三峡融资担保集团" [ref=e207]
+              - row [ref=e211]:
+                - gridcell [ref=e212]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e213]
+                  - text: 
+                - gridcell "08-31" [ref=e214]
+                - gridcell "中交一航局" [ref=e215]
+              - row [ref=e219]:
+                - gridcell [ref=e220]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e221]
+                  - text: 
+                - gridcell "08-31" [ref=e222]
+                - gridcell "海格通信" [ref=e223]
+              - row [ref=e227]:
+                - gridcell [ref=e228]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e229]
+                  - text: 
+                - gridcell "08-31" [ref=e230]
+                - gridcell "航空工业新航" [ref=e231]
+              - row [ref=e235]:
+                - gridcell [ref=e236]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e237]
+                  - text: 
+                - gridcell "08-31" [ref=e238]
+                - gridcell "安琪" [ref=e239]
+              - row [ref=e243]:
+                - gridcell [ref=e244]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e245]
+                  - text: 
+                - gridcell "08-31" [ref=e246]
+                - gridcell "中国能建中电工程浙江院" [ref=e247]
+              - row [ref=e251]:
+                - gridcell [ref=e252]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e253]
+                  - text: 
+                - gridcell "08-31" [ref=e254]
+                - gridcell "中国能建" [ref=e255]
+              - row [ref=e259]:
+                - gridcell [ref=e260]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e261]
+                  - text: 
+                - gridcell "08-31" [ref=e262]
+                - gridcell "中建八局东北" [ref=e263]
+              - row [ref=e267]:
+                - gridcell [ref=e268]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e269]
+                  - text: 
+                - gridcell "08-31" [ref=e270]
+                - gridcell "上海电气" [ref=e271]
+              - row [ref=e275]:
+                - gridcell [ref=e276]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e277]
+                  - text: 
+                - gridcell "08-31" [ref=e278]
+                - gridcell "捷顺科技" [ref=e279]
+              - row [ref=e283]:
+                - gridcell [ref=e284]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e285]
+                  - text: 
+                - gridcell "08-31" [ref=e286]
+                - gridcell "四方股份" [ref=e287]
+              - row [ref=e291]:
+                - gridcell [ref=e292]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e293]
+                  - text: 
+                - gridcell "08-31" [ref=e294]
+                - gridcell "中国太平" [ref=e295]
+              - row [ref=e299]:
+                - gridcell [ref=e300]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e301]
+                  - text: 
+                - gridcell "08-31" [ref=e302]
+                - gridcell "易方达基金" [ref=e303]
+              - row [ref=e307]:
+                - gridcell [ref=e308]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e309]
+                  - text: 
+                - gridcell "08-31" [ref=e310]
+                - gridcell "阿里安全" [ref=e311]
+              - row [ref=e315]:
+                - gridcell [ref=e316]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e317]
+                  - text: 
+                - gridcell "08-31" [ref=e318]
+                - gridcell "华为终端慧通" [ref=e319]
+              - row [ref=e323]:
+                - gridcell [ref=e324]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e325]
+                  - text: 
+                - gridcell "08-31" [ref=e326]
+                - gridcell "新东方山东省域" [ref=e327]
+              - row [ref=e331]:
+                - gridcell [ref=e332]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e333]
+                  - text: 
+                - gridcell "08-31" [ref=e334]
+                - gridcell "东方希望集团" [ref=e335]
+              - row [ref=e339]:
+                - gridcell [ref=e340]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e341]
+                  - text: 
+                - gridcell "08-31" [ref=e342]
+                - gridcell "中电信量子集团" [ref=e343]
+              - row [ref=e347]:
+                - gridcell [ref=e348]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e349]
+                  - text: 
+                - gridcell "08-31" [ref=e350]
+                - gridcell "平安银行沈阳分行" [ref=e351]
+              - row [ref=e355]:
+                - gridcell [ref=e356]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e357]
+                  - text: 
+                - gridcell "08-31" [ref=e358]
+                - gridcell "中信期货华南分公司" [ref=e359]
+              - row [ref=e363]:
+                - gridcell [ref=e364]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e365]
+                  - text: 
+                - gridcell "08-31" [ref=e366]
+                - gridcell "北京微电子技术研究所" [ref=e367]
+              - row [ref=e371]:
+                - gridcell [ref=e372]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e373]
+                  - text: 
+                - gridcell "08-31" [ref=e374]
+                - gridcell [ref=e375]:
+                  - generic "重庆市地质矿产勘查开发集团有限公司检验检测公司" [ref=e376]: 重庆市地质矿产勘查开发集团有限公司检验检测
+              - row [ref=e379]:
+                - gridcell [ref=e380]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e381]
+                  - text: 
+                - gridcell "08-31" [ref=e382]
+                - gridcell "好未来学而思" [ref=e383]
+              - row [ref=e387]:
+                - gridcell [ref=e388]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e389]
+                  - text: 
+                - gridcell "08-31" [ref=e390]
+                - gridcell "长陆智造" [ref=e391]
+              - row [ref=e395]:
+                - gridcell [ref=e396]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e397]
+                  - text: 
+                - gridcell "08-31" [ref=e398]
+                - gridcell "芯洲科技" [ref=e399]
+              - row [ref=e403]:
+                - gridcell [ref=e404]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e405]
+                  - text: 
+                - gridcell "08-31" [ref=e406]
+                - gridcell "夏尔" [ref=e407]
+              - row [ref=e411]:
+                - gridcell [ref=e412]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e413]
+                  - text: 
+                - gridcell "08-31" [ref=e414]
+                - gridcell "崇达技术" [ref=e415]
+              - row [ref=e419]:
+                - gridcell [ref=e420]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e421]
+                  - text: 
+                - gridcell "08-31" [ref=e422]
+                - gridcell [ref=e423]:
+                  - generic "陕西卓信工程检测有限公司" [ref=e424]: 陕西卓信工程检测
+              - row [ref=e427]:
+                - gridcell [ref=e428]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e429]
+                  - text: 
+                - gridcell "08-31" [ref=e430]
+                - gridcell "钜泉科技" [ref=e431]
+              - row [ref=e435]:
+                - gridcell [ref=e436]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e437]
+                  - text: 
+                - gridcell "08-31" [ref=e438]
+                - gridcell "汉江实验室" [ref=e439]
+              - row [ref=e443]:
+                - gridcell [ref=e444]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e445]
+                  - text: 
+                - gridcell "08-31" [ref=e446]
+                - gridcell "奇邻文化" [ref=e447]
+              - row [ref=e451]:
+                - gridcell [ref=e452]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e453]
+                  - text: 
+                - gridcell "08-31" [ref=e454]
+                - gridcell "航空工业陕飞" [ref=e455]
+              - row [ref=e459]:
+                - gridcell [ref=e460]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e461]
+                  - text: 
+                - gridcell "08-31" [ref=e462]
+                - gridcell "中国飞行试验研究院" [ref=e463]
+              - row [ref=e467]:
+                - gridcell [ref=e468]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e469]
+                  - text: 
+                - gridcell "08-31" [ref=e470]
+                - gridcell "抖音体验与服务团队" [ref=e471]
+              - row [ref=e475]:
+                - gridcell [ref=e476]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e477]
+                  - text: 
+                - gridcell "08-31" [ref=e478]
+                - gridcell "长虹航天" [ref=e479]
+              - row [ref=e483]:
+                - gridcell [ref=e484]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e485]
+                  - text: 
+                - gridcell "08-31" [ref=e486]
+                - gridcell "汉缆股份" [ref=e487]
+              - row [ref=e491]:
+                - gridcell [ref=e492]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e493]
+                  - text: 
+                - gridcell "08-31" [ref=e494]
+                - gridcell "康冠科技" [ref=e495]
+              - row [ref=e499]:
+                - gridcell [ref=e500]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e501]
+                  - text: 
+                - gridcell "08-31" [ref=e502]
+                - gridcell "中国能建江苏院" [ref=e503]
+              - row [ref=e507]:
+                - gridcell [ref=e508]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e509]
+                  - text: 
+                - gridcell "08-31" [ref=e510]
+                - gridcell "北京新东方" [ref=e511]
+              - row [ref=e515]:
+                - gridcell [ref=e516]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e517]
+                  - text: 
+                - gridcell "08-31" [ref=e518]
+                - gridcell "同道猎聘" [ref=e519]
+              - row [ref=e523]:
+                - gridcell [ref=e524]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e525]
+                  - text: 
+                - gridcell "08-31" [ref=e526]
+                - gridcell "德明利" [ref=e527]
+              - row [ref=e531]:
+                - gridcell [ref=e532]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e533]
+                  - text: 
+                - gridcell "08-31" [ref=e534]
+                - gridcell [ref=e535]:
+                  - generic "北京若美文化传媒有限公司" [ref=e536]: 北京若美文化传媒
+              - row [ref=e539]:
+                - gridcell [ref=e540]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e541]
+                  - text: 
+                - gridcell "08-31" [ref=e542]
+                - gridcell "招商银行温州分行" [ref=e543]
+              - row [ref=e547]:
+                - gridcell [ref=e548]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e549]
+                  - text: 
+                - gridcell "08-31" [ref=e550]
+                - gridcell "博涯信息" [ref=e551]
+              - row [ref=e555]:
+                - gridcell [ref=e556]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e557]
+                  - text: 
+                - gridcell "08-31" [ref=e558]
+                - gridcell "赫比集团" [ref=e559]
+              - row [ref=e563]:
+                - gridcell [ref=e564]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e565]
+                  - text: 
+                - gridcell "08-31" [ref=e566]
+                - gridcell "招商银行兰州分行" [ref=e567]
+              - row [ref=e571]:
+                - gridcell [ref=e572]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e573]
+                  - text: 
+                - gridcell "08-31" [ref=e574]
+                - gridcell "河北浩海" [ref=e575]
+              - row [ref=e579]:
+                - gridcell [ref=e580]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e581]
+                  - text: 
+                - gridcell "08-31" [ref=e582]
+                - gridcell [ref=e583]:
+                  - generic "中铁一局城轨公司" [ref=e584]: 中铁一局城轨
+              - row [ref=e587]:
+                - gridcell [ref=e588]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e589]
+                  - text: 
+                - gridcell "08-31" [ref=e590]
+                - gridcell "上海孛璞半导体" [ref=e591]
+              - row [ref=e595]:
+                - gridcell [ref=e596]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e597]
+                  - text: 
+                - gridcell "08-31" [ref=e598]
+                - gridcell "深水咨询" [ref=e599]
+              - row [ref=e603]:
+                - gridcell [ref=e604]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e605]
+                  - text: 
+                - gridcell "08-31" [ref=e606]
+                - gridcell "拓邦股份" [ref=e607]
+              - row [ref=e611]:
+                - gridcell [ref=e612]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e613]
+                  - text: 
+                - gridcell "08-31" [ref=e614]
+                - gridcell "经纬恒润" [ref=e615]
+              - row [ref=e619]:
+                - gridcell [ref=e620]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e621]
+                  - text: 
+                - gridcell "08-31" [ref=e622]
+                - gridcell "平安银行海口分行" [ref=e623]
+              - row [ref=e627]:
+                - gridcell [ref=e628]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e629]
+                  - text: 
+                - gridcell "08-31" [ref=e630]
+                - gridcell "平安银行乌鲁木齐分行" [ref=e631]
+              - row [ref=e635]:
+                - gridcell [ref=e636]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e637]
+                  - text: 
+                - gridcell "08-31" [ref=e638]
+                - gridcell "平安银行成都分行" [ref=e639]
+              - row [ref=e643]:
+                - gridcell [ref=e644]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e645]
+                  - text: 
+                - gridcell "08-31" [ref=e646]
+                - gridcell [ref=e647]:
+                  - generic "星德科包装技术(杭州)有限公司" [ref=e648]: 星德科包装技术(杭州)
+              - row [ref=e651]:
+                - gridcell [ref=e652]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e653]
+                  - text: 
+                - gridcell "08-31" [ref=e654]
+                - gridcell [ref=e655]:
+                  - generic "中远海运船员管理有限公司" [ref=e656]: 中远海运船员管理
+              - row [ref=e659]:
+                - gridcell [ref=e660]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e661]
+                  - text: 
+                - gridcell "08-31" [ref=e662]
+                - gridcell [ref=e663]:
+                  - generic "上海航空电器有限公司" [ref=e664]: 上海航空电器
+              - row [ref=e667]:
+                - gridcell [ref=e668]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e669]
+                  - text: 
+                - gridcell "08-31" [ref=e670]
+                - gridcell [ref=e671]:
+                  - generic "奔图科技股份有限公司" [ref=e672]: 奔图科技
+              - row [ref=e675]:
+                - gridcell [ref=e676]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e677]
+                  - text: 
+                - gridcell "08-30" [ref=e678]
+                - gridcell "厦钨新能源" [ref=e679]
+              - row [ref=e683]:
+                - gridcell [ref=e684]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e685]
+                  - text: 
+                - gridcell "08-30" [ref=e686]
+                - gridcell "庞度环保" [ref=e687]
+              - row [ref=e691]:
+                - gridcell [ref=e692]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e693]
+                  - text: 
+                - gridcell "08-30" [ref=e694]
+                - gridcell "鹰角网络" [ref=e695]
+              - row [ref=e699]:
+                - gridcell [ref=e700]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e701]
+                  - text: 
+                - gridcell "08-30" [ref=e702]
+                - gridcell [ref=e703]:
+                  - generic "三峡人寿保险股份有限公司" [ref=e704]: 三峡人寿保险
+              - row [ref=e707]:
+                - gridcell [ref=e708]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e709]
+                  - text: 
+                - gridcell "08-30" [ref=e710]
+                - gridcell "中铁一局" [ref=e711]
+              - row [ref=e715]:
+                - gridcell [ref=e716]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e717]
+                  - text: 
+                - gridcell "08-30" [ref=e718]
+                - gridcell "航空工业成飞" [ref=e719]
+              - row [ref=e723]:
+                - gridcell [ref=e724]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e725]
+                  - text: 
+                - gridcell "08-30" [ref=e726]
+                - gridcell "陕西卓信工程检测" [ref=e727]
+              - row [ref=e731]:
+                - gridcell [ref=e732]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e733]
+                  - text: 
+                - gridcell "08-30" [ref=e734]
+                - gridcell "锐捷智能" [ref=e735]
+              - row [ref=e739]:
+                - gridcell [ref=e740]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e741]
+                  - text: 
+                - gridcell "08-30" [ref=e742]
+                - gridcell "华天科技" [ref=e743]
+              - row [ref=e747]:
+                - gridcell [ref=e748]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e749]
+                  - text: 
+                - gridcell "08-30" [ref=e750]
+                - gridcell "雷鸟科技" [ref=e751]
+              - row [ref=e755]:
+                - gridcell [ref=e756]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e757]
+                  - text: 
+                - gridcell "08-30" [ref=e758]
+                - gridcell "珞珈伊云" [ref=e759]
+              - row [ref=e763]:
+                - gridcell [ref=e764]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e765]
+                  - text: 
+                - gridcell "08-30" [ref=e766]
+                - gridcell "星逻智能" [ref=e767]
+              - row [ref=e771]:
+                - gridcell [ref=e772]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e773]
+                  - text: 
+                - gridcell "08-30" [ref=e774]
+                - gridcell "达坦能源科技" [ref=e775]
+              - row [ref=e779]:
+                - gridcell [ref=e780]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e781]
+                  - text: 
+                - gridcell "08-30" [ref=e782]
+                - gridcell "和歌山科技" [ref=e783]
+              - row [ref=e787]:
+                - gridcell [ref=e788]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e789]
+                  - text: 
+                - gridcell "08-30" [ref=e790]
+                - gridcell "乐读" [ref=e791]
+              - row [ref=e795]:
+                - gridcell [ref=e796]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e797]
+                  - text: 
+                - gridcell "08-30" [ref=e798]
+                - gridcell "蔚来" [ref=e799]
+              - row [ref=e803]:
+                - gridcell [ref=e804]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e805]
+                  - text: 
+                - gridcell "08-30" [ref=e806]
+                - gridcell "极智嘉 Geek+" [ref=e807]
+              - row [ref=e811]:
+                - gridcell [ref=e812]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e813]
+                  - text: 
+                - gridcell "08-30" [ref=e814]
+                - gridcell [ref=e815]:
+                  - generic "中国通信服务湖南公司" [ref=e816]: 中国通信服务湖南
+              - row [ref=e819]:
+                - gridcell [ref=e820]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e821]
+                  - text: 
+                - gridcell "08-30" [ref=e822]
+                - gridcell [ref=e823]:
+                  - generic "东风汽车股份有限公司" [ref=e824]: 东风汽车
+              - row [ref=e827]:
+                - gridcell [ref=e828]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e829]
+                  - text: 
+                - gridcell "08-30" [ref=e830]
+                - gridcell "奥普特" [ref=e831]
+              - row [ref=e835]:
+                - gridcell [ref=e836]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e837]
+                  - text: 
+                - gridcell "08-30" [ref=e838]
+                - gridcell "中南电力" [ref=e839]
+              - row [ref=e843]:
+                - gridcell [ref=e844]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e845]
+                  - text: 
+                - gridcell "08-30" [ref=e846]
+                - gridcell "天马微电子" [ref=e847]
+              - row [ref=e851]:
+                - gridcell [ref=e852]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e853]
+                  - text: 
+                - gridcell "08-30" [ref=e854]
+                - gridcell "中国航天科技集团有限公司第八研究院第八设计部" [ref=e855]
+              - row [ref=e859]:
+                - gridcell [ref=e860]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e861]
+                  - text: 
+                - gridcell "08-30" [ref=e862]
+                - gridcell "伟创电气" [ref=e863]
+              - row [ref=e867]:
+                - gridcell [ref=e868]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e869]
+                  - text: 
+                - gridcell "08-30" [ref=e870]
+                - gridcell "敏芯股份" [ref=e871]
+              - row [ref=e875]:
+                - gridcell [ref=e876]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e877]
+                  - text: 
+                - gridcell "08-30" [ref=e878]
+                - gridcell "中国能建国际" [ref=e879]
+              - row [ref=e883]:
+                - gridcell [ref=e884]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e885]
+                  - text: 
+                - gridcell "08-30" [ref=e886]
+                - gridcell "航空工业直升机所" [ref=e887]
+              - row [ref=e891]:
+                - gridcell [ref=e892]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e893]
+                  - text: 
+                - gridcell "08-30" [ref=e894]
+                - gridcell "易控智驾" [ref=e895]
+              - row [ref=e899]:
+                - gridcell [ref=e900]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e901]
+                  - text: 
+                - gridcell "08-30" [ref=e902]
+                - gridcell "航空工业雷达所＆中航智谱" [ref=e903]
+              - row [ref=e907]:
+                - gridcell [ref=e908]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e909]
+                  - text: 
+                - gridcell "08-30" [ref=e910]
+                - gridcell "黑芝麻智能" [ref=e911]
+              - row [ref=e915]:
+                - gridcell [ref=e916]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e917]
+                  - text: 
+                - gridcell "08-30" [ref=e918]
+                - gridcell "中国航天科技集团有限公司第八研究院第八设计部" [ref=e919]
+              - row [ref=e923]:
+                - gridcell [ref=e924]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e925]
+                  - text: 
+                - gridcell "08-30" [ref=e926]
+                - gridcell "黑芝麻智能" [ref=e927]
+              - row [ref=e931]:
+                - gridcell [ref=e932]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e933]
+                  - text: 
+                - gridcell "08-30" [ref=e934]
+                - gridcell "航空工业直升机所" [ref=e935]
+              - row [ref=e939]:
+                - gridcell [ref=e940]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e941]
+                  - text: 
+                - gridcell "08-30" [ref=e942]
+                - gridcell "飞博共创" [ref=e943]
+              - row [ref=e947]:
+                - gridcell [ref=e948]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e949]
+                  - text: 
+                - gridcell "08-30" [ref=e950]
+                - gridcell "中建科工" [ref=e951]
+              - row [ref=e955]:
+                - gridcell [ref=e956]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e957]
+                  - text: 
+                - gridcell "08-30" [ref=e958]
+                - gridcell [ref=e959]:
+                  - generic "劲牌有限公司" [ref=e960]: 劲牌
+              - row [ref=e963]:
+                - gridcell [ref=e964]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e965]
+                  - text: 
+                - gridcell "08-30" [ref=e966]
+                - gridcell "中南电力" [ref=e967]
+              - row [ref=e971]:
+                - gridcell [ref=e972]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e973]
+                  - text: 
+                - gridcell "08-30" [ref=e974]
+                - gridcell "博思软件" [ref=e975]
+              - row [ref=e979]:
+                - gridcell [ref=e980]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e981]
+                  - text: 
+                - gridcell "08-30" [ref=e982]
+                - gridcell "百草味" [ref=e983]
+              - row [ref=e987]:
+                - gridcell [ref=e988]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e989]
+                  - text: 
+                - gridcell "08-30" [ref=e990]
+                - gridcell "零跑汽车" [ref=e991]
+              - row [ref=e995]:
+                - gridcell [ref=e996]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e997]
+                  - text: 
+                - gridcell "08-30" [ref=e998]
+                - gridcell [ref=e999]:
+                  - generic "上海民用航空控制与导航系统有限公司" [ref=e1000]: 上海民用航空控制与导航系统
+              - row [ref=e1003]:
+                - gridcell [ref=e1004]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1005]
+                  - text: 
+                - gridcell "08-30" [ref=e1006]
+                - gridcell "易控智驾" [ref=e1007]
+              - row [ref=e1011]:
+                - gridcell [ref=e1012]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1013]
+                  - text: 
+                - gridcell "08-30" [ref=e1014]
+                - gridcell "天马微电子" [ref=e1015]
+              - row [ref=e1019]:
+                - gridcell [ref=e1020]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1021]
+                  - text: 
+                - gridcell "08-30" [ref=e1022]
+                - gridcell "伟创电气" [ref=e1023]
+              - row [ref=e1027]:
+                - gridcell [ref=e1028]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1029]
+                  - text: 
+                - gridcell "08-30" [ref=e1030]
+                - gridcell "兴森科技" [ref=e1031]
+              - row [ref=e1035]:
+                - gridcell [ref=e1036]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1037]
+                  - text: 
+                - gridcell "08-30" [ref=e1038]
+                - gridcell "航空工业雷达所＆中航智谱" [ref=e1039]
+              - row [ref=e1043]:
+                - gridcell [ref=e1044]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1045]
+                  - text: 
+                - gridcell "08-30" [ref=e1046]
+                - gridcell "跨维智能" [ref=e1047]
+              - row [ref=e1051]:
+                - gridcell [ref=e1052]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1053]
+                  - text: 
+                - gridcell "08-30" [ref=e1054]
+                - gridcell "中国网安/三十所" [ref=e1055]
+              - row [ref=e1059]:
+                - gridcell [ref=e1060]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1061]
+                  - text: 
+                - gridcell "08-30" [ref=e1062]
+                - gridcell "中铁二局" [ref=e1063]
+              - row [ref=e1067]:
+                - gridcell [ref=e1068]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1069]
+                  - text: 
+                - gridcell "08-30" [ref=e1070]
+                - gridcell "徐工" [ref=e1071]
+              - row [ref=e1075]:
+                - gridcell [ref=e1076]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1077]
+                  - text: 
+                - gridcell "08-30" [ref=e1078]
+                - gridcell "敏芯股份" [ref=e1079]
+              - row [ref=e1083]:
+                - gridcell [ref=e1084]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1085]
+                  - text: 
+                - gridcell "08-30" [ref=e1086]
+                - gridcell "中建八局" [ref=e1087]
+              - row [ref=e1091]:
+                - gridcell [ref=e1092]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1093]
+                  - text: 
+                - gridcell "08-30" [ref=e1094]
+                - gridcell "雅砻江水电" [ref=e1095]
+              - row [ref=e1099]:
+                - gridcell [ref=e1100]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1101]
+                  - text: 
+                - gridcell "08-30" [ref=e1102]
+                - gridcell "中国能建国际集团" [ref=e1103]
+              - row [ref=e1107]:
+                - gridcell [ref=e1108]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1109]
+                  - text: 
+                - gridcell "08-30" [ref=e1110]
+                - gridcell "中铁广州局" [ref=e1111]
+              - row [ref=e1115]:
+                - gridcell [ref=e1116]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1117]
+                  - text: 
+                - gridcell "08-30" [ref=e1118]
+                - gridcell "飞鱼科技" [ref=e1119]
+              - row [ref=e1123]:
+                - gridcell [ref=e1124]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1125]
+                  - text: 
+                - gridcell "08-30" [ref=e1126]
+                - gridcell [ref=e1127]:
+                  - generic "中国电信海南公司" [ref=e1128]: 中国电信海南
+              - row [ref=e1131]:
+                - gridcell [ref=e1132]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1133]
+                  - text: 
+                - gridcell "08-29" [ref=e1134]
+                - gridcell "远东通信" [ref=e1135]
+              - row [ref=e1139]:
+                - gridcell [ref=e1140]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1141]
+                  - text: 
+                - gridcell "08-29" [ref=e1142]
+                - gridcell "达坦能源科技" [ref=e1143]
+              - row [ref=e1147]:
+                - gridcell [ref=e1148]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1149]
+                  - text: 
+                - gridcell "08-29" [ref=e1150]
+                - gridcell "格力电器" [ref=e1151]
+              - row [ref=e1155]:
+                - gridcell [ref=e1156]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1157]
+                  - text: 
+                - gridcell "08-29" [ref=e1158]
+                - gridcell "福耀集团" [ref=e1159]
+              - row [ref=e1163]:
+                - gridcell [ref=e1164]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1165]
+                  - text: 
+                - gridcell "08-29" [ref=e1166]
+                - gridcell "大道投资" [ref=e1167]
+              - row [ref=e1171]:
+                - gridcell [ref=e1172]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1173]
+                  - text: 
+                - gridcell "08-29" [ref=e1174]
+                - gridcell "麦吉丽集团" [ref=e1175]
+              - row [ref=e1179]:
+                - gridcell [ref=e1180]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1181]
+                  - text: 
+                - gridcell "08-29" [ref=e1182]
+                - gridcell "烽火通信" [ref=e1183]
+              - row [ref=e1187]:
+                - gridcell [ref=e1188]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1189]
+                  - text: 
+                - gridcell "08-29" [ref=e1190]
+                - gridcell "中国航空工业发展研究中心" [ref=e1191]
+              - row [ref=e1195]:
+                - gridcell [ref=e1196]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1197]
+                  - text: 
+                - gridcell "08-29" [ref=e1198]
+                - gridcell "珞珈伊云" [ref=e1199]
+              - row [ref=e1203]:
+                - gridcell [ref=e1204]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1205]
+                  - text: 
+                - gridcell "08-29" [ref=e1206]
+                - gridcell "嘉懿萃私募" [ref=e1207]
+              - row [ref=e1211]:
+                - gridcell [ref=e1212]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1213]
+                  - text: 
+                - gridcell "08-29" [ref=e1214]
+                - gridcell "巨一科技" [ref=e1215]
+              - row [ref=e1219]:
+                - gridcell [ref=e1220]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1221]
+                  - text: 
+                - gridcell "08-29" [ref=e1222]
+                - gridcell "麦米电气" [ref=e1223]
+              - row [ref=e1227]:
+                - gridcell [ref=e1228]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1229]
+                  - text: 
+                - gridcell "08-29" [ref=e1230]
+                - gridcell "景嘉微" [ref=e1231]
+              - row [ref=e1235]:
+                - gridcell [ref=e1236]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1237]
+                  - text: 
+                - gridcell "08-29" [ref=e1238]
+                - gridcell "鲸灵" [ref=e1239]
+              - row [ref=e1243]:
+                - gridcell [ref=e1244]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1245]
+                  - text: 
+                - gridcell "08-29" [ref=e1246]
+                - gridcell "中国科学院光电技术研究所" [ref=e1247]
+              - row [ref=e1251]:
+                - gridcell [ref=e1252]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1253]
+                  - text: 
+                - gridcell "08-29" [ref=e1254]
+                - gridcell "远东通信" [ref=e1255]
+              - row [ref=e1259]:
+                - gridcell [ref=e1260]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1261]
+                  - text: 
+                - gridcell "08-29" [ref=e1262]
+                - gridcell [ref=e1263]:
+                  - generic "中国恩菲工程技术有限公司" [ref=e1264]: 中国恩菲工程技术
+              - row [ref=e1267]:
+                - gridcell [ref=e1268]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1269]
+                  - text: 
+                - gridcell "08-29" [ref=e1270]
+                - gridcell "西安中熔电气" [ref=e1271]
+              - row [ref=e1275]:
+                - gridcell [ref=e1276]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1277]
+                  - text: 
+                - gridcell "08-29" [ref=e1278]
+                - gridcell [ref=e1279]:
+                  - generic "中铁广州局城建公司" [ref=e1280]: 中铁广州局城建
+              - row [ref=e1283]:
+                - gridcell [ref=e1284]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1285]
+                  - text: 
+                - gridcell "08-29" [ref=e1286]
+                - gridcell "星逻智能" [ref=e1287]
+              - row [ref=e1291]:
+                - gridcell [ref=e1292]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1293]
+                  - text: 
+                - gridcell "08-29" [ref=e1294]
+                - gridcell "航空工业洪都" [ref=e1295]
+              - row [ref=e1299]:
+                - gridcell [ref=e1300]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1301]
+                  - text: 
+                - gridcell "08-29" [ref=e1302]
+                - gridcell "海康集团" [ref=e1303]
+              - row [ref=e1307]:
+                - gridcell [ref=e1308]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1309]
+                  - text: 
+                - gridcell "08-29" [ref=e1310]
+                - gridcell "电科蓝天" [ref=e1311]
+              - row [ref=e1315]:
+                - gridcell [ref=e1316]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1317]
+                  - text: 
+                - gridcell "08-29" [ref=e1318]
+                - gridcell "天赐材料" [ref=e1319]
+              - row [ref=e1323]:
+                - gridcell [ref=e1324]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1325]
+                  - text: 
+                - gridcell "08-29" [ref=e1326]
+                - gridcell [ref=e1327]:
+                  - generic "成都四威科技股份有限公司" [ref=e1328]: 成都四威科技
+              - row [ref=e1331]:
+                - gridcell [ref=e1332]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1333]
+                  - text: 
+                - gridcell "08-29" [ref=e1334]
+                - gridcell [ref=e1335]:
+                  - generic "中铁广州局港航公司" [ref=e1336]: 中铁广州局港航
+              - row [ref=e1339]:
+                - gridcell [ref=e1340]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1341]
+                  - text: 
+                - gridcell "08-29" [ref=e1342]
+                - gridcell "万辰集团" [ref=e1343]
+              - row [ref=e1347]:
+                - gridcell [ref=e1348]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1349]
+                  - text: 
+                - gridcell "08-29" [ref=e1350]
+                - gridcell "星际天算" [ref=e1351]
+              - row [ref=e1355]:
+                - gridcell [ref=e1356]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1357]
+                  - text: 
+                - gridcell "08-29" [ref=e1358]
+                - gridcell "雷鸟科技" [ref=e1359]
+              - row [ref=e1363]:
+                - gridcell [ref=e1364]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1365]
+                  - text: 
+                - gridcell "08-29" [ref=e1366]
+                - gridcell "锐捷智能" [ref=e1367]
+              - row [ref=e1371]:
+                - gridcell [ref=e1372]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1373]
+                  - text: 
+                - gridcell "08-29" [ref=e1374]
+                - gridcell "清原农冠" [ref=e1375]
+              - row [ref=e1379]:
+                - gridcell [ref=e1380]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1381]
+                  - text: 
+                - gridcell "08-29" [ref=e1382]
+                - gridcell "美的集团" [ref=e1383]
+              - row [ref=e1387]:
+                - gridcell [ref=e1388]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1389]
+                  - text: 
+                - gridcell "08-29" [ref=e1390]
+                - gridcell "中国电子科技集团公司第三十九研究所" [ref=e1391]
+              - row [ref=e1395]:
+                - gridcell [ref=e1396]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1397]
+                  - text: 
+                - gridcell "08-29" [ref=e1398]
+                - gridcell "成都兴城投资集团" [ref=e1399]
+              - row [ref=e1403]:
+                - gridcell [ref=e1404]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1405]
+                  - text: 
+                - gridcell "08-29" [ref=e1406]
+                - gridcell "旋智科技" [ref=e1407]
+              - row [ref=e1411]:
+                - gridcell [ref=e1412]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1413]
+                  - text: 
+                - gridcell "08-29" [ref=e1414]
+                - gridcell "中国航天科技集团" [ref=e1415]
+              - row [ref=e1419]:
+                - gridcell [ref=e1420]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1421]
+                  - text: 
+                - gridcell "08-29" [ref=e1422]
+                - gridcell [ref=e1423]:
+                  - generic "福州市城投商业管理有限公司" [ref=e1424]: 福州市城投商业管理
+              - row [ref=e1427]:
+                - gridcell [ref=e1428]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1429]
+                  - text: 
+                - gridcell "08-29" [ref=e1430]
+                - gridcell "乐有家" [ref=e1431]
+              - row [ref=e1435]:
+                - gridcell [ref=e1436]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1437]
+                  - text: 
+                - gridcell "08-29" [ref=e1438]
+                - gridcell "招商车研" [ref=e1439]
+              - row [ref=e1443]:
+                - gridcell [ref=e1444]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1445]
+                  - text: 
+                - gridcell "08-29" [ref=e1446]
+                - gridcell "蓝箭航天" [ref=e1447]
+              - row [ref=e1451]:
+                - gridcell [ref=e1452]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1453]
+                  - text: 
+                - gridcell "08-29" [ref=e1454]
+                - gridcell "招商银行" [ref=e1455]
+              - row [ref=e1459]:
+                - gridcell [ref=e1460]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1461]
+                  - text: 
+                - gridcell "08-29" [ref=e1462]
+                - gridcell "进阶思维" [ref=e1463]
+              - row [ref=e1467]:
+                - gridcell [ref=e1468]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1469]
+                  - text: 
+                - gridcell "08-29" [ref=e1470]
+                - gridcell "华天科技" [ref=e1471]
+              - row [ref=e1475]:
+                - gridcell [ref=e1476]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1477]
+                  - text: 
+                - gridcell "08-29" [ref=e1478]
+                - gridcell "悦活里" [ref=e1479]
+              - row [ref=e1483]:
+                - gridcell [ref=e1484]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1485]
+                  - text: 
+                - gridcell "08-29" [ref=e1486]
+                - gridcell [ref=e1487]:
+                  - generic "武汉国创新盛商业管理有限公司" [ref=e1488]: 武汉国创新盛商业管理
+              - row [ref=e1491]:
+                - gridcell [ref=e1492]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1493]
+                  - text: 
+                - gridcell "08-29" [ref=e1494]
+                - gridcell [ref=e1495]:
+                  - generic "湖北星辰技术有限公司" [ref=e1496]: 湖北星辰技术
+              - row [ref=e1499]:
+                - gridcell [ref=e1500]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1501]
+                  - text: 
+                - gridcell "08-29" [ref=e1502]
+                - gridcell "Molex莫仕" [ref=e1503]
+              - row [ref=e1507]:
+                - gridcell [ref=e1508]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1509]
+                  - text: 
+                - gridcell "08-29" [ref=e1510]
+                - gridcell "为旌科技" [ref=e1511]
+              - row [ref=e1515]:
+                - gridcell [ref=e1516]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1517]
+                  - text: 
+                - gridcell "08-29" [ref=e1518]
+                - gridcell "中国航发黎明" [ref=e1519]
+              - row [ref=e1523]:
+                - gridcell [ref=e1524]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1525]
+                  - text: 
+                - gridcell "08-29" [ref=e1526]
+                - gridcell "逻辑比特" [ref=e1527]
+              - row [ref=e1531]:
+                - gridcell [ref=e1532]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1533]
+                  - text: 
+                - gridcell "08-29" [ref=e1534]
+                - gridcell "和歌山科技" [ref=e1535]
+              - row [ref=e1539]:
+                - gridcell [ref=e1540]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1541]
+                  - text: 
+                - gridcell "08-29" [ref=e1542]
+                - gridcell "沈阳航空产业集团" [ref=e1543]
+              - row [ref=e1547]:
+                - gridcell [ref=e1548]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1549]
+                  - text: 
+                - gridcell "08-29" [ref=e1550]
+                - gridcell "寒锐钴业" [ref=e1551]
+              - row [ref=e1555]:
+                - gridcell [ref=e1556]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1557]
+                  - text: 
+                - gridcell "08-29" [ref=e1558]
+                - gridcell "ICRD上海集成电路研发中心" [ref=e1559]
+              - row [ref=e1563]:
+                - gridcell [ref=e1564]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1565]
+                  - text: 
+                - gridcell "08-29" [ref=e1566]
+                - gridcell "中国航空工业集团" [ref=e1567]
+              - row [ref=e1571]:
+                - gridcell [ref=e1572]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1573]
+                  - text: 
+                - gridcell "08-29" [ref=e1574]
+                - gridcell "碳一新能源" [ref=e1575]
+              - row [ref=e1579]:
+                - gridcell [ref=e1580]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1581]
+                  - text: 
+                - gridcell "08-29" [ref=e1582]
+                - gridcell "迪卡侬" [ref=e1583]
+              - row [ref=e1587]:
+                - gridcell [ref=e1588]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1589]
+                  - text: 
+                - gridcell "08-29" [ref=e1590]
+                - gridcell "心动×TapTap" [ref=e1591]
+              - row [ref=e1595]:
+                - gridcell [ref=e1596]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1597]
+                  - text: 
+                - gridcell "08-29" [ref=e1598]
+                - gridcell "新界泵业" [ref=e1599]
+              - row [ref=e1603]:
+                - gridcell [ref=e1604]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1605]
+                  - text: 
+                - gridcell "08-29" [ref=e1606]
+                - gridcell "中铁五局" [ref=e1607]
+              - row [ref=e1611]:
+                - gridcell [ref=e1612]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1613]
+                  - text: 
+                - gridcell "08-29" [ref=e1614]
+                - gridcell [ref=e1615]:
+                  - generic "成都传媒产业集团有限公司" [ref=e1616]: 成都传媒产业集团
+              - row [ref=e1619]:
+                - gridcell [ref=e1620]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1621]
+                  - text: 
+                - gridcell "08-29" [ref=e1622]
+                - gridcell "法睿兰达" [ref=e1623]
+              - row [ref=e1627]:
+                - gridcell [ref=e1628]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1629]
+                  - text: 
+                - gridcell "08-29" [ref=e1630]
+                - gridcell "精进电动" [ref=e1631]
+              - row [ref=e1635]:
+                - gridcell [ref=e1636]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1637]
+                  - text: 
+                - gridcell "08-29" [ref=e1638]
+                - gridcell [ref=e1639]:
+                  - generic "天津红日药业股份有限公司" [ref=e1640]: 天津红日药业
+              - row [ref=e1643]:
+                - gridcell [ref=e1644]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1645]
+                  - text: 
+                - gridcell "08-29" [ref=e1646]
+                - gridcell "中国能建安徽院" [ref=e1647]
+              - row [ref=e1651]:
+                - gridcell [ref=e1652]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1653]
+                  - text: 
+                - gridcell "08-29" [ref=e1654]
+                - gridcell "数马电子" [ref=e1655]
+              - row [ref=e1659]:
+                - gridcell [ref=e1660]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1661]
+                  - text: 
+                - gridcell "08-29" [ref=e1662]
+                - gridcell "象屿集团" [ref=e1663]
+              - row [ref=e1667]:
+                - gridcell [ref=e1668]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1669]
+                  - text: 
+                - gridcell "08-29" [ref=e1670]
+                - gridcell "立信会计师事务所" [ref=e1671]
+              - row [ref=e1675]:
+                - gridcell [ref=e1676]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1677]
+                  - text: 
+                - gridcell "08-29" [ref=e1678]
+                - gridcell "BDA咨询" [ref=e1679]
+              - row [ref=e1683]:
+                - gridcell [ref=e1684]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1685]
+                  - text: 
+                - gridcell "08-29" [ref=e1686]
+                - gridcell "国泰海通证券股份有限公司天津分公司" [ref=e1687]
+              - row [ref=e1691]:
+                - gridcell [ref=e1692]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1693]
+                  - text: 
+                - gridcell "08-29" [ref=e1694]
+                - gridcell [ref=e1695]:
+                  - generic "湖北省投资引导基金有限公司" [ref=e1696]: 湖北省投资引导基金
+              - row [ref=e1699]:
+                - gridcell [ref=e1700]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1701]
+                  - text: 
+                - gridcell "08-29" [ref=e1702]
+                - gridcell "加特兰微电子" [ref=e1703]
+              - row [ref=e1707]:
+                - gridcell [ref=e1708]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1709]
+                  - text: 
+                - gridcell "08-29" [ref=e1710]
+                - gridcell "群核科技" [ref=e1711]
+              - row [ref=e1715]:
+                - gridcell [ref=e1716]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1717]
+                  - text: 
+                - gridcell "08-29" [ref=e1718]
+                - gridcell "赢合科技" [ref=e1719]
+              - row [ref=e1723]:
+                - gridcell [ref=e1724]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1725]
+                  - text: 
+                - gridcell "08-29" [ref=e1726]
+                - gridcell "平安人寿" [ref=e1727]
+              - row [ref=e1731]:
+                - gridcell [ref=e1732]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1733]
+                  - text: 
+                - gridcell "08-29" [ref=e1734]
+                - gridcell "万马股份" [ref=e1735]
+              - row [ref=e1739]:
+                - gridcell [ref=e1740]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1741]
+                  - text: 
+                - gridcell "08-29" [ref=e1742]
+                - gridcell "冠宇" [ref=e1743]
+              - row [ref=e1747]:
+                - gridcell [ref=e1748]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1749]
+                  - text: 
+                - gridcell "08-29" [ref=e1750]
+                - gridcell [ref=e1751]:
+                  - generic "紫龙互娱公司" [ref=e1752]: 紫龙互娱
+              - row [ref=e1755]:
+                - gridcell [ref=e1756]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1757]
+                  - text: 
+                - gridcell "08-29" [ref=e1758]
+                - gridcell "菜鸟集团" [ref=e1759]
+              - row [ref=e1763]:
+                - gridcell [ref=e1764]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1765]
+                  - text: 
+                - gridcell "08-28" [ref=e1766]
+                - gridcell "中铁一局" [ref=e1767]
+              - row [ref=e1771]:
+                - gridcell [ref=e1772]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1773]
+                  - text: 
+                - gridcell "08-28" [ref=e1774]
+                - gridcell "天赐材料" [ref=e1775]
+              - row [ref=e1779]:
+                - gridcell [ref=e1780]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1781]
+                  - text: 
+                - gridcell "08-28" [ref=e1782]
+                - gridcell "烽火通信" [ref=e1783]
+              - row [ref=e1787]:
+                - gridcell [ref=e1788]:
+                  - checkbox "Press Space to toggle row selection (unchecked)" [ref=e1789]
+                  - text: 
+                - gridcell "08-28" [ref=e1790]
+                - gridcell "智加科技" [ref=e1791]
+            - rowgroup [ref=e1795]:
+              - row [ref=e1796]:
+                - gridcell [ref=e1797]:
+                  - link "招聘公告" [ref=e1799] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1800]:
+                  - link "投递官网" [ref=e1802] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "财务/审计/税务" [ref=e1803]
+                - gridcell "民营" [ref=e1804]
+                - gridcell "27秋招" [ref=e1807]
+                - gridcell [ref=e1808]
+                - gridcell "财务经理 财务数字化经理 财务数字化经理(产品经理方向) 证券事务经理" [ref=e1813]
+                - gridcell "北京、南京、深圳、西安、海外" [ref=e1814]
+              - row [ref=e1815]:
+                - gridcell [ref=e1816]:
+                  - link "招聘公告" [ref=e1818] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1819]:
+                  - link "投递官网" [ref=e1821] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融" [ref=e1822]
+                - gridcell "央企" [ref=e1823]
+                - gridcell "27秋招" [ref=e1826]
+                - gridcell [ref=e1827]
+                - gridcell "项目经理岗、管理培训生（文件规定毕业2年内的择业期毕业生、视同应届生）" [ref=e1832]
+                - gridcell "重庆、北京、成都、武汉、西安、长沙、昆明" [ref=e1833]
+              - row [ref=e1834]:
+                - gridcell [ref=e1835]:
+                  - link "招聘公告" [ref=e1837] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1838]:
+                  - link "投递官网" [ref=e1840] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "航空运营" [ref=e1841]
+                - gridcell "央企" [ref=e1842]
+                - gridcell "27秋招" [ref=e1845]
+                - gridcell [ref=e1846]
+                - gridcell "土木工程类、港航工程类、水利水电类、工程管理类、人工智能类、工程机器人/机械机电类、企业管理类、经济财务类、海外业务类、石油化工类" [ref=e1851]
+                - gridcell "天津、大连、南宁、玉林" [ref=e1852]
+              - row [ref=e1853]:
+                - gridcell [ref=e1854]:
+                  - link "招聘公告" [ref=e1856] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1857]:
+                  - link "投递官网" [ref=e1859] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国企" [ref=e1860]
+                - gridcell "央企" [ref=e1861]
+                - gridcell "28秋招" [ref=e1864]
+                - gridcell [ref=e1865]
+                - gridcell "算法设计师、FPGA 设计师、协议软件设计师、物理层软件设计师、软件评测工程师、射频设计师、天线设计师、数字电路设计师、电气设计师、数字芯片设计师、模拟芯片设计师、结构设计师、市场营销专员" [ref=e1870]
+                - gridcell "北京、南京、武汉、广州、成都、西安" [ref=e1871]
+              - row [ref=e1872]:
+                - gridcell [ref=e1873]:
+                  - link "招聘公告" [ref=e1875] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1876]:
+                  - link "投递官网" [ref=e1878] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国防军工" [ref=e1879]
+                - gridcell "央企" [ref=e1880]
+                - gridcell "27秋招" [ref=e1883]
+                - gridcell [ref=e1884]
+                - gridcell "泵类研发工程师、阀类研发工程师、过滤器研发工程师、散热器研发工程师、软件研发工程师、硬件研发工程师、系统集成研发工程师、仿真工程师、焊接工艺工程师、热表处理工艺工程师、锻铸工艺工程师、橡塑工艺工程师、......" [ref=e1889]
+                - gridcell "新乡" [ref=e1890]
+              - row [ref=e1891]:
+                - gridcell [ref=e1892]:
+                  - link "招聘公告" [ref=e1894] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1895]:
+                  - link "投递官网" [ref=e1897] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国企" [ref=e1898]
+                - gridcell "央企" [ref=e1899]
+                - gridcell "27秋招" [ref=e1902]
+                - gridcell [ref=e1903]
+                - gridcell "农业微生物研发高级工程师、酶工程 / 酶催化研发高级工程师、菌种选育及资源挖掘研发高级工程师、食品发酵研发高级工程师、分离纯化研发高级工程师、营养品研发高级工程师、酵母蛋白研发工程师、茶叶研发工程师、......" [ref=e1908]
+                - gridcell "宜昌" [ref=e1909]
+              - row [ref=e1910]:
+                - gridcell [ref=e1911]:
+                  - link "招聘公告" [ref=e1913] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1914]:
+                  - link "投递官网" [ref=e1916] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国企" [ref=e1917]
+                - gridcell "央企" [ref=e1918]
+                - gridcell "27秋招" [ref=e1921]
+                - gridcell [ref=e1922]
+                - gridcell "电气工程师、能源工程师、结构工程师、水资源工程师、新能源工程师、地质工程师、工程管理师、技术经济师、计算机工程师、商务管理师、市场开发管理师电气工程、电力系统及其自动化、高压及绝缘技术、电机与电气电力......" [ref=e1927]
+                - gridcell "杭州" [ref=e1928]
+              - row [ref=e1929]:
+                - gridcell [ref=e1930]:
+                  - link "招聘公告" [ref=e1932] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1933]:
+                  - link "投递官网" [ref=e1935] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国企" [ref=e1936]
+                - gridcell "央企" [ref=e1937]
+                - gridcell "27秋招" [ref=e1940]
+                - gridcell [ref=e1941]
+                - gridcell "规划咨询类勘测设计类工程建设类装备制造类资本金融类国际业务类人工智能类数字信息类市场运营类通用职能类" [ref=e1946]
+                - gridcell "全国" [ref=e1947]
+              - row [ref=e1948]:
+                - gridcell [ref=e1949]:
+                  - link "招聘公告" [ref=e1951] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1952]:
+                  - link "投递官网" [ref=e1954] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑设计" [ref=e1955]
+                - gridcell "央企" [ref=e1956]
+                - gridcell "27秋招" [ref=e1959]
+                - gridcell [ref=e1960]
+                - gridcell "房屋建筑类、基础设施类、城市运营类、机电安装类、职能管理类、海外专项、博士专项" [ref=e1965]
+                - gridcell "辽宁、吉林、黑龙江、内蒙古、河北、山西、河南、上海、浙江、江苏、新疆、埃及、印度尼西亚" [ref=e1966]
+              - row [ref=e1967]:
+                - gridcell [ref=e1968]:
+                  - link "招聘公告" [ref=e1970] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1971]:
+                  - link "投递官网" [ref=e1973] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国企" [ref=e1974]
+                - gridcell "央企" [ref=e1975]
+                - gridcell "27秋招" [ref=e1978]
+                - gridcell [ref=e1979]
+                - gridcell "研发设计类、工艺类、工程项目类、IT类、其他技术类、供应链类、营销类、职能类、智造类电气类、机械类、能源动力类、自动化类、航空航天类、计算机类、电子信息类、算法类、机器人类、材料类、力学类、土木类、环......" [ref=e1984]
+                - gridcell "北京、太原、鞍山、吉林、白城、上海、南京、无锡、苏州、南通、海安、合肥、芜湖、马鞍山、南昌、烟台、临" [ref=e1985]
+              - row [ref=e1986]:
+                - gridcell [ref=e1987]:
+                  - link "招聘公告" [ref=e1989] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e1990]:
+                  - link "投递官网" [ref=e1992] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子半导体" [ref=e1993]
+                - gridcell "民营" [ref=e1994]
+                - gridcell "27秋招" [ref=e1997]
+                - gridcell [ref=e1998]
+                - gridcell "产品研发类产品应用类智能制造类" [ref=e2003]
+                - gridcell "深圳" [ref=e2004]
+              - row [ref=e2005]:
+                - gridcell [ref=e2006]:
+                  - link "招聘公告" [ref=e2008] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2009]:
+                  - link "投递官网" [ref=e2011] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源电力" [ref=e2012]
+                - gridcell "民营" [ref=e2013]
+                - gridcell "27秋招" [ref=e2016]
+                - gridcell [ref=e2017]
+                - gridcell "技术研发类工程技术类市场营销类企业管理类" [ref=e2022]
+                - gridcell "北京深圳武汉南京西安湖州 保定" [ref=e2023]
+              - row [ref=e2024]:
+                - gridcell [ref=e2025]:
+                  - link "招聘公告" [ref=e2027] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2028]:
+                  - link "投递官网" [ref=e2030] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融证券" [ref=e2031]
+                - gridcell "央企" [ref=e2032]
+                - gridcell "27秋招" [ref=e2035]
+                - gridcell [ref=e2036]
+                - gridcell "产品精算类风险合规类信息科技类财务管理类投资融资类运营支持类经营规划类市场营销类人力资源类党务行政类" [ref=e2041]
+                - gridcell "全国" [ref=e2042]
+              - row [ref=e2043]:
+                - gridcell [ref=e2044]:
+                  - link "招聘公告" [ref=e2046] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2047]:
+                  - link "投递官网" [ref=e2049] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融证券" [ref=e2050]
+                - gridcell "民营" [ref=e2051]
+                - gridcell "27秋招" [ref=e2054]
+                - gridcell [ref=e2055]
+                - gridcell "投研类营销类运营类子公司岗位AI人才专项" [ref=e2060]
+                - gridcell "北京上海广州广东横琴深圳香港" [ref=e2061]
+              - row [ref=e2062]:
+                - gridcell [ref=e2063]:
+                  - link "招聘公告" [ref=e2065] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2066]:
+                  - link "投递官网" [ref=e2068] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "互联网" [ref=e2069]
+                - gridcell "民营" [ref=e2070]
+                - gridcell "27秋招" [ref=e2073]
+                - gridcell [ref=e2074]
+                - gridcell "安全大模型数据合成、AIAgent 优化 Al Agent、大模型后训练、AI 安全、多模态、计算机视觉、大语言模型、AI 应用算法、大模型应用、AI 安全技术、移动端逆向、终端安全技术‑移动 / P......" [ref=e2079]
+                - gridcell "杭州、北京" [ref=e2080]
+              - row [ref=e2081]:
+                - gridcell [ref=e2082]:
+                  - link "招聘公告" [ref=e2084] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2085]:
+                  - link "投递官网" [ref=e2087] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "化工/材料" [ref=e2088]
+                - gridcell "民营" [ref=e2089]
+                - gridcell "27秋招" [ref=e2092]
+                - gridcell [ref=e2093]
+                - gridcell "销售类：渠道代表、体验顾问、新零售管培生、零售代表、体验店FM、B2B渠道代表、服务类：服务体验顾问、服务技术顾问、服务运营专员" [ref=e2098]
+                - gridcell "全国各地、按意向地调配" [ref=e2099]
+              - row [ref=e2100]:
+                - gridcell [ref=e2101]:
+                  - link "招聘公告" [ref=e2103] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2104]:
+                  - link "投递官网" [ref=e2106] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "教育培训" [ref=e2107]
+                - gridcell "民营" [ref=e2108]
+                - gridcell "27秋招" [ref=e2111]
+                - gridcell [ref=e2112]
+                - gridcell "中学学科教师、学习管理师、课程顾问" [ref=e2117]
+                - gridcell "济南、青岛、烟台、潍坊、临沂、淄博、济宁" [ref=e2118]
+              - row [ref=e2119]:
+                - gridcell [ref=e2120]:
+                  - link "招聘公告" [ref=e2122] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2123]:
+                  - link "投递官网" [ref=e2125] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "化工/材料" [ref=e2126]
+                - gridcell "民营" [ref=e2127]
+                - gridcell "27秋招" [ref=e2130]
+                - gridcell [ref=e2131]
+                - gridcell "机电仪技术岗、生产管理岗、化学工艺岗、兽医岗、电仪技术岗、化工技术岗、饲料管销岗、职能管理岗" [ref=e2136]
+                - gridcell "新疆、内蒙古、广西、重庆、山西、河南、甘肃、宁夏、黑龙江、河北、山东、陕西、湖南、湖北、云南、贵州" [ref=e2137]
+              - row [ref=e2138]:
+                - gridcell [ref=e2139]:
+                  - link "招聘公告" [ref=e2141] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2142]:
+                  - link "投递官网" [ref=e2144] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科研" [ref=e2145]
+                - gridcell "央企" [ref=e2146]
+                - gridcell "27秋招" [ref=e2149]
+                - gridcell [ref=e2150]
+                - gridcell "量子计算研究员(编译器方向)、量子计算研究员(纠错方向)、量子计算研究员(人工智能方向)、量子计算研究员(算法方向)、量子计算研究员(硬件方向)、后量子密码研究员、抗量子密码芯片研究员、量子通信研究员......" [ref=e2155]
+                - gridcell "合肥、北京、上海、成都" [ref=e2156]
+              - row [ref=e2157]:
+                - gridcell [ref=e2158]:
+                  - link "招聘公告" [ref=e2160] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2161]:
+                  - link "投递官网" [ref=e2163] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行" [ref=e2164]
+                - gridcell "国企" [ref=e2165]
+                - gridcell "27秋招" [ref=e2168]
+                - gridcell [ref=e2169]
+                - gridcell "沈阳分行培训生、沈阳分行运营培训生、沈阳分行零售业务培训生、沈阳分行公司业务培训生" [ref=e2174]
+                - gridcell "沈阳" [ref=e2175]
+              - row [ref=e2176]:
+                - gridcell [ref=e2177]:
+                  - link "招聘公告" [ref=e2179] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2180]:
+                  - link "投递官网" [ref=e2182] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融" [ref=e2183]
+                - gridcell "央企" [ref=e2184]
+                - gridcell "27秋招" [ref=e2187]
+                - gridcell [ref=e2188]
+                - gridcell "业务管理培训生" [ref=e2193]
+                - gridcell "深圳、海口" [ref=e2194]
+              - row [ref=e2195]:
+                - gridcell [ref=e2196]:
+                  - link "招聘公告" [ref=e2198] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2199]:
+                  - link "投递官网" [ref=e2201] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2202]
+                - gridcell "国企" [ref=e2203]
+                - gridcell "27秋招" [ref=e2206]
+                - gridcell [ref=e2207]
+                - gridcell "GPGPU硬件/软件开发工程师、NPU硬件/软件开发工程师、CPU硬件/软件开发工程师、SoC系统集成硬件/软件工程师、AI算法研究/开发工程师、高安全EDA架构/开发工程师、嵌入式软件工程师、软件开......" [ref=e2212]
+                - gridcell "北京、西安" [ref=e2213]
+              - row [ref=e2214]:
+                - gridcell [ref=e2215]:
+                  - link "招聘公告" [ref=e2217] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2218]:
+                  - link "投递官网" [ref=e2220] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "矿产金属" [ref=e2221]
+                - gridcell "央企" [ref=e2222]
+                - gridcell "27秋招" [ref=e2225]
+                - gridcell [ref=e2226]
+                - gridcell "调查治理岗（文件规定毕业2年内的择业期毕业生、视同应届生）" [ref=e2231]
+                - gridcell "重庆" [ref=e2232]
+              - row [ref=e2233]:
+                - gridcell [ref=e2234]:
+                  - link "招聘公告" [ref=e2236] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2237]:
+                  - link "投递官网" [ref=e2239] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "教育/培训" [ref=e2240]
+                - gridcell "民营" [ref=e2241]
+                - gridcell "27秋招" [ref=e2244]
+                - gridcell [ref=e2245]
+                - gridcell "励步国际素养教师" [ref=e2250]
+                - gridcell "北京、上海" [ref=e2251]
+              - row [ref=e2252]:
+                - gridcell [ref=e2253]:
+                  - link "招聘公告" [ref=e2255] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2256]:
+                  - link "投递官网" [ref=e2258] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e2259]
+                - gridcell "民营" [ref=e2260]
+                - gridcell "27秋招" [ref=e2263]
+                - gridcell [ref=e2264]
+                - gridcell "嵌入式软件开发工程师硬件研发工程师上位机软件开发工程师电气工程师机械设计工程师机电管培生" [ref=e2269]
+                - gridcell "合肥" [ref=e2270]
+              - row [ref=e2271]:
+                - gridcell [ref=e2272]:
+                  - link "招聘公告" [ref=e2274] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2275]:
+                  - link "投递官网" [ref=e2277] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "芯片" [ref=e2278]
+                - gridcell "民营" [ref=e2279]
+                - gridcell "27秋招" [ref=e2282]
+                - gridcell [ref=e2283]
+                - gridcell "现场应用工程师、技术销售工程师、量产测试工程师" [ref=e2288]
+                - gridcell "深圳、成都、杭州" [ref=e2289]
+              - row [ref=e2290]:
+                - gridcell [ref=e2291]:
+                  - link "招聘公告" [ref=e2293] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2294]:
+                  - link "投递官网" [ref=e2296] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "游戏动画" [ref=e2297]
+                - gridcell "民营" [ref=e2298]
+                - gridcell "27秋招" [ref=e2301]
+                - gridcell [ref=e2302]
+                - gridcell "商务助理、客户执行、客户经理、策划、文案、设计师、媒介、数据分析、项目助理、人事专员、财务助理" [ref=e2307]
+                - gridcell "上海" [ref=e2308]
+              - row [ref=e2309]:
+                - gridcell [ref=e2310]:
+                  - link "招聘公告" [ref=e2312] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2313]:
+                  - link "投递官网" [ref=e2315] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e2316]
+                - gridcell "民营" [ref=e2317]
+                - gridcell "27秋招" [ref=e2320]
+                - gridcell [ref=e2321]
+                - gridcell "研发岗、工艺岗、品质管理岗、制造岗、销售岗、采购开发岗、计划岗、物控岗、法务岗、行政岗、财务岗、人力资源岗化学化工、材料、电子信息、机械、电气、计算机、统计学、泰语、英语、日语、财务管理、会计、人力资......" [ref=e2326]
+                - gridcell "大连、深圳、珠海、江门、全国" [ref=e2327]
+              - row [ref=e2328]:
+                - gridcell [ref=e2329]:
+                  - link "招聘公告" [ref=e2331] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2332]:
+                  - link "投递官网" [ref=e2334] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2335]
+                - gridcell "国企" [ref=e2336]
+                - gridcell "27秋招" [ref=e2339]
+                - gridcell [ref=e2340]
+                - gridcell "工程试验岗、信息化建设岗勘查技术与工程、地质工程、无机非金属材料工程、计算机科学与技术" [ref=e2345]
+                - gridcell "西安" [ref=e2346]
+              - row [ref=e2347]:
+                - gridcell [ref=e2348]:
+                  - link "招聘公告" [ref=e2350] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2351]:
+                  - link "投递官网" [ref=e2353] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e2354]
+                - gridcell "民营" [ref=e2355]
+                - gridcell "27秋招" [ref=e2358]
+                - gridcell [ref=e2359]
+                - gridcell "嵌入式软件开发岗技术支持岗-载波通嵌入式软件开发岗-BMIs上位机软件开发岗数字验证岗数字设计岗模拟设计岗版图设计岗系统设计岗-BMS系统设计岗-MCU测试开发岗" [ref=e2364]
+                - gridcell "上海、西安、南京" [ref=e2365]
+              - row [ref=e2366]:
+                - gridcell [ref=e2367]:
+                  - link "招聘公告" [ref=e2369] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2370]:
+                  - link "投递官网" [ref=e2372] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2373]
+                - gridcell "事业单位" [ref=e2374]
+                - gridcell "27秋招" [ref=e2377]
+                - gridcell [ref=e2378]
+                - gridcell "科研岗、博士后、工程岗" [ref=e2383]
+                - gridcell "武汉" [ref=e2384]
+              - row [ref=e2385]:
+                - gridcell [ref=e2386]:
+                  - link "招聘公告" [ref=e2388] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2389]:
+                  - link "投递官网" [ref=e2391] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "传媒出版" [ref=e2392]
+                - gridcell "民营" [ref=e2393]
+                - gridcell "27秋招" [ref=e2396]
+                - gridcell [ref=e2397]
+                - gridcell "管理类管培生、供应链管理管培生、国际业务管培生" [ref=e2402]
+                - gridcell "宁波" [ref=e2403]
+              - row [ref=e2404]:
+                - gridcell [ref=e2405]:
+                  - link "招聘公告" [ref=e2407] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2408]:
+                  - link "投递官网" [ref=e2410] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2411]
+                - gridcell "国企" [ref=e2412]
+                - gridcell "27秋招" [ref=e2415]
+                - gridcell [ref=e2416]
+                - gridcell "人工智能、智能科学与技术、航空宇航科学与技术、飞行器设计与工程、飞行器制造工程、飞行器环境与生命保障工程、飞行器适航技术、飞行器质量与可靠性、力学、计算机科学与技术、软件工程、数据科学与大数据技术、网......" [ref=e2421]
+                - gridcell "汉中" [ref=e2422]
+              - row [ref=e2423]:
+                - gridcell [ref=e2424]:
+                  - link "招聘公告" [ref=e2426] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2427]:
+                  - link "投递官网" [ref=e2429] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2430]
+                - gridcell "央企" [ref=e2431]
+                - gridcell "27秋招" [ref=e2434]
+                - gridcell [ref=e2435]
+                - gridcell "飞行器设计、飞行力学、空气动力学、人机与环境工程、飞行器动力工程、热能与动力工程、机电工程、流体机械与工程、控制工程、电气工程及自动化、测控技术与仪器、电子信息工程、通信工程、电子科学与技术、电磁场与......" [ref=e2440]
+                - gridcell "西安" [ref=e2441]
+              - row [ref=e2442]:
+                - gridcell [ref=e2443]:
+                  - link "招聘公告" [ref=e2445] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2446]:
+                  - link "投递官网" [ref=e2448] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "新媒体" [ref=e2449]
+                - gridcell "民营" [ref=e2450]
+                - gridcell "27秋招" [ref=e2453]
+                - gridcell [ref=e2454]
+                - gridcell "AI产品经理、产品经理、体验运营、AI产品运营、策略运营、增长运营" [ref=e2459]
+                - gridcell "北京" [ref=e2460]
+              - row [ref=e2461]:
+                - gridcell [ref=e2462]:
+                  - link "招聘公告" [ref=e2464] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2465]:
+                  - link "投递官网" [ref=e2467] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "国防军工" [ref=e2468]
+                - gridcell "央企" [ref=e2469]
+                - gridcell "27秋招" [ref=e2472]
+                - gridcell [ref=e2473]
+                - gridcell "航空航天科学技术、电子信息技术、通信与自动控制、软件工程、控制工程、机械、语言类等相关专业" [ref=e2478]
+                - gridcell "北京、成都、西安、武汉、长沙、深圳、南京无锡、柳州等地" [ref=e2479]
+              - row [ref=e2480]:
+                - gridcell [ref=e2481]:
+                  - link "招聘公告" [ref=e2483] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2484]:
+                  - link "投递官网" [ref=e2486] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2487]
+                - gridcell "民营" [ref=e2488]
+                - gridcell "27秋招" [ref=e2491]
+                - gridcell [ref=e2492]
+                - gridcell "高端研发工程师、电缆研发工程师、电缆材料研发工程师、动态缆研发工程师、工艺工程师、质量管理员、项目技术工程师、销售业务员、国际业务员、生产管培生、电气工程师、测试工程师、硬件开发工程师、清欠专员电缆、......" [ref=e2497]
+                - gridcell "常州、青岛、淄博、聊城、焦作" [ref=e2498]
+              - row [ref=e2499]:
+                - gridcell [ref=e2500]:
+                  - link "招聘公告" [ref=e2502] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2503]:
+                  - link "投递官网" [ref=e2505] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "软件技术" [ref=e2506]
+                - gridcell "民营" [ref=e2507]
+                - gridcell "27秋招" [ref=e2510]
+                - gridcell [ref=e2511]
+                - gridcell "软件算法研发类、硬件结构研发类、设计类、产品项目类、质量技术类、工程技术类、客户技术类、运营与销售类、采购与供应链类、人力与财经类" [ref=e2516]
+                - gridcell "深圳、惠州" [ref=e2517]
+              - row [ref=e2518]:
+                - gridcell [ref=e2519]:
+                  - link "招聘公告" [ref=e2521] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2522]:
+                  - link "投递官网" [ref=e2524] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2525]
+                - gridcell "国企" [ref=e2526]
+                - gridcell "27秋招" [ref=e2529]
+                - gridcell [ref=e2530]
+                - gridcell "高端科研(博士后)、勘察设计、规划咨询、工程管理、经营管理电气工程、土木工程、热能工程、海洋科学与工程、机械工程、控制工程、安全科学与工程、工程管理、岩土工程、工程测绘、海工结构、水文及水资源、管理科......" [ref=e2535]
+                - gridcell "南京" [ref=e2536]
+              - row [ref=e2537]:
+                - gridcell [ref=e2538]:
+                  - link "招聘公告" [ref=e2540] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2541]:
+                  - link "投递官网" [ref=e2543] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "教育/培训" [ref=e2544]
+                - gridcell "民营" [ref=e2545]
+                - gridcell "27秋招" [ref=e2548]
+                - gridcell [ref=e2549]
+                - gridcell "高中个性化教师、高中班课教师、学习机教师、素养教师、素质教师、课程顾问、学习顾问、门店运营培训生、新跃计划培训生、骄阳计划培训生、线上助教、财务实习生、线下助教、人力资源实习生、招生运营实习生、平面设......" [ref=e2554]
+                - gridcell "北京" [ref=e2555]
+              - row [ref=e2556]:
+                - gridcell [ref=e2557]:
+                  - link "招聘公告" [ref=e2559] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2560]:
+                  - link "投递官网" [ref=e2562] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "人事/咨询" [ref=e2563]
+                - gridcell "民营" [ref=e2564]
+                - gridcell "27秋招" [ref=e2567]
+                - gridcell [ref=e2568]
+                - gridcell "产品类、技术研发类、运营类、市场类、职能类、销售类" [ref=e2573]
+                - gridcell "北京" [ref=e2574]
+              - row [ref=e2575]:
+                - gridcell [ref=e2576]:
+                  - link "招聘公告" [ref=e2578] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2579]:
+                  - link "投递官网" [ref=e2581] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "芯片" [ref=e2582]
+                - gridcell "民营" [ref=e2583]
+                - gridcell "27秋招" [ref=e2586]
+                - gridcell [ref=e2587]
+                - gridcell "算法设计师（大模型应用/具身智能/导航）、FPGA设计师、协议软件设计师、物理层软件设计师、软件评测工程师、射频设计师、天线设计师、数字电路设计师、电气设计师、数字芯片设计师、模拟芯片设计师、结构设计......" [ref=e2592]
+                - gridcell "深圳、成都、杭州" [ref=e2593]
+              - row [ref=e2594]:
+                - gridcell [ref=e2595]:
+                  - link "招聘公告" [ref=e2597] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2598]:
+                  - link "投递官网" [ref=e2600] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "传媒出版" [ref=e2601]
+                - gridcell "民营" [ref=e2602]
+                - gridcell "25秋招" [ref=e2605]
+                - gridcell [ref=e2606]
+                - gridcell "店铺运营员、旅游运营、直播助理、直播选品" [ref=e2611]
+                - gridcell "北京" [ref=e2612]
+              - row [ref=e2613]:
+                - gridcell [ref=e2614]:
+                  - link "招聘公告" [ref=e2616] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2617]:
+                  - link "投递官网" [ref=e2619] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行" [ref=e2620]
+                - gridcell "国企" [ref=e2621]
+                - gridcell "27秋招" [ref=e2624]
+                - gridcell [ref=e2625]
+                - gridcell "定向培养生、市场营销岗、运营支持岗、数字金融岗" [ref=e2630]
+                - gridcell "温州" [ref=e2631]
+              - row [ref=e2632]:
+                - gridcell [ref=e2633]:
+                  - link "招聘公告" [ref=e2635] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2636]:
+                  - link "投递官网" [ref=e2638] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "软件技术" [ref=e2639]
+                - gridcell "民营" [ref=e2640]
+                - gridcell "提前批" [ref=e2643]
+                - gridcell [ref=e2644]
+                - gridcell "投资助理、数据分析师、量化研究员、人事行政助理、风控专员" [ref=e2649]
+                - gridcell "南京" [ref=e2650]
+              - row [ref=e2651]:
+                - gridcell [ref=e2652]:
+                  - link "招聘公告" [ref=e2654] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2655]:
+                  - link "投递官网" [ref=e2657] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械/电子" [ref=e2658]
+                - gridcell "-" [ref=e2659]
+                - gridcell "27秋招" [ref=e2661]
+                - gridcell [ref=e2662]
+                - gridcell "机械设计工程师、模具设计工程师、模具项目工程师、电气工程师、自动化工程师、财务分析专员、人力资源专员、供应链专员" [ref=e2667]
+                - gridcell "上海、新加坡" [ref=e2668]
+              - row [ref=e2669]:
+                - gridcell [ref=e2670]:
+                  - link "招聘公告" [ref=e2672] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2673]:
+                  - link "投递官网" [ref=e2675] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行" [ref=e2676]
+                - gridcell "国企" [ref=e2677]
+                - gridcell "27秋招" [ref=e2680]
+                - gridcell [ref=e2681]
+                - gridcell "定向培养生、市场营销岗、运营支持岗、信息技术岗" [ref=e2686]
+                - gridcell "兰州" [ref=e2687]
+              - row [ref=e2688]:
+                - gridcell [ref=e2689]:
+                  - link "招聘公告" [ref=e2691] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2692]:
+                  - link "投递官网" [ref=e2694] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "船舶" [ref=e2695]
+                - gridcell "民营" [ref=e2696]
+                - gridcell "27秋招" [ref=e2699]
+                - gridcell [ref=e2700]
+                - gridcell "航海技术、轮机管理、船舶电子电气(ETO证书)船员岗位" [ref=e2705]
+                - gridcell "沧州、天津" [ref=e2706]
+              - row [ref=e2707]:
+                - gridcell [ref=e2708]:
+                  - link "招聘公告" [ref=e2710] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2711]:
+                  - link "投递官网" [ref=e2713] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "交通运输" [ref=e2714]
+                - gridcell "央企" [ref=e2715]
+                - gridcell "27秋招" [ref=e2718]
+                - gridcell [ref=e2719]
+                - gridcell "招聘专业含土木工程、城市地下空间工程、道路桥梁与渡河工程、工程力学、地质工程、交通工程、水利水电、矿业工程、智能建造、机械工程、机械设计制造及自动化、电气工程及其自动化、安全工程、测绘工程、无机非金属......" [ref=e2724]
+                - gridcell "无锡" [ref=e2725]
+              - row [ref=e2726]:
+                - gridcell [ref=e2727]:
+                  - link "招聘公告" [ref=e2729] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2730]:
+                  - link "投递官网" [ref=e2732] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2733]
+                - gridcell "民营" [ref=e2734]
+                - gridcell "27秋招" [ref=e2737]
+                - gridcell [ref=e2738]
+                - gridcell "硅光芯片设计工程师、高级硅光芯片设计工程师（无源）、高级硅光芯片设计工程师（有源）、芯片系统工程师、FAE工程师、CTO办公室技术工程师（AI数据中心）、CTO办公室技术工程师（网络架构）、封装工艺工......" [ref=e2743]
+                - gridcell "上海" [ref=e2744]
+              - row [ref=e2745]:
+                - gridcell [ref=e2746]:
+                  - link "招聘公告" [ref=e2748] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2749]:
+                  - link "投递官网" [ref=e2751] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "专业服务" [ref=e2752]
+                - gridcell "国企" [ref=e2753]
+                - gridcell "27秋招" [ref=e2756]
+                - gridcell [ref=e2757]
+                - gridcell "工程造价岗、工程检测岗、水务设施运营岗、节水技术岗、水保技术岗、水利咨询岗、水利设计岗、环保设施运维岗、技术研发、水处理药剂岗、环保项目管理岗\\\\水利工程、环境工程、土木工程、市政工程、风景园林、给排......" [ref=e2762]
+                - gridcell "深圳" [ref=e2763]
+              - row [ref=e2764]:
+                - gridcell [ref=e2765]:
+                  - link "招聘公告" [ref=e2767] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2768]:
+                  - link "投递官网" [ref=e2770] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e2771]
+                - gridcell "民营" [ref=e2772]
+                - gridcell "27秋招" [ref=e2775]
+                - gridcell [ref=e2776]
+                - gridcell "算法工程师、EMC工程师、硬件工程师、软件工程师、结构工程师、测试工程师、系统工程师、电气工程师、电机研发工程师、项目管理工程师、IT解决方案工程师、方案经理、销售工程师、市场专员、营销经理、平面设计......" [ref=e2781]
+                - gridcell "深圳、惠州、海外" [ref=e2782]
+              - row [ref=e2783]:
+                - gridcell [ref=e2784]:
+                  - link "招聘公告" [ref=e2786] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2787]:
+                  - link "投递官网" [ref=e2789] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e2790]
+                - gridcell "民营" [ref=e2791]
+                - gridcell "27秋招" [ref=e2794]
+                - gridcell [ref=e2795]
+                - gridcell "算法类、机器人类、人工智能类、电池及能源类、软件类、硬件类、仿真建模类、流体与传热类、机械结构类、智能制造类、物理光学类、公共职能类" [ref=e2800]
+                - gridcell "北京、天津、长春、上海、南京、南通、南昌、武汉、深圳、重庆、成都、西安、海外" [ref=e2801]
+              - row [ref=e2802]:
+                - gridcell [ref=e2803]
+                - gridcell [ref=e2804]:
+                  - link "投递官网" [ref=e2806] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行" [ref=e2807]
+                - gridcell "-" [ref=e2808]
+                - gridcell "27秋招" [ref=e2810]
+                - gridcell [ref=e2811]
+                - gridcell "运营、风控、证券类、投融资、银行、市场/营销、管理、管理培训生、销售类、商务、保险、咨询/调研" [ref=e2816]
+                - gridcell "海口、三亚、儋州、文昌" [ref=e2817]
+              - row [ref=e2818]:
+                - gridcell [ref=e2819]
+                - gridcell [ref=e2820]:
+                  - link "投递官网" [ref=e2822] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行" [ref=e2823]
+                - gridcell "-" [ref=e2824]
+                - gridcell "27秋招" [ref=e2826]
+                - gridcell [ref=e2827]
+                - gridcell "运营、风控、证券类、投融资、银行、市场/营销、管理、管理培训生、销售类、商务、保险、咨询/调研" [ref=e2832]
+                - gridcell "乌鲁木齐" [ref=e2833]
+              - row [ref=e2834]:
+                - gridcell [ref=e2835]
+                - gridcell [ref=e2836]:
+                  - link "投递官网" [ref=e2838] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "股份制银行" [ref=e2839]
+                - gridcell "上市" [ref=e2840]
+                - gridcell "27秋招" [ref=e2843]
+                - gridcell [ref=e2844]
+                - gridcell "运营、风控、证券类、投融资、银行、市场/营销、管理、管理培训生、销售类、商务、保险、咨询/调研" [ref=e2849]
+                - gridcell "成都、德阳、绵阳、乐山" [ref=e2850]
+              - row [ref=e2851]:
+                - gridcell [ref=e2852]
+                - gridcell [ref=e2853]:
+                  - link "投递官网" [ref=e2855] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "工商业服务" [ref=e2856]
+                - gridcell "外企" [ref=e2857]
+                - gridcell "27秋招" [ref=e2860]
+                - gridcell [ref=e2861]
+                - gridcell "机械、电气/自动化、技术支持" [ref=e2866]
+                - gridcell "杭州" [ref=e2867]
+              - row [ref=e2868]:
+                - gridcell [ref=e2869]:
+                  - link "招聘公告" [ref=e2871] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2872]:
+                  - link "投递官网" [ref=e2874] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2875]
+                - gridcell "-" [ref=e2876]
+                - gridcell "27秋招" [ref=e2878]
+                - gridcell [ref=e2879]
+                - gridcell "硬件工程师、电子/半导体、机械、管理、通信、化工、技术支持、电气/自动化、技术支持" [ref=e2884]
+                - gridcell "大连、青岛、广州、深圳、北京、上海、天津" [ref=e2885]
+              - row [ref=e2886]:
+                - gridcell [ref=e2887]
+                - gridcell [ref=e2888]:
+                  - link "投递官网" [ref=e2890] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "航空装备" [ref=e2891]
+                - gridcell "国企" [ref=e2892]
+                - gridcell "27秋招" [ref=e2895]
+                - gridcell [ref=e2896]
+                - gridcell "后端开发、测试、硬件工程师、电子/半导体、机械、人工智能/算法、研发工程师、通信、工业类设计、化工、技术支持、电气/自动化、技术支持" [ref=e2901]
+                - gridcell "上海" [ref=e2902]
+              - row [ref=e2903]:
+                - gridcell [ref=e2904]
+                - gridcell [ref=e2905]:
+                  - link "投递官网" [ref=e2907] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "硬件" [ref=e2908]
+                - gridcell "-" [ref=e2909]
+                - gridcell "27秋招" [ref=e2911]
+                - gridcell [ref=e2912]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、财务审计、市场/营销、管理、人事、行政、销售类、人工智能/算法、研发工程师、供应链、通信、工业类设计、销售技术支持、化工、商务、贸易、技术支持、电气/自动化、技术支持" [ref=e2917]
+                - gridcell "合肥、珠海" [ref=e2918]
+              - row [ref=e2919]:
+                - gridcell [ref=e2920]
+                - gridcell [ref=e2921]:
+                  - link "投递官网" [ref=e2923] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源" [ref=e2924]
+                - gridcell "-" [ref=e2925]
+                - gridcell "27秋招" [ref=e2927]
+                - gridcell [ref=e2928]
+                - gridcell "测试、机械、运营、财务审计、市场/营销、管理、人事、行政、法务、销售类、供应链、物流、化工、商务、电气/自动化、能源、技术支持" [ref=e2933]
+                - gridcell "厦门、三明、宁德" [ref=e2934]
+              - row [ref=e2935]:
+                - gridcell [ref=e2936]
+                - gridcell [ref=e2937]:
+                  - link "投递官网" [ref=e2939] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2940]
+                - gridcell "-" [ref=e2941]
+                - gridcell "27秋招" [ref=e2943]
+                - gridcell [ref=e2944]
+                - gridcell "机械、市场/营销、管理、管理培训生、化工、商务、咨询/调研、电气/自动化、技术支持" [ref=e2949]
+                - gridcell "嘉兴" [ref=e2950]
+              - row [ref=e2951]:
+                - gridcell [ref=e2952]
+                - gridcell [ref=e2953]:
+                  - link "投递官网" [ref=e2955] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "商业服务" [ref=e2956]
+                - gridcell "民营" [ref=e2957]
+                - gridcell "27秋招" [ref=e2960]
+                - gridcell [ref=e2961]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、游戏策划、交互/设计、市场/营销、管理、人事、人工智能/算法、项目、研发工程师、动画/特效、用户研究、销售技术支持、商务、游戏设计" [ref=e2966]
+                - gridcell "上海" [ref=e2967]
+              - row [ref=e2968]:
+                - gridcell [ref=e2969]
+                - gridcell [ref=e2970]:
+                  - link "投递官网" [ref=e2972] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "消费服务" [ref=e2973]
+                - gridcell "-" [ref=e2974]
+                - gridcell "26春招" [ref=e2976]
+                - gridcell [ref=e2977]
+                - gridcell "运营、财务审计、风控、市场/营销、管理、法务、销售类、商务、保险、咨询/调研" [ref=e2982]
+                - gridcell "重庆" [ref=e2983]
+              - row [ref=e2984]:
+                - gridcell [ref=e2985]:
+                  - link "招聘公告" [ref=e2987] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e2988]:
+                  - link "投递官网" [ref=e2990] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "房地产业/建筑业" [ref=e2991]
+                - gridcell "央企" [ref=e2992]
+                - gridcell "27秋招" [ref=e2995]
+                - gridcell [ref=e2996]
+                - gridcell "工程技术类岗位、安全工程类岗位、电气信息类岗位、材料工程类岗位、工程造价类岗位、物流机械类岗位、财会金融类岗位、行政法类岗位" [ref=e3001]
+                - gridcell "天津、无锡、厦门、广州、重庆、成都、西安、宝鸡、咸阳、兰州、全国多地、雄安新" [ref=e3002]
+              - row [ref=e3003]:
+                - gridcell [ref=e3004]:
+                  - link "招聘公告" [ref=e3006] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3007]:
+                  - link "投递官网" [ref=e3009] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械/制造业" [ref=e3010]
+                - gridcell "央企" [ref=e3011]
+                - gridcell "27秋招" [ref=e3014]
+                - gridcell [ref=e3015]
+                - gridcell "下属各部门岗位、具体见官方公告及投递方式链接、" [ref=e3020]
+                - gridcell "长沙、成都、安顺、西安" [ref=e3021]
+              - row [ref=e3022]:
+                - gridcell [ref=e3023]:
+                  - link "招聘公告" [ref=e3025] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3026]:
+                  - link "投递官网" [ref=e3028] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "教育/培训/科研" [ref=e3029]
+                - gridcell "央企" [ref=e3030]
+                - gridcell "27秋招" [ref=e3033]
+                - gridcell [ref=e3034]
+                - gridcell "工程试验岗(勘查技术与工程、地质工程、无机非金属材料工程等专业)、信息化建设岗(计算机科学与技术)、" [ref=e3039]
+                - gridcell "西安" [ref=e3040]
+              - row [ref=e3041]:
+                - gridcell [ref=e3042]:
+                  - link "招聘公告" [ref=e3044] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3045]:
+                  - link "投递官网" [ref=e3047] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信电子" [ref=e3048]
+                - gridcell "民营" [ref=e3049]
+                - gridcell "27秋招" [ref=e3052]
+                - gridcell [ref=e3053]
+                - gridcell "硬、软件工程师、销售工程师" [ref=e3058]
+                - gridcell "青岛" [ref=e3059]
+              - row [ref=e3060]:
+                - gridcell [ref=e3061]:
+                  - link "招聘公告" [ref=e3063] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3064]:
+                  - link "投递官网" [ref=e3066] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "IT互联网" [ref=e3067]
+                - gridcell "民营" [ref=e3068]
+                - gridcell "27秋招" [ref=e3071]
+                - gridcell [ref=e3072]
+                - gridcell "产品工艺岗、设备工程岗、测试开发岗、质量管理岗、信息化、自动化岗" [ref=e3077]
+                - gridcell "甘肃、天水" [ref=e3078]
+              - row [ref=e3079]:
+                - gridcell [ref=e3080]:
+                  - link "招聘公告" [ref=e3082] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3083]:
+                  - link "投递官网" [ref=e3085] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "IT互联网" [ref=e3086]
+                - gridcell "民营" [ref=e3087]
+                - gridcell "27秋招" [ref=e3090]
+                - gridcell [ref=e3091]
+                - gridcell "未来领袖:营销方向、产品方向" [ref=e3096]
+                - gridcell "深圳" [ref=e3097]
+              - row [ref=e3098]:
+                - gridcell [ref=e3099]:
+                  - link "招聘公告" [ref=e3101] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3102]:
+                  - link "投递官网" [ref=e3104] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "IT互联网" [ref=e3105]
+                - gridcell "民营" [ref=e3106]
+                - gridcell "27秋招" [ref=e3109]
+                - gridcell [ref=e3110]
+                - gridcell "光学工程师、C++工程师、市场技术支持结构工程师、FPGA工程师、硬件工程师、产品导入工程师、生产工程师、工艺工程师、电机生产工程师、电路设计工程师、嵌入式工程师" [ref=e3115]
+                - gridcell "武汉" [ref=e3116]
+              - row [ref=e3117]:
+                - gridcell [ref=e3118]:
+                  - link "招聘公告" [ref=e3120] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3121]:
+                  - link "投递官网" [ref=e3123] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "AI具身智能" [ref=e3124]
+                - gridcell "民营" [ref=e3125]
+                - gridcell "27秋招" [ref=e3128]
+                - gridcell [ref=e3129]
+                - gridcell "研发类、算法类、产品类、营销类、职能类、设计类" [ref=e3134]
+                - gridcell "苏州、上海、南京" [ref=e3135]
+              - row [ref=e3136]:
+                - gridcell [ref=e3137]:
+                  - link "招聘公告" [ref=e3139] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3140]:
+                  - link "投递官网" [ref=e3142] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源化工" [ref=e3143]
+                - gridcell "民营" [ref=e3144]
+                - gridcell "27秋招" [ref=e3147]
+                - gridcell [ref=e3148]
+                - gridcell "旋转导向智能算法、AI工程师、随钻多模态数据建模与地质智能导向工程师、模型轻量化、井下边缘部署优化工程师、行业大模型与智能应用落地工程师、旋转导向井下核心算法旋导系统通信工程师" [ref=e3153]
+                - gridcell "上海、成都、杭州" [ref=e3154]
+              - row [ref=e3155]:
+                - gridcell [ref=e3156]:
+                  - link "招聘公告" [ref=e3158] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3159]:
+                  - link "投递官网" [ref=e3161] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源化工" [ref=e3162]
+                - gridcell "民营" [ref=e3163]
+                - gridcell "27秋招" [ref=e3166]
+                - gridcell [ref=e3167]
+                - gridcell "工艺电仪技术员、施工管理技术员、预算员、BIM设计师、精细化工工艺工程师、电气工程师" [ref=e3172]
+                - gridcell "湖南、珠海、河北、山东、湖北、浙江、山西、内蒙古、全国多地" [ref=e3173]
+              - row [ref=e3174]:
+                - gridcell [ref=e3175]
+                - gridcell [ref=e3176]:
+                  - link "投递官网" [ref=e3178] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3179]
+                - gridcell "-" [ref=e3180]
+                - gridcell "27秋招" [ref=e3182]
+                - gridcell [ref=e3183]
+                - gridcell "运营、教育产品研发、教育" [ref=e3188]
+                - gridcell "上海" [ref=e3189]
+              - row [ref=e3190]:
+                - gridcell [ref=e3191]
+                - gridcell [ref=e3192]:
+                  - link "投递官网" [ref=e3194] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "汽车制造" [ref=e3195]
+                - gridcell "-" [ref=e3196]
+                - gridcell "27秋招" [ref=e3198]
+                - gridcell [ref=e3199]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、汽车制造、产品、运营、交互/设计、财务审计、风控、投融资、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、项目、研发工程师、供应链、通信、工业类设计、客服、物流、销售技术支持、化工、商务、咨询/调研、贸易、技术支持、电气/自动化、能源、技术支持" [ref=e3204]
+                - gridcell "石家庄、太原、呼和浩特、沈阳、长春、哈尔滨、南京、绍兴、合肥、福州、南昌、济南、郑州、武汉、长沙、深圳、南宁、海口、成都、贵阳、昆明、拉萨、西安、兰州、西宁、银川、乌鲁木齐、台北、北京、上海、重庆、天津、香港、澳门" [ref=e3205]
+              - row [ref=e3206]:
+                - gridcell [ref=e3207]
+                - gridcell [ref=e3208]:
+                  - link "投递官网" [ref=e3210] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "人工智能" [ref=e3211]
+                - gridcell "-" [ref=e3212]
+                - gridcell "27秋招" [ref=e3214]
+                - gridcell [ref=e3215]
+                - gridcell "后端开发、测试、数据、运维、硬件工程师、电子/半导体、产品、交互/设计、财务审计、市场/营销、人事、行政、人工智能/算法、项目、研发工程师、通信、工业类设计、销售技术支持、商务、贸易、技术支持" [ref=e3220]
+                - gridcell "苏州、合肥、广州、北京、上海、香港" [ref=e3221]
+              - row [ref=e3222]:
+                - gridcell [ref=e3223]
+                - gridcell [ref=e3224]:
+                  - link "投递官网" [ref=e3226] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3227]
+                - gridcell "-" [ref=e3228]
+                - gridcell "27秋招" [ref=e3230]
+                - gridcell [ref=e3231]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、运营、交互/设计、财务审计、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、项目、研发工程师、通信、工业类设计、销售技术支持、化工、商务、技术支持、电气/自动化、技术支持" [ref=e3236]
+                - gridcell "长沙、株洲、湘潭、衡阳、邵阳、岳阳、常德、张家界、益阳、郴州、永州、怀化、娄底、湘西土家族苗族自治州" [ref=e3237]
+              - row [ref=e3238]:
+                - gridcell [ref=e3239]
+                - gridcell [ref=e3240]:
+                  - link "投递官网" [ref=e3242] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "汽车整车" [ref=e3243]
+                - gridcell "央企" [ref=e3244]
+                - gridcell "27秋招" [ref=e3247]
+                - gridcell [ref=e3248]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、汽车制造、运营、交互/设计、市场/营销、行政、销售类、人工智能/算法、研发工程师、供应链、通信、工业类设计、公关媒介、物流、销售技术支持、化工、商务、保险、技术支持、电气/自动化、能源、技术支持" [ref=e3253]
+                - gridcell "武汉、十堰、襄阳" [ref=e3254]
+              - row [ref=e3255]:
+                - gridcell [ref=e3256]
+                - gridcell [ref=e3257]:
+                  - link "投递官网" [ref=e3259] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3260]
+                - gridcell "-" [ref=e3261]
+                - gridcell "27秋招" [ref=e3263]
+                - gridcell [ref=e3264]
+                - gridcell "人工智能/算法" [ref=e3269]
+                - gridcell "东莞" [ref=e3270]
+              - row [ref=e3271]:
+                - gridcell [ref=e3272]:
+                  - link "招聘公告" [ref=e3274] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3275]:
+                  - link "投递官网" [ref=e3277] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源电力" [ref=e3278]
+                - gridcell "央企" [ref=e3279]
+                - gridcell "27秋招" [ref=e3282]
+                - gridcell [ref=e3283]
+                - gridcell "电气工程类土木与建筑类能源动力类技术经济类计算机类水利工程类测绘与地质类安全工程类自动化类环境类" [ref=e3288]
+                - gridcell "武汉" [ref=e3289]
+              - row [ref=e3290]:
+                - gridcell [ref=e3291]:
+                  - link "招聘公告" [ref=e3293] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3294]:
+                  - link "投递官网" [ref=e3296] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子半导体" [ref=e3297]
+                - gridcell "央企" [ref=e3298]
+                - gridcell "27秋招" [ref=e3301]
+                - gridcell [ref=e3302]
+                - gridcell "电子设计岗结构设计岗阵列设计岗光学设计岗材料开发岗传感器技术开发岗器件开发岗项目管理岗软件设计岗仿真设计岗技术支持岗工艺岗设备岗质量岗工程岗董办事务岗财务岗" [ref=e3307]
+                - gridcell "上海深圳武汉成都厦门、南通、芜湖" [ref=e3308]
+              - row [ref=e3309]:
+                - gridcell [ref=e3310]:
+                  - link "招聘公告" [ref=e3312] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3313]:
+                  - link "投递官网" [ref=e3315] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技航空航天" [ref=e3316]
+                - gridcell "央企" [ref=e3317]
+                - gridcell "27秋招" [ref=e3320]
+                - gridcell [ref=e3321]
+                - gridcell "人工智能、软件工程、计算机科学与技术、信息与通信工程、控制科学与工程、电子科学与技术、电子信息、航空宇航科学与技术、数学、力学、仪器科学与技术等" [ref=e3326]
+                - gridcell "上海" [ref=e3327]
+              - row [ref=e3328]:
+                - gridcell [ref=e3329]:
+                  - link "招聘公告" [ref=e3331] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3332]:
+                  - link "投递官网" [ref=e3334] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备电气系统" [ref=e3335]
+                - gridcell "民营" [ref=e3336]
+                - gridcell "27秋招" [ref=e3339]
+                - gridcell [ref=e3340]
+                - gridcell "算法工程师 软件工程师硬件工程师结构工程师 测试工程师 TE工程师 工艺工程师电机结构工程师 电机测试工程师电气工程师拓展工程师国际技术工程师人力资源专员" [ref=e3345]
+                - gridcell "苏州、西安深圳" [ref=e3346]
+              - row [ref=e3347]:
+                - gridcell [ref=e3348]:
+                  - link "招聘公告" [ref=e3350] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3351]:
+                  - link "投递官网" [ref=e3353] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子半导体" [ref=e3354]
+                - gridcell "民营" [ref=e3355]
+                - gridcell "27秋招" [ref=e3358]
+                - gridcell [ref=e3359]
+                - gridcell "MEMs芯片设计工程师 产品开发工程师销售工程师 AE/FAE芯片研发工程师 硬件开发工程师测试软件开发工程师质量工程师 工程师" [ref=e3364]
+                - gridcell "苏州" [ref=e3365]
+              - row [ref=e3366]:
+                - gridcell [ref=e3367]:
+                  - link "招聘公告" [ref=e3369] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3370]:
+                  - link "投递官网" [ref=e3372] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产市政工程" [ref=e3373]
+                - gridcell "央企" [ref=e3374]
+                - gridcell "27秋招" [ref=e3377]
+                - gridcell [ref=e3378]
+                - gridcell "能源动力工程 储能科学与工程 新能源科学与工程 电气工程及其自动化热能工程机械工程安全工程工程造价工程管理 交通运输管理 管理科学与工程国际经济与贸易劳动与社会保障人力资源管理法学经济法民商法国际法" [ref=e3383]
+                - gridcell "北京、海外" [ref=e3384]
+              - row [ref=e3385]:
+                - gridcell [ref=e3386]:
+                  - link "招聘公告" [ref=e3388] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3389]:
+                  - link "投递官网" [ref=e3391] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技航空航天" [ref=e3392]
+                - gridcell "央企" [ref=e3393]
+                - gridcell "27秋招" [ref=e3396]
+                - gridcell [ref=e3397]
+                - gridcell "机械力学飞行器导航自动化控制软件计算机电子通信波光光学仪器系统工程材料动力数学物理管理语言类专业" [ref=e3402]
+                - gridcell "天津景德镇" [ref=e3403]
+              - row [ref=e3404]:
+                - gridcell [ref=e3405]:
+                  - link "招聘公告" [ref=e3407] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3408]:
+                  - link "投递官网" [ref=e3410] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "车企汽车零部件" [ref=e3411]
+                - gridcell "民营" [ref=e3412]
+                - gridcell "27秋招" [ref=e3415]
+                - gridcell [ref=e3416]
+                - gridcell "自动驾驶算法仿真与数据生成平台研发车辆工程测试与质量产品与项目业务与职能" [ref=e3421]
+                - gridcell "郑州北京" [ref=e3422]
+              - row [ref=e3423]:
+                - gridcell [ref=e3424]:
+                  - link "招聘公告" [ref=e3426] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3427]:
+                  - link "投递官网" [ref=e3429] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技航空航天" [ref=e3430]
+                - gridcell "央企" [ref=e3431]
+                - gridcell "27秋招" [ref=e3434]
+                - gridcell [ref=e3435]
+                - gridcell "信息与通信工程类控制科学与工程类电子科学与技术类计算机科学与技术类适航类电气工程类机械工程类等专业" [ref=e3440]
+                - gridcell "无锡成都、北京" [ref=e3441]
+              - row [ref=e3442]:
+                - gridcell [ref=e3443]:
+                  - link "招聘公告" [ref=e3445] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3446]:
+                  - link "投递官网" [ref=e3448] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子半导体" [ref=e3449]
+                - gridcell "民营" [ref=e3450]
+                - gridcell "27秋招" [ref=e3453]
+                - gridcell [ref=e3454]
+                - gridcell "数字Ic设计工程师 数字IC验证工程师DFT工程师 芯片后端设计工程师AI编译器及工具链开发工程师大模型推理框架及优化工程师 算子开发与优化工程师模型推理优化工程师AI控制算法开发工程师" [ref=e3459]
+                - gridcell "深圳成都上海武汉" [ref=e3460]
+              - row [ref=e3461]:
+                - gridcell [ref=e3462]:
+                  - link "招聘公告" [ref=e3464] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3465]:
+                  - link "投递官网" [ref=e3467] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技/航空航天" [ref=e3468]
+                - gridcell "央企" [ref=e3469]
+                - gridcell "27秋招" [ref=e3472]
+                - gridcell [ref=e3473]
+                - gridcell "人工智能、软件工程、计算机科学与技术、信息与通信工程、控制科学与工程、电子科学与技术、电子信息、航空宇航科学与技术、数学、力学、仪器科学与技术等" [ref=e3478]
+                - gridcell "上海" [ref=e3479]
+              - row [ref=e3480]:
+                - gridcell [ref=e3481]:
+                  - link "招聘公告" [ref=e3483] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3484]:
+                  - link "投递官网" [ref=e3486] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e3487]
+                - gridcell "民营" [ref=e3488]
+                - gridcell "27秋招" [ref=e3491]
+                - gridcell [ref=e3492]
+                - gridcell "数字Ic设计工程师 数字IC验证工程师DFT工程师 芯片后端设计工程师AI编译器及工具链开发工程师大模型推理框架及优化工程师 算子开发与优化工程师模型推理优化工程师AI控制算法开发工程师" [ref=e3497]
+                - gridcell "深圳、成都、上海、武汉" [ref=e3498]
+              - row [ref=e3499]:
+                - gridcell [ref=e3500]:
+                  - link "招聘公告" [ref=e3502] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3503]:
+                  - link "投递官网" [ref=e3505] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技/航空航天" [ref=e3506]
+                - gridcell "央企" [ref=e3507]
+                - gridcell "27秋招" [ref=e3510]
+                - gridcell [ref=e3511]
+                - gridcell "机械力学飞行器导航自动化控制软件计算机电子通信波光光学仪器系统工程材料动力数学物理管理语言类专业" [ref=e3516]
+                - gridcell "天津、景德镇" [ref=e3517]
+              - row [ref=e3518]:
+                - gridcell [ref=e3519]:
+                  - link "招聘公告" [ref=e3521] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3522]:
+                  - link "投递官网" [ref=e3524] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "文化/传媒" [ref=e3525]
+                - gridcell "民营" [ref=e3526]
+                - gridcell "27秋招" [ref=e3529]
+                - gridcell [ref=e3530]
+                - gridcell "文案策划AE助理签约经纪人商务AI全栈AI产品" [ref=e3535]
+                - gridcell "厦门、上海" [ref=e3536]
+              - row [ref=e3537]:
+                - gridcell [ref=e3538]:
+                  - link "招聘公告" [ref=e3540] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3541]:
+                  - link "投递官网" [ref=e3543] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e3544]
+                - gridcell "央企" [ref=e3545]
+                - gridcell "27秋招" [ref=e3548]
+                - gridcell [ref=e3549]
+                - gridcell "土木工程智能建造工程造价 工程管理安全工程计算机科学与技术人工智能电气工程机械工程财务管理法律法规行政管理人力资源汉语言文学等专业" [ref=e3554]
+                - gridcell "全国" [ref=e3555]
+              - row [ref=e3556]:
+                - gridcell [ref=e3557]:
+                  - link "招聘公告" [ref=e3559] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3560]:
+                  - link "投递官网" [ref=e3562] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "快消零售/食品" [ref=e3563]
+                - gridcell "民营" [ref=e3564]
+                - gridcell "27秋招" [ref=e3567]
+                - gridcell [ref=e3568]
+                - gridcell "生物食品类中医中药类外贸及外国语财会金融类法学类机械测控类 安全环境类等专业" [ref=e3573]
+                - gridcell "黄石、武汉" [ref=e3574]
+              - row [ref=e3575]:
+                - gridcell [ref=e3576]:
+                  - link "招聘公告" [ref=e3578] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3579]:
+                  - link "投递官网" [ref=e3581] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源/电力" [ref=e3582]
+                - gridcell "央企" [ref=e3583]
+                - gridcell "27秋招" [ref=e3586]
+                - gridcell [ref=e3587]
+                - gridcell "电气工程类土木与建筑类能源动力类技术经济类计算机类水利工程类测绘与地质类安全工程类自动化类环境类" [ref=e3592]
+                - gridcell "武汉" [ref=e3593]
+              - row [ref=e3594]:
+                - gridcell [ref=e3595]:
+                  - link "招聘公告" [ref=e3597] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3598]:
+                  - link "投递官网" [ref=e3600] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "互联网/人工智能" [ref=e3601]
+                - gridcell "民营" [ref=e3602]
+                - gridcell "27秋招" [ref=e3605]
+                - gridcell [ref=e3606]
+                - gridcell "算法工程师(知识图谱/Agent)Java研发工程师 Python研发工程师算法工程师(Agent方向/模型训练/具身智能)IT储干(售前/项目经理)软件实施工程师 AI产品经理" [ref=e3611]
+                - gridcell "福州、北京、上海、西宁" [ref=e3612]
+              - row [ref=e3613]:
+                - gridcell [ref=e3614]:
+                  - link "招聘公告" [ref=e3616] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3617]:
+                  - link "投递官网" [ref=e3619] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "快消零售/食品" [ref=e3620]
+                - gridcell "民营" [ref=e3621]
+                - gridcell "27秋招" [ref=e3624]
+                - gridcell [ref=e3625]
+                - gridcell "产品研发市场洞蔡渠道运营销售支持大供应链 职能支持" [ref=e3630]
+                - gridcell "杭州" [ref=e3631]
+              - row [ref=e3632]:
+                - gridcell [ref=e3633]:
+                  - link "招聘公告" [ref=e3635] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3636]:
+                  - link "投递官网" [ref=e3638] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "车企/汽车零部件" [ref=e3639]
+                - gridcell "民营" [ref=e3640]
+                - gridcell "27秋招" [ref=e3643]
+                - gridcell [ref=e3644]
+                - gridcell "智驾算法类三电算法类软件开发类件开发类电池研发类电驱研发类汽车电子研发类整车研发类大数据类质量类技术类制造类供应链类采购类IT类职能类工艺类物流类" [ref=e3649]
+                - gridcell "杭州、金华、湖州" [ref=e3650]
+              - row [ref=e3651]:
+                - gridcell [ref=e3652]:
+                  - link "招聘公告" [ref=e3654] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3655]:
+                  - link "投递官网" [ref=e3657] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技/航空航天" [ref=e3658]
+                - gridcell "央企" [ref=e3659]
+                - gridcell "27秋招" [ref=e3662]
+                - gridcell [ref=e3663]
+                - gridcell "航空宇航控制可靠性软件通信计算机适航导航自动化电子电气液压力学物理机械等专业" [ref=e3668]
+                - gridcell "上海、西安" [ref=e3669]
+              - row [ref=e3670]:
+                - gridcell [ref=e3671]:
+                  - link "招聘公告" [ref=e3673] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3674]:
+                  - link "投递官网" [ref=e3676] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "车企/汽车零部件" [ref=e3677]
+                - gridcell "民营" [ref=e3678]
+                - gridcell "27秋招" [ref=e3681]
+                - gridcell [ref=e3682]
+                - gridcell "自动驾驶算法仿真与数据生成平台研发车辆工程测试与质量产品与项目业务与职能" [ref=e3687]
+                - gridcell "郑州、北京" [ref=e3688]
+              - row [ref=e3689]:
+                - gridcell [ref=e3690]:
+                  - link "招聘公告" [ref=e3692] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3693]:
+                  - link "投递官网" [ref=e3695] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e3696]
+                - gridcell "央企" [ref=e3697]
+                - gridcell "27秋招" [ref=e3700]
+                - gridcell [ref=e3701]
+                - gridcell "电子设计岗结构设计岗阵列设计岗光学设计岗材料开发岗传感器技术开发岗器件开发岗项目管理岗软件设计岗仿真设计岗技术支持岗工艺岗设备岗质量岗工程岗董办事务岗财务岗" [ref=e3706]
+                - gridcell "上海、深圳、武汉、成都、厦门、南通、芜湖" [ref=e3707]
+              - row [ref=e3708]:
+                - gridcell [ref=e3709]:
+                  - link "招聘公告" [ref=e3711] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3712]:
+                  - link "投递官网" [ref=e3714] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e3715]
+                - gridcell "民营" [ref=e3716]
+                - gridcell "27秋招" [ref=e3719]
+                - gridcell [ref=e3720]
+                - gridcell "算法工程师 软件工程师硬件工程师结构工程师 测试工程师 TE工程师 工艺工程师电机结构工程师 电机测试工程师电气工程师拓展工程师国际技术工程师人力资源专员" [ref=e3725]
+                - gridcell "苏州、西安、深圳" [ref=e3726]
+              - row [ref=e3727]:
+                - gridcell [ref=e3728]:
+                  - link "招聘公告" [ref=e3730] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3731]:
+                  - link "投递官网" [ref=e3733] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e3734]
+                - gridcell "民营" [ref=e3735]
+                - gridcell "27秋招" [ref=e3738]
+                - gridcell [ref=e3739]
+                - gridcell "研发技术岗 工艺技术岗 生产管理岗 财务管理岗精益制造岗新产品导入岗质量管理岗人力资源岗 电子电路仿真岗设备设施岗销售岗" [ref=e3744]
+                - gridcell "广州、珠海、宜兴、西安" [ref=e3745]
+              - row [ref=e3746]:
+                - gridcell [ref=e3747]:
+                  - link "招聘公告" [ref=e3749] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3750]:
+                  - link "投递官网" [ref=e3752] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技/航空航天" [ref=e3753]
+                - gridcell "央企" [ref=e3754]
+                - gridcell "27秋招" [ref=e3757]
+                - gridcell [ref=e3758]
+                - gridcell "信息与通信工程类控制科学与工程类电子科学与技术类计算机科学与技术类适航类电气工程类机械工程类等专业" [ref=e3763]
+                - gridcell "无锡、成都、北京" [ref=e3764]
+              - row [ref=e3765]:
+                - gridcell [ref=e3766]:
+                  - link "招聘公告" [ref=e3768] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3769]:
+                  - link "投递官网" [ref=e3771] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "智能硬件/机器人" [ref=e3772]
+                - gridcell "民营" [ref=e3773]
+                - gridcell "27秋招" [ref=e3776]
+                - gridcell [ref=e3777]
+                - gridcell "具身智能算法工程师强化学习算法工程师AI视觉算法工程师生成式仿真研发工程师 应用开发工程师 Real-Sim算法工程师 软件产品经理 硬件产品经理技术支持工程师售前工程师法务管培生财务管培生" [ref=e3782]
+                - gridcell "深圳" [ref=e3783]
+              - row [ref=e3784]:
+                - gridcell [ref=e3785]:
+                  - link "招聘公告" [ref=e3787] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3788]:
+                  - link "投递官网" [ref=e3790] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "互联网/人工智能" [ref=e3791]
+                - gridcell "央企" [ref=e3792]
+                - gridcell "27秋招" [ref=e3795]
+                - gridcell [ref=e3796]
+                - gridcell "技术研究类软件开发类网络安全类测试类算法类硬件开发类人工智能类" [ref=e3801]
+                - gridcell "成都" [ref=e3802]
+              - row [ref=e3803]:
+                - gridcell [ref=e3804]:
+                  - link "招聘公告" [ref=e3806] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3807]:
+                  - link "投递官网" [ref=e3809] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e3810]
+                - gridcell "央企" [ref=e3811]
+                - gridcell "27秋招" [ref=e3814]
+                - gridcell [ref=e3815]
+                - gridcell "工程技术岗 安全质量岗 工程经济岗试验管理岗物资机械岗财务管理岗金融投资岗 综合管理岗" [ref=e3820]
+                - gridcell "贵阳、成都、深圳、西安、广州、上海、青岛、雄安、无锡、杭州、乌鲁木齐、郑州、长沙、武汉、北京" [ref=e3821]
+              - row [ref=e3822]:
+                - gridcell [ref=e3823]:
+                  - link "招聘公告" [ref=e3825] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3826]:
+                  - link "投递官网" [ref=e3828] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e3829]
+                - gridcell "央企" [ref=e3830]
+                - gridcell "27秋招" [ref=e3833]
+                - gridcell [ref=e3834]
+                - gridcell "计算机信息与通信工程材料科学与工程类新能源类数学统计学小语种类党务纪检类车辆工程人工智能三电方向机械工程力学类会计学企业管理人力资源管理市场营销国际贸易财务金融法学类" [ref=e3839]
+                - gridcell "徐州、成都、沈阳、乌鲁木齐、武汉、西安、南京、雄安、广州、全国、其它、海外" [ref=e3840]
+              - row [ref=e3841]:
+                - gridcell [ref=e3842]:
+                  - link "招聘公告" [ref=e3844] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3845]:
+                  - link "投递官网" [ref=e3847] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e3848]
+                - gridcell "民营" [ref=e3849]
+                - gridcell "27秋招" [ref=e3852]
+                - gridcell [ref=e3853]
+                - gridcell "MEMs芯片设计工程师 产品开发工程师销售工程师 AE/FAE芯片研发工程师 硬件开发工程师测试软件开发工程师质量工程师 工程师" [ref=e3858]
+                - gridcell "苏州" [ref=e3859]
+              - row [ref=e3860]:
+                - gridcell [ref=e3861]:
+                  - link "招聘公告" [ref=e3863] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3864]:
+                  - link "投递官网" [ref=e3866] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e3867]
+                - gridcell "央企" [ref=e3868]
+                - gridcell "27秋招" [ref=e3871]
+                - gridcell [ref=e3872]
+                - gridcell "高端房建类基础设施类水利水电港航类新能源类投资运营类科创产业园建筑设计类职能管理类" [ref=e3877]
+                - gridcell "全国" [ref=e3878]
+              - row [ref=e3879]:
+                - gridcell [ref=e3880]:
+                  - link "招聘公告" [ref=e3882] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3883]:
+                  - link "投递官网" [ref=e3885] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源/电力" [ref=e3886]
+                - gridcell "民营" [ref=e3887]
+                - gridcell "27秋招" [ref=e3890]
+                - gridcell [ref=e3891]
+                - gridcell "水利水电工程师 电力生产运行及检修岗相关业务岗" [ref=e3896]
+                - gridcell "成都" [ref=e3897]
+              - row [ref=e3898]:
+                - gridcell [ref=e3899]:
+                  - link "招聘公告" [ref=e3901] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3902]:
+                  - link "投递官网" [ref=e3904] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e3905]
+                - gridcell "央企" [ref=e3906]
+                - gridcell "27秋招" [ref=e3909]
+                - gridcell [ref=e3910]
+                - gridcell "能源动力工程 储能科学与工程 新能源科学与工程 电气工程及其自动化热能工程机械工程安全工程工程造价工程管理 交通运输管理 管理科学与工程国际经济与贸易劳动与社会保障人力资源管理法学经济法民商法国际法" [ref=e3915]
+                - gridcell "北京、海外" [ref=e3916]
+              - row [ref=e3917]:
+                - gridcell [ref=e3918]:
+                  - link "招聘公告" [ref=e3920] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3921]:
+                  - link "投递官网" [ref=e3923] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e3924]
+                - gridcell "央企" [ref=e3925]
+                - gridcell "27秋招" [ref=e3928]
+                - gridcell [ref=e3929]
+                - gridcell "土木类水工类机电类管理类财会类综合类矿业类" [ref=e3934]
+                - gridcell "广州、全国" [ref=e3935]
+              - row [ref=e3936]:
+                - gridcell [ref=e3937]
+                - gridcell [ref=e3938]:
+                  - link "投递官网" [ref=e3940] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "研究实验发展" [ref=e3941]
+                - gridcell "民营" [ref=e3942]
+                - gridcell "27秋招" [ref=e3945]
+                - gridcell [ref=e3946]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、游戏策划、交互/设计、人工智能/算法、动画/特效、游戏设计" [ref=e3951]
+                - gridcell "厦门、北京" [ref=e3952]
+              - row [ref=e3953]:
+                - gridcell [ref=e3954]
+                - gridcell [ref=e3955]:
+                  - link "投递官网" [ref=e3957] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信电子" [ref=e3958]
+                - gridcell "-" [ref=e3959]
+                - gridcell "27秋招" [ref=e3961]
+                - gridcell [ref=e3962]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、运营、交互/设计、财务审计、风控、管理、法务、人工智能/算法、项目、研发工程师、通信、销售技术支持、咨询/调研、技术支持" [ref=e3967]
+                - gridcell "海口、三亚、儋州、万宁、定安县、屯昌县、琼中黎族苗族自治县、保亭黎族苗族自治县、陵水黎族自治县、昌江黎族自治县" [ref=e3968]
+              - row [ref=e3969]:
+                - gridcell [ref=e3970]:
+                  - link "招聘公告" [ref=e3972] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3973]:
+                  - link "投递官网" [ref=e3975] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信/电子/半导体" [ref=e3976]
+                - gridcell "央企" [ref=e3977]
+                - gridcell "27秋招" [ref=e3980]
+                - gridcell [ref=e3981]
+                - gridcell "协议栈开发工程师 嵌入式开发工程师 射频开发工程师 算法开发工程师 音视频开发工程师 鸿蒙 APP开发工程师 硬件开发工程师 项目工程师 工艺技术支持" [ref=e3986]
+                - gridcell "石家庄" [ref=e3987]
+              - row [ref=e3988]:
+                - gridcell [ref=e3989]:
+                  - link "招聘公告" [ref=e3991] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e3992]:
+                  - link "投递官网" [ref=e3994] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "石油石化/化学化工" [ref=e3995]
+                - gridcell "民营" [ref=e3996]
+                - gridcell "27秋招" [ref=e3999]
+                - gridcell [ref=e4000]
+                - gridcell "旋转导向智能算法/AI工程师随钻多模态数据建模与地质智能导向工程师 模型轻量化/井下边缘部署优化工程师行业大模型与智能应用落地工程师 旋转导向" [ref=e4005]
+                - gridcell "上海、成都、德阳、杭州" [ref=e4006]
+              - row [ref=e4007]:
+                - gridcell [ref=e4008]:
+                  - link "招聘公告" [ref=e4010] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4011]:
+                  - link "投递官网" [ref=e4013] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电器/家电" [ref=e4014]
+                - gridcell "民营" [ref=e4015]
+                - gridcell "27秋招" [ref=e4018]
+                - gridcell [ref=e4019]
+                - gridcell "博士生岗技术研发类 信息技术类技术支持类制造技术类经营销售类行政职能类采购物理类" [ref=e4024]
+                - gridcell "珠海" [ref=e4025]
+              - row [ref=e4026]:
+                - gridcell [ref=e4027]:
+                  - link "招聘公告" [ref=e4029] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4030]:
+                  - link "投递官网" [ref=e4032] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "其他/新能源" [ref=e4033]
+                - gridcell "民营" [ref=e4034]
+                - gridcell "27秋招" [ref=e4037]
+                - gridcell [ref=e4038]
+                - gridcell "研发技术、产品设计、产品开发、质量管理、工艺技术、设备技术、工业工程、信息技术、财务会计、人力资源、商务销售、市场营销、物流管理、采购管理、销售跟单、环境安全、体系内审、生产管理" [ref=e4043]
+                - gridcell "天津、通辽、沈阳、本溪、长春、上海、苏州、合肥、福州、厦门、郑州、荆门、广州、柳州、重庆、成都" [ref=e4044]
+              - row [ref=e4045]:
+                - gridcell [ref=e4046]:
+                  - link "招聘公告" [ref=e4048] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4049]:
+                  - link "投递官网" [ref=e4051] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融/证券" [ref=e4052]
+                - gridcell "民营" [ref=e4053]
+                - gridcell "27秋招" [ref=e4056]
+                - gridcell [ref=e4057]
+                - gridcell "量化研究员机器学习研究员量化开发工程师" [ref=e4062]
+                - gridcell "深圳" [ref=e4063]
+              - row [ref=e4064]:
+                - gridcell [ref=e4065]:
+                  - link "招聘公告" [ref=e4067] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4068]:
+                  - link "投递官网" [ref=e4070] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "快消零售/食品" [ref=e4071]
+                - gridcell "民营" [ref=e4072]
+                - gridcell "27秋招" [ref=e4075]
+                - gridcell [ref=e4076]
+                - gridcell "电商管培生市场管培生产品营销管培主数据洞察管培生设计管培生产品管培生" [ref=e4081]
+                - gridcell "武汉、上海" [ref=e4082]
+              - row [ref=e4083]:
+                - gridcell [ref=e4084]:
+                  - link "招聘公告" [ref=e4086] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4087]:
+                  - link "投递官网" [ref=e4089] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4090]
+                - gridcell "国企" [ref=e4091]
+                - gridcell "27秋招" [ref=e4094]
+                - gridcell [ref=e4095]
+                - gridcell "芯片研发、软件研发、硬件研发、解决方案、产品测试、技术支持、智能制造、博士专区" [ref=e4100]
+                - gridcell "南京、苏州、武汉、珠海、成都、西安、海外" [ref=e4101]
+              - row [ref=e4102]:
+                - gridcell [ref=e4103]:
+                  - link "招聘公告" [ref=e4105] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4106]:
+                  - link "投递官网" [ref=e4108] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4109]
+                - gridcell "国企" [ref=e4110]
+                - gridcell "27秋招" [ref=e4113]
+                - gridcell [ref=e4114]
+                - gridcell "战略规划研究岗、市场研究岗、维修服务保障研究岗、预先研究岗、采购管理研究岗、生产管理研究岗、质量治理研究岗、运营管理研究岗、政策研究岗、财经研究岗、风控合规法务研究岗、试验测试研究岗、技术研究岗、综合......" [ref=e4119]
+                - gridcell "北京" [ref=e4120]
+              - row [ref=e4121]:
+                - gridcell [ref=e4122]:
+                  - link "招聘公告" [ref=e4124] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4125]:
+                  - link "投递官网" [ref=e4127] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4128]
+                - gridcell "民营" [ref=e4129]
+                - gridcell "27秋招" [ref=e4132]
+                - gridcell [ref=e4133]
+                - gridcell "光学工程师C++工程师 市场技术支持结构工程师 FPGA工程师 硬件工程师产品导入工程师 生产工程师 工艺工程师电机生产工程师电路设计工程师嵌入式工程师" [ref=e4138]
+                - gridcell "武汉" [ref=e4139]
+              - row [ref=e4140]:
+                - gridcell [ref=e4141]:
+                  - link "招聘公告" [ref=e4143] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4144]:
+                  - link "投递官网" [ref=e4146] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融/证券" [ref=e4147]
+                - gridcell "民营" [ref=e4148]
+                - gridcell "27秋招" [ref=e4151]
+                - gridcell [ref=e4152]
+                - gridcell "股票量化策略研究员 宏观量化策略研究" [ref=e4157]
+                - gridcell "上海" [ref=e4158]
+              - row [ref=e4159]:
+                - gridcell [ref=e4160]:
+                  - link "招聘公告" [ref=e4162] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4163]:
+                  - link "投递官网" [ref=e4165] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4166]
+                - gridcell "民营" [ref=e4167]
+                - gridcell "27秋招" [ref=e4170]
+                - gridcell [ref=e4171]
+                - gridcell "研发技术类、算法软件类、具身智能与AI算法类、制造技术类、销售支持类、质量和供应链类、职能类、项目管理类机械类、电子信息类、电气自动化类、能源材料类、计算机类、职能支持类、电机类" [ref=e4176]
+                - gridcell "上海、苏州、合肥、海外" [ref=e4177]
+              - row [ref=e4178]:
+                - gridcell [ref=e4179]:
+                  - link "招聘公告" [ref=e4181] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4182]:
+                  - link "投递官网" [ref=e4184] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "其他/科技" [ref=e4185]
+                - gridcell "民营" [ref=e4186]
+                - gridcell "27秋招" [ref=e4189]
+                - gridcell [ref=e4190]
+                - gridcell "硬件研发工程师、电力电子软件工程师、嵌入式软件工程师、应用软件工程师、PCB设计工程师、制冷系统工程师、系统研发工程师、产品工程师、磁性器件工程师(开发/认证)、IT开发工程师、IT运维工程师、PLC......" [ref=e4195]
+                - gridcell "南京、苏州、杭州、义乌、武汉、长沙、株洲、深圳、西安、海外" [ref=e4196]
+              - row [ref=e4197]:
+                - gridcell [ref=e4198]:
+                  - link "招聘公告" [ref=e4200] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4201]:
+                  - link "投递官网" [ref=e4203] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4204]
+                - gridcell "民营" [ref=e4205]
+                - gridcell "27秋招" [ref=e4208]
+                - gridcell [ref=e4209]
+                - gridcell "芯片架构类 软件类数字类硬件类职能类" [ref=e4214]
+                - gridcell "长沙、上海" [ref=e4215]
+              - row [ref=e4216]:
+                - gridcell [ref=e4217]:
+                  - link "招聘公告" [ref=e4219] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4220]:
+                  - link "投递官网" [ref=e4222] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "互联网" [ref=e4223]
+                - gridcell "民营" [ref=e4224]
+                - gridcell "27秋招" [ref=e4227]
+                - gridcell [ref=e4228]
+                - gridcell "战略管培生" [ref=e4233]
+                - gridcell "杭州" [ref=e4234]
+              - row [ref=e4235]:
+                - gridcell [ref=e4236]:
+                  - link "招聘公告" [ref=e4238] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4239]:
+                  - link "投递官网" [ref=e4241] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4242]
+                - gridcell "国企" [ref=e4243]
+                - gridcell "24秋招" [ref=e4246]
+                - gridcell [ref=e4247]
+                - gridcell "科研岗、职能岗、支撑岗、博士后光学工程、应用光学、物理光学、机械工程、工程热物理、控制理论与控制工程、机械工程及其自动化、机械电子工程、仪器科学与技术、测控技术与仪器、电子科学与技术、电子信息工程、图......" [ref=e4252]
+                - gridcell "成都" [ref=e4253]
+              - row [ref=e4254]:
+                - gridcell [ref=e4255]:
+                  - link "招聘公告" [ref=e4257] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4258]:
+                  - link "投递官网" [ref=e4260] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信运营/通信设备" [ref=e4261]
+                - gridcell "央企" [ref=e4262]
+                - gridcell "27秋招" [ref=e4265]
+                - gridcell [ref=e4266]
+                - gridcell "协议栈开发工程师嵌入式开发工程师射频开发工程师算法开发工程师音视频开发工程师 鸿蒙APP开发工程师 硬件开发工程师项目工程师工艺技术支持" [ref=e4271]
+                - gridcell "石家庄" [ref=e4272]
+              - row [ref=e4273]:
+                - gridcell [ref=e4274]:
+                  - link "招聘公告" [ref=e4276] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4277]:
+                  - link "投递官网" [ref=e4279] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4280]
+                - gridcell "国企" [ref=e4281]
+                - gridcell "27秋招" [ref=e4284]
+                - gridcell [ref=e4285]
+                - gridcell "采矿/井建工程及研发、选矿工程及研发、尾矿工程及研发、矿山机械工程及研发、地质工程及研发、金属合金材料工程及研发、化学工程及研发、冶金工程及研发、硅基材料工程及研发、工控系统/信控工程及研发、软件/算......" [ref=e4290]
+                - gridcell "北京、长沙、成都、昆明、格尔木" [ref=e4291]
+              - row [ref=e4292]:
+                - gridcell [ref=e4293]:
+                  - link "招聘公告" [ref=e4295] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4296]:
+                  - link "投递官网" [ref=e4298] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4299]
+                - gridcell "民营" [ref=e4300]
+                - gridcell "27秋招" [ref=e4303]
+                - gridcell [ref=e4304]
+                - gridcell "研发管培生、工艺/设备管培生、技术管培生(宁波高石)、销售管培生、技术支持管培生、质量管培生、采购管培生、人力资源管培生、财务管培生、综合管理管培生机械、电子、电气、材料、机械工程、自动化、材料科学与......" [ref=e4309]
+                - gridcell "西安" [ref=e4310]
+              - row [ref=e4311]:
+                - gridcell [ref=e4312]:
+                  - link "招聘公告" [ref=e4314] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4315]:
+                  - link "投递官网" [ref=e4317] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e4318]
+                - gridcell "央企" [ref=e4319]
+                - gridcell "27秋招" [ref=e4322]
+                - gridcell [ref=e4323]
+                - gridcell "土建类机械(电气)类管理类财务(会计)类综合类" [ref=e4328]
+                - gridcell "广州、全国、其它" [ref=e4329]
+              - row [ref=e4330]:
+                - gridcell [ref=e4331]:
+                  - link "招聘公告" [ref=e4333] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4334]:
+                  - link "投递官网" [ref=e4336] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "智能硬件/机器人" [ref=e4337]
+                - gridcell "民营" [ref=e4338]
+                - gridcell "27秋招" [ref=e4341]
+                - gridcell [ref=e4342]
+                - gridcell "研发类算法类产品类营销类职能类设计类" [ref=e4347]
+                - gridcell "苏州、上海、南京" [ref=e4348]
+              - row [ref=e4349]:
+                - gridcell [ref=e4350]:
+                  - link "招聘公告" [ref=e4352] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4353]:
+                  - link "投递官网" [ref=e4355] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4356]
+                - gridcell "国企" [ref=e4357]
+                - gridcell "27秋招" [ref=e4360]
+                - gridcell [ref=e4361]
+                - gridcell "研发、制造工艺、专业技术、综合管理、技能序列岗位航空航天类、兵器类、人工智能类、控制类、智能制造类、工业工程类、机械类、计算机类、电气自动化类、电子信息类、力学类、材料成型类、气象类、交通运输类、适航......" [ref=e4366]
+                - gridcell "北京、南昌" [ref=e4367]
+              - row [ref=e4368]:
+                - gridcell [ref=e4369]:
+                  - link "招聘公告" [ref=e4371] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4372]:
+                  - link "投递官网" [ref=e4374] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4375]
+                - gridcell "央企" [ref=e4376]
+                - gridcell "27秋招" [ref=e4379]
+                - gridcell [ref=e4380]
+                - gridcell "算法类半导体类软件研发类硬件研发类营销/技术支持类管理类" [ref=e4385]
+                - gridcell "杭州" [ref=e4386]
+              - row [ref=e4387]:
+                - gridcell [ref=e4388]:
+                  - link "招聘公告" [ref=e4390] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4391]:
+                  - link "投递官网" [ref=e4393] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源/电力" [ref=e4394]
+                - gridcell "央企" [ref=e4395]
+                - gridcell "27秋招" [ref=e4398]
+                - gridcell [ref=e4399]
+                - gridcell "电源系统研发类化学电源研发类物理电源研发类机械仿真及共性基础研发类系统论证类" [ref=e4404]
+                - gridcell "天津、成都" [ref=e4405]
+              - row [ref=e4406]:
+                - gridcell [ref=e4407]:
+                  - link "招聘公告" [ref=e4409] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4410]:
+                  - link "投递官网" [ref=e4412] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "其他/新能源" [ref=e4413]
+                - gridcell "民营" [ref=e4414]
+                - gridcell "27秋招" [ref=e4417]
+                - gridcell [ref=e4418]
+                - gridcell "技术类、制造类、职能类、销售类" [ref=e4423]
+                - gridcell "上海、溧阳、衢州、台州、池州、福鼎、九江、赣州、龙南、宜春、德州、宜昌、广州、江门、清远、东莞、眉山" [ref=e4424]
+              - row [ref=e4425]:
+                - gridcell [ref=e4426]:
+                  - link "招聘公告" [ref=e4428] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4429]:
+                  - link "投递官网" [ref=e4431] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信运营/通信设备" [ref=e4432]
+                - gridcell "央企" [ref=e4433]
+                - gridcell "27秋招" [ref=e4436]
+                - gridcell [ref=e4437]
+                - gridcell "光学工程光电信息科学与工程 信息与通信工程电子科学与技术电气自动化机械工程物理学仪器科学与技术通信工程电子信息工程集成电路 现代通信技术智能控制等专业" [ref=e4442]
+                - gridcell "成都" [ref=e4443]
+              - row [ref=e4444]:
+                - gridcell [ref=e4445]:
+                  - link "招聘公告" [ref=e4447] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4448]:
+                  - link "投递官网" [ref=e4450] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4451]
+                - gridcell "国企" [ref=e4452]
+                - gridcell "27秋招" [ref=e4455]
+                - gridcell [ref=e4456]
+                - gridcell "工程技术类、综合管理类港口航道与海岸工程、水利水电工程、土木工程、机械设计制造及其自动化、测绘工程、安全工程、工程管理、工程造价、会计学、财务管理、法学、汉语言文学等。" [ref=e4461]
+                - gridcell "广州" [ref=e4462]
+              - row [ref=e4463]:
+                - gridcell [ref=e4464]:
+                  - link "招聘公告" [ref=e4466] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4467]:
+                  - link "投递官网" [ref=e4469] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "消费" [ref=e4470]
+                - gridcell "民营" [ref=e4471]
+                - gridcell "27秋招" [ref=e4474]
+                - gridcell [ref=e4475]
+                - gridcell "商品采购、品控、供应链、运营、市场品牌、会员、招拓、AI类、产品类、开发类、大数据类、财务类、法务类、人力资源类、助理" [ref=e4480]
+                - gridcell "上海、南京" [ref=e4481]
+              - row [ref=e4482]:
+                - gridcell [ref=e4483]:
+                  - link "招聘公告" [ref=e4485] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4486]:
+                  - link "投递官网" [ref=e4488] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技航空航天" [ref=e4489]
+                - gridcell "民营" [ref=e4490]
+                - gridcell "27秋招" [ref=e4493]
+                - gridcell [ref=e4494]
+                - gridcell "AI算法工程师 地面通信工程师 地面运维工程师地面应用工程师频率与轨位协调岗 地面站建设工程师 推进系统工程师项目管理岗 姿轨控工程师 通信工程师能源工程师 结构与AIT工程师" [ref=e4499]
+                - gridcell "上海" [ref=e4500]
+              - row [ref=e4501]:
+                - gridcell [ref=e4502]:
+                  - link "招聘公告" [ref=e4504] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4505]:
+                  - link "投递官网" [ref=e4507] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "互联网/人工智能" [ref=e4508]
+                - gridcell "民营" [ref=e4509]
+                - gridcell "27秋招" [ref=e4512]
+                - gridcell [ref=e4513]
+                - gridcell "未来领袖:营销方向、产品方向" [ref=e4518]
+                - gridcell "深圳" [ref=e4519]
+              - row [ref=e4520]:
+                - gridcell [ref=e4521]:
+                  - link "招聘公告" [ref=e4523] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4524]:
+                  - link "投递官网" [ref=e4526] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e4527]
+                - gridcell "民营" [ref=e4528]
+                - gridcell "27秋招" [ref=e4531]
+                - gridcell [ref=e4532]
+                - gridcell "硬/软件工程师销售工程师" [ref=e4537]
+                - gridcell "青岛" [ref=e4538]
+              - row [ref=e4539]:
+                - gridcell [ref=e4540]:
+                  - link "招聘公告" [ref=e4542] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4543]:
+                  - link "投递官网" [ref=e4545] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "生物医药" [ref=e4546]
+                - gridcell "民营" [ref=e4547]
+                - gridcell "27秋招" [ref=e4550]
+                - gridcell [ref=e4551]
+                - gridcell "生测研究员、境外登记专员、国内登记专员、有机合成研究员、工艺工程师、蛋白纯化研究员、发酵研究员、作物育种研究员、大豆/玉米技术开发、急性毒性工程师、慢性致癌工程师、兽医工程师、营养分析工程师、农药残留......" [ref=e4556]
+                - gridcell "全国" [ref=e4557]
+              - row [ref=e4558]:
+                - gridcell [ref=e4559]:
+                  - link "招聘公告" [ref=e4561] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4562]:
+                  - link "投递官网" [ref=e4564] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电器/家电" [ref=e4565]
+                - gridcell "民营" [ref=e4566]
+                - gridcell "27秋招" [ref=e4569]
+                - gridcell [ref=e4570]
+                - gridcell "研发技术类制造技术类信息技术类供立链物流类国内营销类海外营销类财务金融类管理类" [ref=e4575]
+                - gridcell "佛山、上海、合肥、无锡、北京、武汉、深圳、苏州、芜湖、荆州、邯郸、安庆、嘉兴、广州" [ref=e4576]
+              - row [ref=e4577]:
+                - gridcell [ref=e4578]:
+                  - link "招聘公告" [ref=e4580] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4581]:
+                  - link "投递官网" [ref=e4583] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4584]
+                - gridcell "事业单位" [ref=e4585]
+                - gridcell "27秋招" [ref=e4588]
+                - gridcell [ref=e4589]
+                - gridcell "馈电工程师、伺服控制工程师、机械工程师电磁场与微波技术、电子科学与技术、信息与通信工程及相关专业、电气自动化、自动化、计算机、软件工程及相关专业、机械设计、机电工程、机械制造及其自动化及相关专业" [ref=e4594]
+                - gridcell "西安" [ref=e4595]
+              - row [ref=e4596]:
+                - gridcell [ref=e4597]:
+                  - link "招聘公告" [ref=e4599] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4600]:
+                  - link "投递官网" [ref=e4602] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4603]
+                - gridcell "国企" [ref=e4604]
+                - gridcell "26秋招" [ref=e4607]
+                - gridcell [ref=e4608]
+                - gridcell "财务部（资金中心）资金结算岗会计学、财务管理、审计学" [ref=e4613]
+                - gridcell "成都" [ref=e4614]
+              - row [ref=e4615]:
+                - gridcell [ref=e4616]:
+                  - link "招聘公告" [ref=e4618] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4619]:
+                  - link "投递官网" [ref=e4621] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e4622]
+                - gridcell "民营" [ref=e4623]
+                - gridcell "27秋招" [ref=e4626]
+                - gridcell [ref=e4627]
+                - gridcell "模拟设计工程师、数字设计工程师、数字验证工程师、数字后端工程师、DFT设计工程师、模拟版图工程师、嵌入式软件工程师、工具软件工程师、ATE测试工程师、实验室测试工程师、芯片产品工程师、电机控制应用工程......" [ref=e4632]
+                - gridcell "上海、深圳" [ref=e4633]
+              - row [ref=e4634]:
+                - gridcell [ref=e4635]:
+                  - link "招聘公告" [ref=e4637] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4638]:
+                  - link "投递官网" [ref=e4640] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4641]
+                - gridcell "国企" [ref=e4642]
+                - gridcell "27秋招" [ref=e4645]
+                - gridcell [ref=e4646]
+                - gridcell "人工智能、化学工程与技术、集成电路科学与工程、物理学、计算机科学与技术、化学、软件工程、光学工程、智能科学与技术、兵器科学与技术、信息与通信工程、数学、控制科学与工程、网络空间安全、电子科学与技术、地......" [ref=e4651]
+                - gridcell "北京、天津、上海、杭州、广德、南昌、烟台、洛阳、南阳、海口、文昌、西安、兰州、全国" [ref=e4652]
+              - row [ref=e4653]:
+                - gridcell [ref=e4654]:
+                  - link "招聘公告" [ref=e4656] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4657]:
+                  - link "投递官网" [ref=e4659] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "地产/建筑" [ref=e4660]
+                - gridcell "国企" [ref=e4661]
+                - gridcell "26秋招" [ref=e4664]
+                - gridcell [ref=e4665]
+                - gridcell "物业工程部物业专员工程管理、物业管理" [ref=e4670]
+                - gridcell "福州" [ref=e4671]
+              - row [ref=e4672]:
+                - gridcell [ref=e4673]:
+                  - link "招聘公告" [ref=e4675] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4676]:
+                  - link "投递官网" [ref=e4678] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "房产经纪/汽车经销养护" [ref=e4679]
+                - gridcell "民营" [ref=e4680]
+                - gridcell "27秋招" [ref=e4683]
+                - gridcell [ref=e4684]
+                - gridcell "营销类职能类" [ref=e4689]
+                - gridcell "深圳、东莞、惠州、中山、珠海、江门、全国、其它" [ref=e4690]
+              - row [ref=e4691]:
+                - gridcell [ref=e4692]:
+                  - link "招聘公告" [ref=e4694] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4695]:
+                  - link "投递官网" [ref=e4697] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4698]
+                - gridcell "国企" [ref=e4699]
+                - gridcell "27秋招" [ref=e4702]
+                - gridcell [ref=e4703]
+                - gridcell "性能研发类、装备开发类、新能源火灾、整车能量流、排放能耗、新能源整车、电池、电驱、智驾安全、ADAS、功能安全、网络诊断、射频测试、网络及功能测试、智能座舱、信息安全、电磁兼容、智能底盘、低空装备、海......" [ref=e4708]
+                - gridcell "合肥、重庆" [ref=e4709]
+              - row [ref=e4710]:
+                - gridcell [ref=e4711]:
+                  - link "招聘公告" [ref=e4713] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4714]:
+                  - link "投递官网" [ref=e4716] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "高端装备与国防科技/航空航天" [ref=e4717]
+                - gridcell "民营" [ref=e4718]
+                - gridcell "27秋招" [ref=e4721]
+                - gridcell [ref=e4722]
+                - gridcell "力学航空宇航科学与技术机械工程动力工程及工程热物理电气工程控制科学与工程电子科学与技术信息与通信工程计算机科学与技术材料科学与工程仪器科学与技术等专业" [ref=e4727]
+                - gridcell "北京、上海、西安、湖州、嘉兴、无锡、酒泉、成都、南京" [ref=e4728]
+              - row [ref=e4729]:
+                - gridcell [ref=e4730]:
+                  - link "招聘公告" [ref=e4732] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4733]:
+                  - link "投递官网" [ref=e4735] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "银行/行" [ref=e4736]
+                - gridcell "国企" [ref=e4737]
+                - gridcell "27秋招" [ref=e4740]
+                - gridcell [ref=e4741]
+                - gridcell "管理培训生、公司金融、零售金融、投行与金融市场、定向分行、政策研究、职能类岗位、智能科学研发、系统研发、智能运维研发、市场营销类职位、运营支持类职位、信息技术类职位、技术类、数据类、产品类、市场类、职......" [ref=e4746]
+                - gridcell "北京、天津、石家庄、唐山、邯郸、廊坊、沈阳、大连、鞍山、抚顺、丹东、锦州、营口、盘锦、长春、吉林、通" [ref=e4747]
+              - row [ref=e4748]:
+                - gridcell [ref=e4749]:
+                  - link "招聘公告" [ref=e4751] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4752]:
+                  - link "投递官网" [ref=e4754] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "教育" [ref=e4755]
+                - gridcell "民营" [ref=e4756]
+                - gridcell "27秋招" [ref=e4759]
+                - gridcell [ref=e4760]
+                - gridcell "进阶人才计划·班课培优教师、进阶人才计划·1V1教师、进阶人才计划·初高中竞赛教练（数学）专业不限" [ref=e4765]
+                - gridcell "成都" [ref=e4766]
+              - row [ref=e4767]:
+                - gridcell [ref=e4768]:
+                  - link "招聘公告" [ref=e4770] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4771]:
+                  - link "投递官网" [ref=e4773] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4774]
+                - gridcell "民营" [ref=e4775]
+                - gridcell "27秋招" [ref=e4778]
+                - gridcell [ref=e4779]
+                - gridcell "产品工艺岗设备工程岗测试开发岗质量管理岗信息化/自动化岗" [ref=e4784]
+                - gridcell "甘肃、天水" [ref=e4785]
+              - row [ref=e4786]:
+                - gridcell [ref=e4787]:
+                  - link "招聘公告" [ref=e4789] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4790]:
+                  - link "投递官网" [ref=e4792] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "消费" [ref=e4793]
+                - gridcell "民营" [ref=e4794]
+                - gridcell "27秋招" [ref=e4797]
+                - gridcell [ref=e4798]
+                - gridcell "零售管培生经管数统类、商贸物流类、财会类、AI与算法类、烹饪与食品类" [ref=e4803]
+                - gridcell "南京、合肥、武汉、黄石、孝感、潜江、天门" [ref=e4804]
+              - row [ref=e4805]:
+                - gridcell [ref=e4806]:
+                  - link "招聘公告" [ref=e4808] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4809]:
+                  - link "投递官网" [ref=e4811] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4812]
+                - gridcell "国企" [ref=e4813]
+                - gridcell "28秋招" [ref=e4816]
+                - gridcell [ref=e4817]
+                - gridcell "综合岗实习生专业不限" [ref=e4822]
+                - gridcell "武汉" [ref=e4823]
+              - row [ref=e4824]:
+                - gridcell [ref=e4825]:
+                  - link "招聘公告" [ref=e4827] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4828]:
+                  - link "投递官网" [ref=e4830] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4831]
+                - gridcell "民营" [ref=e4832]
+                - gridcell "27秋招" [ref=e4835]
+                - gridcell [ref=e4836]
+                - gridcell "研发类工程技术类生产运营类信息技术类职能类 市场类" [ref=e4841]
+                - gridcell "武汉" [ref=e4842]
+              - row [ref=e4843]:
+                - gridcell [ref=e4844]:
+                  - link "招聘公告" [ref=e4846] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4847]:
+                  - link "投递官网" [ref=e4849] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e4850]
+                - gridcell "外企" [ref=e4851]
+                - gridcell "27秋招" [ref=e4854]
+                - gridcell [ref=e4855]
+                - gridcell "助理工艺工程师、工艺工程师、产品研发光学工程师、工艺开发工程师、产品工程师、软件开发工程师、机械工程师、电子工程师、硬件工程师、固件工程师、助理产品工程师、管培生、质量工程师（助理）、助理工艺工程师/......" [ref=e4860]
+                - gridcell "珠海" [ref=e4861]
+              - row [ref=e4862]:
+                - gridcell [ref=e4863]:
+                  - link "招聘公告" [ref=e4865] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4866]:
+                  - link "投递官网" [ref=e4868] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "其他/科技" [ref=e4869]
+                - gridcell "民营" [ref=e4870]
+                - gridcell "27秋招" [ref=e4873]
+                - gridcell [ref=e4874]
+                - gridcell "芯片设计工程师、芯片封装工程师、芯片验证工程师、芯片ATE测试工程师、芯片后端工程师、硬件工程师、Android BSP软件工程师、音频工程师、Linux嵌入式软件工程师、自动化测试开发工程师、驱动软......" [ref=e4879]
+                - gridcell "北京、上海、南京、武汉、深圳、西安" [ref=e4880]
+              - row [ref=e4881]:
+                - gridcell [ref=e4882]:
+                  - link "招聘公告" [ref=e4884] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4885]:
+                  - link "投递官网" [ref=e4887] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4888]
+                - gridcell "国企" [ref=e4889]
+                - gridcell "27秋招" [ref=e4892]
+                - gridcell [ref=e4893]
+                - gridcell "管理岗、会计专员/助理、专业技术岗、信息技术专员、重点研发岗、机械研发工程师、工艺/制程工程师航空发动机类" [ref=e4898]
+                - gridcell "沈阳" [ref=e4899]
+              - row [ref=e4900]:
+                - gridcell [ref=e4901]:
+                  - link "招聘公告" [ref=e4903] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4904]:
+                  - link "投递官网" [ref=e4906] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e4907]
+                - gridcell "民营" [ref=e4908]
+                - gridcell "27秋招" [ref=e4911]
+                - gridcell [ref=e4912]
+                - gridcell "量子技术管培生物理、电子工程、微电子、材料、数学、计算机、化学、生物医学" [ref=e4917]
+                - gridcell "上海" [ref=e4918]
+              - row [ref=e4919]:
+                - gridcell [ref=e4920]:
+                  - link "招聘公告" [ref=e4922] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4923]:
+                  - link "投递官网" [ref=e4925] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e4926]
+                - gridcell "民营" [ref=e4927]
+                - gridcell "27秋招" [ref=e4930]
+                - gridcell [ref=e4931]
+                - gridcell "工艺电仪技术员施工管理技术员预算员BIM 设计师 精细化工工艺工程师电气工程师" [ref=e4936]
+                - gridcell "湖南、珠海、河北、山东、湖北、浙江、山西、内蒙、全国、各省份" [ref=e4937]
+              - row [ref=e4938]:
+                - gridcell [ref=e4939]:
+                  - link "招聘公告" [ref=e4941] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4942]:
+                  - link "投递官网" [ref=e4944] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4945]
+                - gridcell "国企" [ref=e4946]
+                - gridcell "24秋招" [ref=e4949]
+                - gridcell [ref=e4950]
+                - gridcell "基金专员、经济学、会计学、财务管理、审计学、金融学类、金融、理工类复合专业背景" [ref=e4955]
+                - gridcell "沈阳" [ref=e4956]
+              - row [ref=e4957]:
+                - gridcell [ref=e4958]:
+                  - link "招聘公告" [ref=e4960] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4961]:
+                  - link "投递官网" [ref=e4963] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4964]
+                - gridcell "民营" [ref=e4965]
+                - gridcell "27秋招" [ref=e4968]
+                - gridcell [ref=e4969]
+                - gridcell "生产管培生岗、技术管培生岗、电气管培生岗、机械管培生岗、财务管培生岗、法语管培生岗、人力管培生岗、生产校招生岗、技术校招生岗、电气校招生岗、机械校招生岗、财务校招生岗、法语校招生岗、人力校招生岗冶金工......" [ref=e4974]
+                - gridcell "南京、滁州、赣州、海外" [ref=e4975]
+              - row [ref=e4976]:
+                - gridcell [ref=e4977]:
+                  - link "招聘公告" [ref=e4979] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4980]:
+                  - link "投递官网" [ref=e4982] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "电子/半导体" [ref=e4983]
+                - gridcell "央企" [ref=e4984]
+                - gridcell "27秋招" [ref=e4987]
+                - gridcell [ref=e4988]
+                - gridcell "工艺研发类IC设计类设备类AI/IT技术类产品测试类产品质量类智能制造类动力类" [ref=e4993]
+                - gridcell "上海" [ref=e4994]
+              - row [ref=e4995]:
+                - gridcell [ref=e4996]:
+                  - link "招聘公告" [ref=e4998] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e4999]:
+                  - link "投递官网" [ref=e5001] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5002]
+                - gridcell "国企" [ref=e5003]
+                - gridcell "27秋招" [ref=e5006]
+                - gridcell [ref=e5007]
+                - gridcell "合集公告、具体看各二三级单位招聘简章（航空工业集团每年子单位都会单独发招聘公告的、这里可以重点关注宣讲行程）" [ref=e5012]
+                - gridcell "全国" [ref=e5013]
+              - row [ref=e5014]:
+                - gridcell [ref=e5015]:
+                  - link "招聘公告" [ref=e5017] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5018]:
+                  - link "投递官网" [ref=e5020] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源/电力" [ref=e5021]
+                - gridcell "民营" [ref=e5022]
+                - gridcell "27秋招" [ref=e5025]
+                - gridcell [ref=e5026]
+                - gridcell "研发工程师 高级研发工程师 应用工程师生产储干品质工程师/助理 设备工程师/助理 工艺工程师/助理 EHS工程师/助理 营销(海外)采购计划物料人力资源财务企宣" [ref=e5031]
+                - gridcell "安庆、衢州昭通衢州、青岛、深圳、池州、杭州" [ref=e5032]
+              - row [ref=e5033]:
+                - gridcell [ref=e5034]:
+                  - link "招聘公告" [ref=e5036] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5037]:
+                  - link "投递官网" [ref=e5039] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "服装/纺织" [ref=e5040]
+                - gridcell "-" [ref=e5041]
+                - gridcell "27秋招" [ref=e5043]
+                - gridcell [ref=e5044]
+                - gridcell "运动部门经理全渠道运动主管线上运营主管供应链计划主管生产供应链主管供应商质量和新产品导入主管物流部门经理" [ref=e5049]
+                - gridcell "桂林、深圳、常州、南京、威海、广州、珠海、北京、晋中、武汉、天津、青岛、淄博、上海、海口、重庆、贵阳" [ref=e5050]
+              - row [ref=e5051]:
+                - gridcell [ref=e5052]:
+                  - link "招聘公告" [ref=e5054] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5055]:
+                  - link "投递官网" [ref=e5057] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "游戏" [ref=e5058]
+                - gridcell "民营" [ref=e5059]
+                - gridcell "27秋招" [ref=e5062]
+                - gridcell [ref=e5063]
+                - gridcell "2D场景原画、3D角色、2D角色原画、3D场景、3D特效、3D动作、AIGC设计、交互设计、游戏UI设计、影视、游戏投放素材制作、游戏美术、游戏视觉设计、系统策划、战斗策划、数值策划、游戏策划、游戏全......" [ref=e5068]
+                - gridcell "上海" [ref=e5069]
+              - row [ref=e5070]:
+                - gridcell [ref=e5071]:
+                  - link "招聘公告" [ref=e5073] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5074]:
+                  - link "投递官网" [ref=e5076] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械装备/电气系统" [ref=e5077]
+                - gridcell "民营" [ref=e5078]
+                - gridcell "27秋招" [ref=e5081]
+                - gridcell [ref=e5082]
+                - gridcell "营销类技术类制造类电商类质量类" [ref=e5087]
+                - gridcell "台州、杭州、宿迁、全国" [ref=e5088]
+              - row [ref=e5089]:
+                - gridcell [ref=e5090]:
+                  - link "招聘公告" [ref=e5092] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5093]:
+                  - link "投递官网" [ref=e5095] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "建筑地产/市政工程" [ref=e5096]
+                - gridcell "央企" [ref=e5097]
+                - gridcell "27秋招" [ref=e5100]
+                - gridcell [ref=e5101]
+                - gridcell "土木 城市地下空间 城市轨道交通港口航道水利水电采矿给排水科学测绘地质安全无机非金属环境工程工程力学林业工程机械设计制造及其自动化电气工程及其自动化轨道交通信号" [ref=e5106]
+                - gridcell "长沙、衡阳、成都、重庆、贵阳、广州、东莞、全国、项目所在地" [ref=e5107]
+              - row [ref=e5108]:
+                - gridcell [ref=e5109]:
+                  - link "招聘公告" [ref=e5111] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5112]:
+                  - link "投递官网" [ref=e5114] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5115]
+                - gridcell "国企" [ref=e5116]
+                - gridcell "24秋招" [ref=e5119]
+                - gridcell [ref=e5120]
+                - gridcell "双语主持（英语）、国际传播主播、全媒体运营、高级项目经理新闻传播学、戏剧与影视学、中国语言文学、外国语言文学、政治学、工商管理学、公共管理学、文化产业管理、国际经济与贸易、市场营销、管理学" [ref=e5125]
+                - gridcell "成都" [ref=e5126]
+              - row [ref=e5127]:
+                - gridcell [ref=e5128]:
+                  - link "招聘公告" [ref=e5130] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5131]:
+                  - link "投递官网" [ref=e5133] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "科技" [ref=e5134]
+                - gridcell "民营" [ref=e5135]
+                - gridcell "27秋招" [ref=e5138]
+                - gridcell [ref=e5139]
+                - gridcell "运动控制算法、感知算法、SLAM算法、规划算法、调度算法、具身算法、嵌入式、软件开发、机械研发、电气研发、机械设计、电气设计、电气调试、软件设计、销售工程师、方案规划、市场运营、项目管理、供应链、人力......" [ref=e5144]
+                - gridcell "上海、苏州、青岛、武汉、广州、重庆" [ref=e5145]
+              - row [ref=e5146]:
+                - gridcell [ref=e5147]:
+                  - link "招聘公告" [ref=e5149] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5150]:
+                  - link "投递官网" [ref=e5152] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "新能源/科技" [ref=e5153]
+                - gridcell "民营" [ref=e5154]
+                - gridcell "27秋招" [ref=e5157]
+                - gridcell [ref=e5158]
+                - gridcell "变速器传动设计工程师、电机产品机械工程师、电机仿真分析工程师、控制器机械工程师、控制器硬件工程师、设备管理工程师、电机与动力系统测试工程师、振动噪音工程师、产品验证工程师、动力系统开发与应用工程师、测......" [ref=e5163]
+                - gridcell "北京、石家庄、菏泽" [ref=e5164]
+              - row [ref=e5165]:
+                - gridcell [ref=e5166]:
+                  - link "招聘公告" [ref=e5168] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5169]:
+                  - link "投递官网" [ref=e5171] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "生物医药" [ref=e5172]
+                - gridcell "央企" [ref=e5173]
+                - gridcell "26秋招" [ref=e5176]
+                - gridcell [ref=e5177]
+                - gridcell "研发中心生产技术岗（工艺方向）、配方颗粒采购中心采购岗（原料采购方向）药学类、中药学类、医学类、化工与制药类、生物工程类、药事管理类" [ref=e5182]
+                - gridcell "黄冈、天津、保定、亳州" [ref=e5183]
+              - row [ref=e5184]:
+                - gridcell [ref=e5185]:
+                  - link "招聘公告" [ref=e5187] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5188]:
+                  - link "投递官网" [ref=e5190] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5191]
+                - gridcell "国企" [ref=e5192]
+                - gridcell "27秋招" [ref=e5195]
+                - gridcell [ref=e5196]
+                - gridcell "财务管理、电气工程师、结构工程师、热能工程师、氢能工程师、总图工程师、给排水工程师、测绘工程师、地质工程师、新能源工程师（风资源）、安全工程师、项目管理师、国际商务管理师、国际翻译、造价工程师、综合能......" [ref=e5201]
+                - gridcell "合肥" [ref=e5202]
+              - row [ref=e5203]:
+                - gridcell [ref=e5204]:
+                  - link "招聘公告" [ref=e5206] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5207]:
+                  - link "投递官网" [ref=e5209] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5210]
+                - gridcell "民营" [ref=e5211]
+                - gridcell "27秋招" [ref=e5214]
+                - gridcell [ref=e5215]
+                - gridcell "Agent工程师、Java后端开发工程师、C++开发工程师、CAM软件开发工程师、QT开发工程师、伺服驱动工程师、Android开发工程师、嵌入式开发工程师、iOS开发工程师、BSP开发工程师、视觉应......" [ref=e5220]
+                - gridcell "深圳" [ref=e5221]
+              - row [ref=e5222]:
+                - gridcell [ref=e5223]:
+                  - link "招聘公告" [ref=e5225] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5226]:
+                  - link "投递官网" [ref=e5228] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5229]
+                - gridcell "国企" [ref=e5230]
+                - gridcell "27秋招" [ref=e5233]
+                - gridcell [ref=e5234]
+                - gridcell "物流专员、综合管理部文宣专员、企业管理部精益专员、船舶设计师、安全管理员、研发设计师、设备管理员、财务专员、质量管理员、机修管理员、售后管理员、电修管理员、计划管理员、项目管理员、电气调试员、轮机调试......" [ref=e5239]
+                - gridcell "天津、大连、哈尔滨、佳木斯、富锦、黑河、北安、绥化、上海、苏州、张家港、南通、启东、镇江、杭州、厦门" [ref=e5240]
+              - row [ref=e5241]:
+                - gridcell [ref=e5242]:
+                  - link "招聘公告" [ref=e5244] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5245]:
+                  - link "投递官网" [ref=e5247] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "专业服务" [ref=e5248]
+                - gridcell "民营" [ref=e5249]
+                - gridcell "27秋招" [ref=e5252]
+                - gridcell [ref=e5253]
+                - gridcell "审计员IT审计员咨询顾问工程咨询员税审员评估员数据分析员" [ref=e5258]
+                - gridcell "北京、天津、上海、无锡、苏州、杭州、宁波、厦门、深圳、珠海、佛山、重庆" [ref=e5259]
+              - row [ref=e5260]:
+                - gridcell [ref=e5261]:
+                  - link "招聘公告" [ref=e5263] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5264]:
+                  - link "投递官网" [ref=e5266] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "专业服务" [ref=e5267]
+                - gridcell "-" [ref=e5268]
+                - gridcell "27秋招" [ref=e5270]
+                - gridcell [ref=e5271]
+                - gridcell "投研分析师、专业不限" [ref=e5276]
+                - gridcell "北京" [ref=e5277]
+              - row [ref=e5278]:
+                - gridcell [ref=e5279]
+                - gridcell [ref=e5280]:
+                  - link "投递官网" [ref=e5282] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "证券" [ref=e5283]
+                - gridcell "-" [ref=e5284]
+                - gridcell "27秋招" [ref=e5286]
+                - gridcell [ref=e5287]
+                - gridcell "财务审计、证券类、市场/营销、管理、商务、咨询/调研" [ref=e5292]
+                - gridcell "天津" [ref=e5293]
+              - row [ref=e5294]:
+                - gridcell [ref=e5295]
+                - gridcell [ref=e5296]:
+                  - link "投递官网" [ref=e5298] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "投资机构" [ref=e5299]
+                - gridcell "-" [ref=e5300]
+                - gridcell "26春招" [ref=e5302]
+                - gridcell [ref=e5303]
+                - gridcell "财务审计、风控、管理、管理培训生、法务、咨询/调研" [ref=e5308]
+                - gridcell "武汉" [ref=e5309]
+              - row [ref=e5310]:
+                - gridcell [ref=e5311]
+                - gridcell [ref=e5312]:
+                  - link "投递官网" [ref=e5314] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "集成电路设计" [ref=e5315]
+                - gridcell "民营" [ref=e5316]
+                - gridcell "27秋招" [ref=e5319]
+                - gridcell [ref=e5320]
+                - gridcell "后端开发、测试、数据、硬件工程师、电子/半导体、机械、产品、交互/设计、市场/营销、管理、行政、销售类、人工智能/算法、项目、研发工程师、通信、工业类设计、化工、商务、技术支持、电气/自动化、技术支持" [ref=e5325]
+                - gridcell "苏州、杭州、北京、上海" [ref=e5326]
+              - row [ref=e5327]:
+                - gridcell [ref=e5328]
+                - gridcell [ref=e5329]:
+                  - link "投递官网" [ref=e5331] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "工具" [ref=e5332]
+                - gridcell "-" [ref=e5333]
+                - gridcell "27秋招" [ref=e5335]
+                - gridcell [ref=e5336]
+                - gridcell "后端开发、前端开发、产品、运营、交互/设计、财务审计、市场/营销、人事、行政、人工智能/算法、研发工程师、科研、商务" [ref=e5341]
+                - gridcell "杭州、济南、上海" [ref=e5342]
+              - row [ref=e5343]:
+                - gridcell [ref=e5344]
+                - gridcell [ref=e5345]:
+                  - link "投递官网" [ref=e5347] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "专用设备" [ref=e5348]
+                - gridcell "国企" [ref=e5349]
+                - gridcell "27秋招" [ref=e5352]
+                - gridcell [ref=e5353]
+                - gridcell "后端开发、数据、机械、交互/设计、财务审计、证券类、市场/营销、人事、行政、法务、销售类、项目、研发工程师、供应链、工业类设计、化工、商务、电气/自动化、技术支持" [ref=e5358]
+                - gridcell "惠州" [ref=e5359]
+              - row [ref=e5360]:
+                - gridcell [ref=e5361]
+                - gridcell [ref=e5362]:
+                  - link "投递官网" [ref=e5364] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "保险公司" [ref=e5365]
+                - gridcell "民营" [ref=e5366]
+                - gridcell "27秋招" [ref=e5369]
+                - gridcell [ref=e5370]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、交互/设计、财务审计、风控、投融资、市场/营销、管理、管理培训生、人事、行政、法务、销售类、人工智能/算法、研发工程师、公关媒介、销售技术支持、商务、保险、咨询/调研" [ref=e5375]
+                - gridcell "哈尔滨、南京、杭州、武汉、广州、深圳、成都、西安、北京、上海、天津" [ref=e5376]
+              - row [ref=e5377]:
+                - gridcell [ref=e5378]
+                - gridcell [ref=e5379]:
+                  - link "投递官网" [ref=e5381] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "机械制造" [ref=e5382]
+                - gridcell "-" [ref=e5383]
+                - gridcell "27秋招" [ref=e5385]
+                - gridcell [ref=e5386]
+                - gridcell "机械、财务审计、市场/营销、管理、人事、行政、法务、销售类、项目、研发工程师、供应链、化工、商务、贸易、电气/自动化、技术支持" [ref=e5391]
+                - gridcell "杭州、湖州、青岛、清远、上海" [ref=e5392]
+              - row [ref=e5393]:
+                - gridcell [ref=e5394]
+                - gridcell [ref=e5395]:
+                  - link "投递官网" [ref=e5397] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源" [ref=e5398]
+                - gridcell "-" [ref=e5399]
+                - gridcell "27秋招" [ref=e5401]
+                - gridcell [ref=e5402]
+                - gridcell "后端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、运营、交互/设计、财务审计、风控、证券类、投融资、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、项目、研发工程师、供应链、通信、翻译相关、工业类设计、客服、物流、化工、咨询/调研、贸易、技术支持、电气/自动化、能源、技术支持" [ref=e5407]
+                - gridcell "嘉兴、广州、珠海、重庆" [ref=e5408]
+              - row [ref=e5409]:
+                - gridcell [ref=e5410]
+                - gridcell [ref=e5411]:
+                  - link "投递官网" [ref=e5413] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "游戏" [ref=e5414]
+                - gridcell "-" [ref=e5415]
+                - gridcell "27秋招" [ref=e5417]
+                - gridcell [ref=e5418]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、游戏策划、交互/设计、市场/营销、人工智能/算法、项目、研发工程师、动画/特效、公关媒介、用户研究、销售技术支持、商务、影视媒体、游戏设计" [ref=e5423]
+                - gridcell "上海" [ref=e5424]
+              - row [ref=e5425]:
+                - gridcell [ref=e5426]
+                - gridcell [ref=e5427]:
+                  - link "投递官网" [ref=e5429] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "金融投资" [ref=e5430]
+                - gridcell "民营" [ref=e5431]
+                - gridcell "27秋招" [ref=e5434]
+                - gridcell [ref=e5435]
+                - gridcell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、财务审计、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、项目、研发工程师、供应链、物流、销售技术支持、商务、电气/自动化" [ref=e5440]
+                - gridcell "杭州" [ref=e5441]
+              - row [ref=e5442]:
+                - gridcell [ref=e5443]:
+                  - link "招聘公告" [ref=e5445] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5446]:
+                  - link "投递官网" [ref=e5448] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "房地产业/建筑业" [ref=e5449]
+                - gridcell "央企" [ref=e5450]
+                - gridcell "27秋招" [ref=e5453]
+                - gridcell [ref=e5454]
+                - gridcell "工程技术岗、工程安全岗、商务管理岗、物资设备岗、财务经济岗、综合管理岗" [ref=e5459]
+                - gridcell "四平、景德镇、九江、抚州、武汉、黄石、宜昌、襄阳、荆州、广州、深圳、重庆、咸阳、渭南、哈密" [ref=e5460]
+              - row [ref=e5461]:
+                - gridcell [ref=e5462]:
+                  - link "招聘公告" [ref=e5464] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5465]:
+                  - link "投递官网" [ref=e5467] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "能源/化工/环保" [ref=e5468]
+                - gridcell "民营" [ref=e5469]
+                - gridcell "27秋招" [ref=e5472]
+                - gridcell [ref=e5473]
+                - gridcell "技术类、制造类、职能类、销售类" [ref=e5478]
+                - gridcell "阳泉、上海、衢州、台州、池州、南昌、九江、赣州、宜春、德州、宜昌、广州、江门、清远、东莞、眉山、西宁、海外" [ref=e5479]
+              - row [ref=e5480]:
+                - gridcell [ref=e5481]:
+                  - link "招聘公告" [ref=e5483] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell [ref=e5484]:
+                  - link "投递官网" [ref=e5486] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "通信/电子/半导体" [ref=e5487]
+                - gridcell "央企" [ref=e5488]
+                - gridcell "27秋招" [ref=e5491]
+                - gridcell [ref=e5492]
+                - gridcell "芯片研发、软件研发、硬件研发、解决方案、产品测试、技术支持、智能制造、博士专区" [ref=e5497]
+                - gridcell "南京、苏州、武汉、珠海、成都、西安" [ref=e5498]
+              - row [ref=e5499]:
+                - gridcell [ref=e5500]
+                - gridcell [ref=e5501]:
+                  - link "投递官网" [ref=e5503] [cursor=pointer]:
+                    - /url: "#"
+                - gridcell "人工智能" [ref=e5504]
+                - gridcell "-" [ref=e5505]
+                - gridcell "27秋招" [ref=e5507]
+                - gridcell [ref=e5508]
+                - gridcell "后端开发、测试、机械、汽车制造、运营、人事、人工智能/算法、研发工程师、工业类设计、商务" [ref=e5513]
+                - gridcell "苏州、北京、上海" [ref=e5514]
+            - rowgroup
+            - rowgroup
+            - rowgroup [ref=e5515]
+            - rowgroup
+          - generic [ref=e5520]:
+            - generic [ref=e5521]:
+              - generic [ref=e5522]: "Page Size:"
+              - combobox "Page Size" [ref=e5523]:
+                - generic [ref=e5524]: "200"
+                - generic [ref=e5525] [cursor=pointer]: 
+            - generic [ref=e5526]: 1 - 200 共 1,927
+            - button "First Page" [disabled] [ref=e5527]: 
+            - button "Previous Page" [disabled] [ref=e5528]: 
+            - generic [ref=e5529]: 页 1 共 10
+            - button "Next Page" [ref=e5530] [cursor=pointer]: 
+            - button "Last Page" [ref=e5531] [cursor=pointer]: 
+      - contentinfo [ref=e5532]:
+        - text: 求职方舟 © 2019-2026 武汉百魔方文化传媒有限公司
+        - link "鄂ICP备2022015654号-6" [ref=e5533] [cursor=pointer]:
+          - /url: https://beian.miit.gov.cn/
+        - text: "|"
+        - link "关于我们" [ref=e5534] [cursor=pointer]:
+          - /url: /about
+  - generic [ref=e5540] [cursor=pointer]:
+    - generic [ref=e5541]:
+      - generic [ref=e5542]: "1"
+      - heading "不会挑公司？小风严选5000家大厂" [level=3] [ref=e5543]
+    - generic [ref=e5544]:
+      - paragraph [ref=e5547]: 大家都是第一次当应届生找工作，99%的公司没听过很正常。不知道怎么找好公司，更怕误入垃圾公司，浪费了自己的好学历和应届生身份！
+      - paragraph [ref=e5548]: 求职方舟的公司均出自小风严选！11年校招从业经验，帮你精心挑选：各行业一梯队、上市企业、500强、国央企、高薪资待遇、高潜企业，共计5000家。末位淘汰，只做严选！
+      - generic [ref=e5549]: —— 小风学长

@@ -1,0 +1,758 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - button "收起左侧栏" [ref=e4] [cursor=pointer]:
+        - generic [ref=e5]: ‹
+      - link "JOBUP官网" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "JOBUP" [ref=e8]
+        - strong [ref=e10]: JOBUP
+      - navigation "主导航" [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: 功能区
+          - generic [ref=e14]:
+            - link "校招汇总表 校招 / 秋招 / 实习" [ref=e15] [cursor=pointer]:
+              - /url: /
+              - generic [ref=e19]:
+                - text: 校招汇总表
+                - generic [ref=e20]: 校招 / 秋招 / 实习
+            - link "论文降AI率 零感AI · 合作服务" [ref=e21] [cursor=pointer]:
+              - /url: /ai-rewrite
+              - generic [ref=e26]:
+                - text: 论文降AI率
+                - generic [ref=e27]: 零感AI · 合作服务
+            - link "AI填网申表 浏览器插件 · 一键填表" [ref=e28] [cursor=pointer]:
+              - /url: /resume
+              - generic [ref=e32]:
+                - text: AI填网申表
+                - generic [ref=e33]: 浏览器插件 · 一键填表
+        - generic [ref=e34]:
+          - generic [ref=e35]: 投递管理
+          - link "投递进展 跟踪每一次申请" [ref=e37] [cursor=pointer]:
+            - /url: /progress
+            - generic [ref=e41]:
+              - text: 投递进展
+              - generic [ref=e42]: 跟踪每一次申请
+        - generic [ref=e43]:
+          - generic [ref=e44]: 账户
+          - generic [ref=e45]:
+            - link "用户中心 登录 · 注册 · 找回密码" [ref=e46] [cursor=pointer]:
+              - /url: /account
+              - generic [ref=e50]:
+                - text: 用户中心
+                - generic [ref=e51]: 登录 · 注册 · 找回密码
+            - button "联系客服 企业微信 · 零感云科技" [ref=e53] [cursor=pointer]:
+              - generic [ref=e57]:
+                - text: 联系客服
+                - generic [ref=e58]: 企业微信 · 零感云科技
+      - generic [ref=e792]:
+        - generic [ref=e793]:
+          - generic [ref=e794]: 登
+          - generic [ref=e795]:
+            - strong [ref=e796]: 登录后同步进展
+            - generic [ref=e797]: 用户名或手机号均可登录
+        - generic [ref=e798]:
+          - link "登录" [ref=e799] [cursor=pointer]:
+            - /url: /account?mode=login
+          - link "注册" [ref=e800] [cursor=pointer]:
+            - /url: /account?mode=register
+      - generic [ref=e62]:
+        - generic [ref=e63]: ★ JOBUP
+        - strong [ref=e64]: 职位更清晰 · 投递更有序 · 成长更进一步
+    - generic [ref=e65]:
+      - main [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]:
+              - text: JOBUP 校招信息汇总网站 · CAREER OPPORTUNITIES 2027
+              - heading "JOBUP官网｜27届校招/秋招/实习最新信息免费汇总表" [level=1] [ref=e70]
+              - paragraph [ref=e71]:
+                - generic [ref=e72]: ★
+                - text: 职位更清晰，成长更进一步。
+              - paragraph [ref=e73]: JOBUP是面向校招、秋招和实习求职者的校招信息汇总网站，提供招聘信息筛选、简历管理、AI网申助手和投递进展记录。
+            - generic [ref=e74]:
+              - paragraph [ref=e75]:
+                - text: 近一周更新企业：
+                - strong [ref=e76]: "573"
+              - paragraph [ref=e77]:
+                - text: 最近更新 8月31日 · 累计发布
+                - strong [ref=e78]: "12202"
+                - text: 条岗位信息 · 已启用 1 个筛选条件
+          - generic [ref=e79]:
+            - textbox [ref=e81]:
+              - /placeholder: 搜索公司、岗位、城市或行业
+              - text: Java
+            - generic [ref=e82]:
+              - generic [ref=e83]: 更新日期
+              - textbox "更新日期" [ref=e84]
+            - generic [ref=e85]:
+              - generic [ref=e86]: 发布时间
+              - combobox "发布时间" [ref=e87] [cursor=pointer]:
+                - option "全部时间"
+                - option "近7天发布"
+                - option "近30天发布" [selected]
+                - option "近3个月发布"
+            - generic [ref=e88]:
+              - generic [ref=e89]: 招聘类型
+              - combobox "招聘类型" [ref=e90] [cursor=pointer]:
+                - option "全部类型" [selected]
+                - option "校招"
+                - option "秋招"
+                - option "秋招提前批"
+                - option "实习"
+                - option "日常实习"
+                - option "官网"
+                - option "公众号"
+                - option "政府"
+            - generic [ref=e91]:
+              - generic [ref=e92]: 所属行业
+              - combobox "所属行业" [ref=e93] [cursor=pointer]:
+                - option "全部行业" [selected]
+                - option "互联网/人工智能"
+                - option "软件/信息技术"
+                - option "电子/半导体"
+                - option "通信"
+                - option "汽车/新能源"
+                - option "金融/证券"
+                - option "先进制造/工业"
+                - option "建筑/工程"
+                - option "交通/物流"
+                - option "能源/化工"
+                - option "医药/医疗"
+                - option "消费/零售"
+                - option "教育/培训"
+                - option "文化/传媒"
+                - option "航空航天/国防"
+                - option "政府/公共服务"
+                - option "科研/高校"
+                - option "其他"
+            - generic [ref=e94]:
+              - generic [ref=e95]: 企业性质
+              - combobox "企业性质" [ref=e96] [cursor=pointer]:
+                - option "全部性质" [selected]
+                - option "央企"
+                - option "国企"
+                - option "民营"
+                - option "外企"
+                - option "合资"
+                - option "事业单位"
+                - option "政府机关"
+                - option "高校/科研院所"
+                - option "社会组织"
+                - option "其他"
+            - generic [ref=e97]:
+              - generic [ref=e98]: 工作地点
+              - textbox "工作地点" [active] [ref=e99]:
+                - /placeholder: 如：上海
+                - text: 成都
+            - generic [ref=e100]:
+              - button "筛选" [ref=e101] [cursor=pointer]
+              - link "清除" [ref=e102] [cursor=pointer]:
+                - /url: /
+          - note [ref=e103]:
+            - generic [ref=e104]: →
+            - text: 向右滑动表格，查看更多列信息
+          - region "校招信息表格，可横向滚动查看更多字段" [ref=e105]:
+            - table [ref=e106]:
+              - rowgroup [ref=e122]:
+                - row [ref=e123]:
+                  - columnheader "编号" [ref=e124]
+                  - columnheader "更新日期" [ref=e125]
+                  - columnheader "公司" [ref=e126]
+                  - columnheader "行业" [ref=e127]
+                  - columnheader "性质" [ref=e128]
+                  - columnheader "招聘岗位" [ref=e129]
+                  - columnheader "工作地点" [ref=e130]
+                  - columnheader "应届生平均 薪资（仅参考）" [ref=e131]: 应届生平均薪资（仅参考）
+                  - columnheader "企业说明" [ref=e132]
+                  - columnheader "招聘公告" [ref=e133]
+                  - columnheader "批次 / 类型" [ref=e134]
+                  - columnheader "截止时间" [ref=e135]
+                  - columnheader "投递入口" [ref=e136]
+                  - columnheader "投递进展" [ref=e137]
+              - rowgroup [ref=e138]:
+                - row [ref=e139]:
+                  - cell "260831001" [ref=e140]:
+                    - generic "记录编号 260831001" [ref=e141]: "260831001"
+                  - cell [ref=e142]:
+                    - time [ref=e143]: 08-31
+                  - cell [ref=e144]:
+                    - strong [ref=e145]: 东风汽车股份有限公司
+                  - cell "汽车/新能源" [ref=e146]
+                  - cell "央企" [ref=e148]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、机械、汽车制造、运营、交互/设计、市场/营销、行政、销售类、人工智能/算法、研发工程师、供应链、通信、工业类、设计、公关媒介、物流、销售技术支持、化工、商务、保险、技术支持、电气/自动化、能源、技术支持" [ref=e150]
+                  - cell "武汉、十堰、襄阳" [ref=e152]
+                  - cell "约 12k/月" [ref=e154]
+                  - cell "东风汽车股份是商用车整车制造企业，主营轻型卡车、客车等车型研发生产，隶属于东风集团，在湖北武汉、十堰、襄阳等地有布局" [ref=e156]
+                  - cell [ref=e158]:
+                    - link "查看公告 ↗" [ref=e159] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/gufen/143531?locale=zh-CN#/jobs
+                  - cell "27秋招 官网" [ref=e160]:
+                    - generic [ref=e161]:
+                      - generic [ref=e162]: 27秋招
+                      - generic [ref=e163]: 官网
+                  - cell "2026-10-27" [ref=e164]
+                  - cell [ref=e165]:
+                    - link "投递官网 ↗" [ref=e166] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/gufen/143531?locale=zh-CN#/jobs
+                  - cell [ref=e167]:
+                    - button "+ 进展表" [ref=e168] [cursor=pointer]
+                - row [ref=e169]:
+                  - cell "260830001" [ref=e170]:
+                    - generic "记录编号 260830001" [ref=e171]: "260830001"
+                  - cell [ref=e172]:
+                    - time [ref=e173]: 08-30
+                  - cell [ref=e174]:
+                    - strong [ref=e175]: 紫龙互娱公司
+                  - cell "互联网/人工智能" [ref=e176]
+                  - cell "民营" [ref=e178]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、游戏策划、交互/设计、市场/营销、人工智能/算法、项目、研发工程师、动画/特效、公关媒介、用户研究、销售技术支持、商务、影视媒体、游戏设计" [ref=e180]
+                  - cell "上海" [ref=e182]
+                  - cell "约 15k/月" [ref=e184]
+                  - cell "紫龙互娱是一家位于上海的互动娱乐企业，核心业务为游戏产品的研发与发行。公司围绕移动端及多平台游戏开展开发、策划、美术设计和技术支持，业务聚焦互动娱乐领域" [ref=e186]
+                  - cell [ref=e188]:
+                    - link "查看公告 ↗" [ref=e189] [cursor=pointer]:
+                      - /url: https://wit.91wllm.cn/campus/view/id/1001563
+                  - cell "27秋招 官网" [ref=e190]:
+                    - generic [ref=e191]:
+                      - generic [ref=e192]: 27秋招
+                      - generic [ref=e193]: 官网
+                  - cell "2026-11-30" [ref=e194]
+                  - cell [ref=e195]:
+                    - link "投递官网 ↗" [ref=e196] [cursor=pointer]:
+                      - /url: https://wit.91wllm.cn/campus/view/id/1001563
+                  - cell [ref=e197]:
+                    - button "+ 进展表" [ref=e198] [cursor=pointer]
+                - row [ref=e199]:
+                  - cell "260830002" [ref=e200]:
+                    - generic "记录编号 260830002" [ref=e201]: "260830002"
+                  - cell [ref=e202]:
+                    - time [ref=e203]: 08-30
+                  - cell [ref=e204]:
+                    - strong [ref=e205]: 菜鸟集团
+                  - cell "交通/物流" [ref=e206]
+                  - cell "民营" [ref=e208]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、财务审计、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、项目、研发工程师、供应链、物流、销售技术支持、商务、电气/自动化" [ref=e210]
+                  - cell "杭州" [ref=e212]
+                  - cell "约 15k/月" [ref=e214]
+                  - cell "菜鸟集团为民营智慧物流平台企业，核心业务涵盖快递网络、供应链管理与物流技术服务，提供仓储配送、跨境物流等数字化解决方案" [ref=e216]
+                  - cell [ref=e218]:
+                    - link "查看公告 ↗" [ref=e219] [cursor=pointer]:
+                      - /url: https://campus-talent.alibaba.com/campus/position?campusShareCode=PX%2FAnrETKRgsNBRj9tQ7Ak%2Fbx7rdG42KjWR9%2F7ziK24%3D&batchId=100000760001&filterParams=%7B%22customDept%22%3A%5B%223Z8SI7%22%5D%7D
+                  - cell "27秋招 官网" [ref=e220]:
+                    - generic [ref=e221]:
+                      - generic [ref=e222]: 27秋招
+                      - generic [ref=e223]: 官网
+                  - cell "2026-10-05" [ref=e224]
+                  - cell [ref=e225]:
+                    - link "投递官网 ↗" [ref=e226] [cursor=pointer]:
+                      - /url: https://campus-talent.alibaba.com/campus/position?campusShareCode=PX%2FAnrETKRgsNBRj9tQ7Ak%2Fbx7rdG42KjWR9%2F7ziK24%3D&batchId=100000760001&filterParams=%7B%22customDept%22%3A%5B%223Z8SI7%22%5D%7D
+                  - cell [ref=e227]:
+                    - button "+ 进展表" [ref=e228] [cursor=pointer]
+                - row [ref=e229]:
+                  - cell "260828001" [ref=e230]:
+                    - generic "记录编号 260828001" [ref=e231]: "260828001"
+                  - cell [ref=e232]:
+                    - time [ref=e233]: 08-28
+                  - cell [ref=e234]:
+                    - strong [ref=e235]: 昆仑万维
+                  - cell "互联网/人工智能" [ref=e236]
+                  - cell "民营" [ref=e238]
+                  - cell "后端开发、前端开发、产品、运营、市场/营销、人工智能/算法" [ref=e240]
+                  - cell "北京、上海" [ref=e242]
+                  - cell "约 15k/月" [ref=e244]
+                  - cell "昆仑万维是一家民营互联网与人工智能企业，主营游戏开发运营及AI算法产品，业务覆盖北京、上海等地" [ref=e246]
+                  - cell [ref=e248]:
+                    - link "查看公告 ↗" [ref=e249] [cursor=pointer]:
+                      - /url: https://jobs.kunlun.com/459522/position/list
+                  - cell "27秋招 官网" [ref=e250]:
+                    - generic [ref=e251]:
+                      - generic [ref=e252]: 27秋招
+                      - generic [ref=e253]: 官网
+                  - cell "2026-12-31" [ref=e254]
+                  - cell [ref=e255]:
+                    - link "投递官网 ↗" [ref=e256] [cursor=pointer]:
+                      - /url: https://jobs.kunlun.com/459522/position/list
+                  - cell [ref=e257]:
+                    - button "+ 进展表" [ref=e258] [cursor=pointer]
+                - row [ref=e259]:
+                  - cell "260828002" [ref=e260]:
+                    - generic "记录编号 260828002" [ref=e261]: "260828002"
+                  - cell [ref=e262]:
+                    - time [ref=e263]: 08-28
+                  - cell [ref=e264]:
+                    - strong [ref=e265]: 酷睿程(北京)科技有限公司
+                  - cell "通信" [ref=e266]
+                  - cell "其他" [ref=e268]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、硬件工程师、电子/半导体、交互/设计、人工智能/算法、研发工程师、通信、工业类、设计、销售技术支持、技术支持" [ref=e270]
+                  - cell "北京、上海" [ref=e272]
+                  - cell "约 15k/月" [ref=e274]
+                  - cell "酷睿程(北京)科技有限公司从事通信电子相关技术与产品研发，业务涵盖通信设备、硬件及软件系统，在北京、上海等地开展研发" [ref=e276]
+                  - cell [ref=e278]:
+                    - link "查看公告 ↗" [ref=e279] [cursor=pointer]:
+                      - /url: https://carizon.jobs.feishu.cn/421026/position/list?keywords=&category=&location=&project=&type=&job_hot_flag=&current=1&limit=10&functionCategory=&tag=&storefront_id_list=
+                  - cell "27秋招 官网" [ref=e280]:
+                    - generic [ref=e281]:
+                      - generic [ref=e282]: 27秋招
+                      - generic [ref=e283]: 官网
+                  - cell "2026-10-25" [ref=e284]
+                  - cell [ref=e285]:
+                    - link "投递官网 ↗" [ref=e286] [cursor=pointer]:
+                      - /url: https://carizon.jobs.feishu.cn/421026/position/list?keywords=&category=&location=&project=&type=&job_hot_flag=&current=1&limit=10&functionCategory=&tag=&storefront_id_list=
+                  - cell [ref=e287]:
+                    - button "+ 进展表" [ref=e288] [cursor=pointer]
+                - row [ref=e289]:
+                  - cell "260828003" [ref=e290]:
+                    - generic "记录编号 260828003" [ref=e291]: "260828003"
+                  - cell [ref=e292]:
+                    - time [ref=e293]: 08-28
+                  - cell [ref=e294]:
+                    - strong [ref=e295]: 遨森电商
+                  - cell "互联网/人工智能" [ref=e296]
+                  - cell "民营" [ref=e298]
+                  - cell "跨境电商运营、文案、C端运营、B2B业务员、TK运营、海外社媒、用户运营、SNS运营、AI研究员、供应链智能化研究员、AI Agent开发、算法工程师、JAVA开发、前端开发、实施工程师、测试工程师、......" [ref=e300]
+                  - cell "宁波、长沙、西安" [ref=e302]
+                  - cell "约 10k/月" [ref=e304]
+                  - cell "遨森电商是一家民营跨境电商企业，主营跨境电子商务与海外社媒运营，同时探索供应链智能化与AI应用，在宁波、长沙、西安设有布局" [ref=e306]
+                  - cell [ref=e308]:
+                    - link "查看公告 ↗" [ref=e309] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/TogpsJvMmJIu4rwhRO9fnQ
+                  - cell "27秋招 官网" [ref=e310]:
+                    - generic [ref=e311]:
+                      - generic [ref=e312]: 27秋招
+                      - generic [ref=e313]: 官网
+                  - cell "2026-10-26" [ref=e314]
+                  - cell [ref=e315]:
+                    - link "投递官网 ↗" [ref=e316] [cursor=pointer]:
+                      - /url: https://aosom1.zhiye.com/campus/jobs
+                  - cell [ref=e317]:
+                    - button "+ 进展表" [ref=e318] [cursor=pointer]
+                - row [ref=e319]:
+                  - cell "260828004" [ref=e320]:
+                    - generic "记录编号 260828004" [ref=e321]: "260828004"
+                  - cell [ref=e322]:
+                    - time [ref=e323]: 08-28
+                  - cell [ref=e324]:
+                    - strong [ref=e325]: 海艺互娱
+                  - cell "互联网/人工智能" [ref=e326]
+                  - cell "民营" [ref=e328]
+                  - cell "后端开发、前端开发、产品、运营、交互/设计、市场/营销、管理、管理培训生、人工智能/算法、动画/特效、商务、采编/写作/出版、影视媒体" [ref=e330]
+                  - cell "成都" [ref=e332]
+                  - cell "约 12k/月" [ref=e334]
+                  - cell "海艺互娱是一家民营互联网互动娱乐企业，核心业务包括游戏、影视动画等数字内容的研发与运营。公司开展软件开发、人工智能算法及创意设计等服务，位于成都" [ref=e336]
+                  - cell [ref=e338]:
+                    - link "查看公告 ↗" [ref=e339] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/haiyi/150699?locale=zh-CN#/jobs
+                  - cell "27秋招 官网" [ref=e340]:
+                    - generic [ref=e341]:
+                      - generic [ref=e342]: 27秋招
+                      - generic [ref=e343]: 官网
+                  - cell "2027-05-31" [ref=e344]
+                  - cell [ref=e345]:
+                    - link "投递官网 ↗" [ref=e346] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/haiyi/150699?locale=zh-CN#/jobs
+                  - cell [ref=e347]:
+                    - button "+ 进展表" [ref=e348] [cursor=pointer]
+                - row [ref=e349]:
+                  - cell "260827001" [ref=e350]:
+                    - generic "记录编号 260827001" [ref=e351]: "260827001"
+                  - cell [ref=e352]:
+                    - time [ref=e353]: 08-27
+                  - cell [ref=e354]:
+                    - strong [ref=e355]: 字节跳动 GMPT
+                  - cell "互联网/人工智能" [ref=e356]
+                  - cell "民营" [ref=e358]
+                  - cell "大模型算法、Agent算法、搜广推算法、AIGC算法、Adsinfra、广告后端、前端、客户端、大数据开发、测试开发、AI产品、策略产品、创意产品、品牌广告产品、产品运营、创意产品运营、商业分析、广告......" [ref=e360]
+                  - cell "北京、上海、杭州、深圳、海外：圣何塞、西雅图、新加坡" [ref=e362]
+                  - cell "约 20k/月" [ref=e364]
+                  - cell "字节跳动GMPT为字节跳动内部专注广告与人工智能技术的业务团队，主要研发大模型算法、广告系统及AIGC产品，布局国内外多个城市" [ref=e366]
+                  - cell [ref=e368]:
+                    - link "查看公告 ↗" [ref=e369] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/ltfq9tZUl6cvahJnJVettA
+                  - cell "27秋招 官网" [ref=e370]:
+                    - generic [ref=e371]:
+                      - generic [ref=e372]: 27秋招
+                      - generic [ref=e373]: 官网
+                  - cell "2026-10-25" [ref=e374]
+                  - cell [ref=e375]:
+                    - link "投递官网 ↗" [ref=e376] [cursor=pointer]:
+                      - /url: https://jobs.toutiao.com/campus/position?keywords=&category=&location=CT_11CT_125CT_52CT_128&project=76493368293984688697624064258157889845&type=&job_hot
+                  - cell [ref=e377]:
+                    - button "+ 进展表" [ref=e378] [cursor=pointer]
+                - row [ref=e379]:
+                  - cell "260827002" [ref=e380]:
+                    - generic "记录编号 260827002" [ref=e381]: "260827002"
+                  - cell [ref=e382]:
+                    - time [ref=e383]: 08-27
+                  - cell [ref=e384]:
+                    - strong [ref=e385]: 今日头条
+                  - cell "互联网/人工智能" [ref=e386]
+                  - cell "民营" [ref=e388]
+                  - cell "产品经理、产品运营、内容运营、数据分析、U设计、视觉设计、后端、客户端、前端、Al全栈" [ref=e390]
+                  - cell "北京、深圳" [ref=e392]
+                  - cell "约 15k/月" [ref=e394]
+                  - cell "今日头条是字节跳动旗下的信息分发平台，核心业务为基于算法的内容推荐与资讯服务。提供产品研发、运营等岗位，主要布局北京、深圳等地" [ref=e396]
+                  - cell [ref=e398]:
+                    - link "查看公告 ↗" [ref=e399] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/RVa-G67QdyAKshHasveRoQ
+                  - cell "27秋招 官网" [ref=e400]:
+                    - generic [ref=e401]:
+                      - generic [ref=e402]: 27秋招
+                      - generic [ref=e403]: 官网
+                  - cell "2026-10-25" [ref=e404]
+                  - cell [ref=e405]:
+                    - link "投递官网 ↗" [ref=e406] [cursor=pointer]:
+                      - /url: https://jobs.toutiao.com/campus/position?keywords=&category=&location=CT_128CT_11&project=76493368293984688697194661126919358757&type=&job_hot_flag=&current=1&limit=10&functionCategory=&tag=&session=
+                  - cell [ref=e407]:
+                    - button "+ 进展表" [ref=e408] [cursor=pointer]
+                - row [ref=e409]:
+                  - cell "260826001" [ref=e410]:
+                    - generic "记录编号 260826001" [ref=e411]: "260826001"
+                  - cell [ref=e412]:
+                    - time [ref=e413]: 08-26
+                  - cell [ref=e414]:
+                    - strong [ref=e415]: 阶梯科技
+                  - cell "电子/半导体" [ref=e416]
+                  - cell "民营" [ref=e418]
+                  - cell "上位机软件工程师、软件/硬件测试工程师、嵌入式软件工程师、模拟芯片工程师、前端软件工程师、数字芯片工程师、脑电算法工程师、器件/电极开发工程师、图像算法工程师、器件/电极工艺工程师、具身算法工程师、材......" [ref=e420]
+                  - cell "上海" [ref=e422]
+                  - cell "约 15k/月" [ref=e424]
+                  - cell "阶梯科技为民营科技企业，核心业务包括模拟与数字芯片、嵌入式软件研发，以及脑电算法、神经电极器件开发等。主要研发布局位于上海" [ref=e426]
+                  - cell [ref=e428]:
+                    - link "查看公告 ↗" [ref=e429] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/saaOFekWTQP9CJBfFZS0RQ
+                  - cell "26秋招 公众号" [ref=e430]:
+                    - generic [ref=e431]:
+                      - generic [ref=e432]: 26秋招
+                      - generic [ref=e433]: 公众号
+                  - cell "2026-10-24" [ref=e434]
+                  - cell [ref=e435]:
+                    - link "投递官网 ↗" [ref=e436] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/saaOFekWTQP9CJBfFZS0RQ
+                  - cell [ref=e437]:
+                    - button "+ 进展表" [ref=e438] [cursor=pointer]
+                - row [ref=e439]:
+                  - cell "260826002" [ref=e440]:
+                    - generic "记录编号 260826002" [ref=e441]: "260826002"
+                  - cell [ref=e442]:
+                    - time [ref=e443]: 08-26
+                  - cell [ref=e444]:
+                    - strong [ref=e445]: 海艺科技
+                  - cell "互联网/人工智能" [ref=e446]
+                  - cell "民营" [ref=e448]
+                  - cell "算法工程师-搜推方向、算法工程师-多模态方向、WEB前端开发工程师、推荐系统开发工程师、Agent开发工程师、后端开发工程师、AI应用工程师、AI工程化、AI后端开发实习生、AI产品经理、运营、管培生、......" [ref=e450]
+                  - cell "成都" [ref=e452]
+                  - cell "约 12k/月" [ref=e454]
+                  - cell "海艺科技是一家民营人工智能企业，核心业务为AI图像生成与多模态算法的研发应用，提供智能创作工具及推荐系统服务，在成都开展研发与运营" [ref=e456]
+                  - cell [ref=e458]:
+                    - link "查看公告 ↗" [ref=e459] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/uUq09ZL_JLSgCSIwLe8LzA
+                  - cell "28秋招 官网" [ref=e460]:
+                    - generic [ref=e461]:
+                      - generic [ref=e462]: 28秋招
+                      - generic [ref=e463]: 官网
+                  - cell "2027-05-31" [ref=e464]
+                  - cell [ref=e465]:
+                    - link "投递官网 ↗" [ref=e466] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/haiyi/150699?locale=zh-CN#/
+                  - cell [ref=e467]:
+                    - button "+ 进展表" [ref=e468] [cursor=pointer]
+                - row [ref=e469]:
+                  - cell "260824001" [ref=e470]:
+                    - generic "记录编号 260824001" [ref=e471]: "260824001"
+                  - cell [ref=e472]:
+                    - time [ref=e473]: 08-24
+                  - cell [ref=e474]:
+                    - strong [ref=e475]: 乐狗游戏
+                  - cell "文化/传媒" [ref=e476]
+                  - cell "民营" [ref=e478]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、产品、运营、游戏策划、交互/设计、管理、人工智能/算法、项目、研发工程师、动画/特效、用户研究、销售技术支持、游戏设计" [ref=e480]
+                  - cell "成都" [ref=e482]
+                  - cell "约 10k/月" [ref=e484]
+                  - cell "乐狗游戏是一家位于成都的游戏公司，主要从事游戏产品的研发与运营，业务涵盖客户端、移动端游戏开发及游戏策划、设计等环节，专注游戏内容制作" [ref=e486]
+                  - cell [ref=e488]:
+                    - link "查看公告 ↗" [ref=e489] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus_apply/legougames/6163#/jobs
+                  - cell "27秋招 官网" [ref=e490]:
+                    - generic [ref=e491]:
+                      - generic [ref=e492]: 27秋招
+                      - generic [ref=e493]: 官网
+                  - cell "2026-09-11" [ref=e494]
+                  - cell [ref=e495]:
+                    - link "投递官网 ↗" [ref=e496] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus_apply/legougames/6163#/jobs
+                  - cell [ref=e497]:
+                    - button "+ 进展表" [ref=e498] [cursor=pointer]
+                - row [ref=e499]:
+                  - cell "260824002" [ref=e500]:
+                    - generic "记录编号 260824002" [ref=e501]: "260824002"
+                  - cell [ref=e502]:
+                    - time [ref=e503]: 08-24
+                  - cell [ref=e504]:
+                    - strong [ref=e505]: 北京君正
+                  - cell "电子/半导体" [ref=e506]
+                  - cell "民营" [ref=e508]
+                  - cell "嵌入式软件工程师、IC设计工程师、算法工程师、AI系统工程师、数字IC前端工程师、芯片后端工程师、CPu软件工程师、版图设计工程师、应用工程师、模拟Ic设计工程师、版图工程师" [ref=e510]
+                  - cell "北京、合肥、武汉、深圳" [ref=e512]
+                  - cell "约 18k/月" [ref=e514]
+                  - cell "北京君正是民营半导体企业，核心业务为集成电路设计与研发，产品包括嵌入式CPU及存储芯片等，在多地设有研发岗位，布局北京、合肥、武汉、深圳" [ref=e516]
+                  - cell [ref=e518]:
+                    - link "查看公告 ↗" [ref=e519] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/UYrL9arzsh68Lkksefg1gg
+                  - cell "27秋招 公众号" [ref=e520]:
+                    - generic [ref=e521]:
+                      - generic [ref=e522]: 27秋招
+                      - generic [ref=e523]: 公众号
+                  - cell "2026-10-22" [ref=e524]
+                  - cell [ref=e525]:
+                    - link "投递官网 ↗" [ref=e526] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/UYrL9arzsh68Lkksefg1gg
+                  - cell [ref=e527]:
+                    - button "+ 进展表" [ref=e528] [cursor=pointer]
+                - row [ref=e529]:
+                  - cell "260824003" [ref=e530]:
+                    - generic "记录编号 260824003" [ref=e531]: "260824003"
+                  - cell [ref=e532]:
+                    - time [ref=e533]: 08-24
+                  - cell [ref=e534]:
+                    - strong [ref=e535]: 厦门点触科技
+                  - cell "互联网/人工智能" [ref=e536]
+                  - cell "民营" [ref=e538]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、游戏策划、交互/设计、人工智能/算法、研发工程师、动画/特效、销售技术支持、游戏设计" [ref=e540]
+                  - cell "厦门" [ref=e542]
+                  - cell "约 9k/月" [ref=e544]
+                  - cell "厦门点触科技是一家互联网企业，核心业务为游戏研发与运营，招聘涵盖后端、前端、客户端、策划等岗位，主要业务布局在厦门" [ref=e546]
+                  - cell [ref=e548]:
+                    - link "查看公告 ↗" [ref=e549] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/dianchu/144217#/jobs
+                  - cell "27秋招 官网" [ref=e550]:
+                    - generic [ref=e551]:
+                      - generic [ref=e552]: 27秋招
+                      - generic [ref=e553]: 官网
+                  - cell "2026-10-17" [ref=e554]
+                  - cell [ref=e555]:
+                    - link "投递官网 ↗" [ref=e556] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus-recruitment/dianchu/144217#/jobs
+                  - cell [ref=e557]:
+                    - button "+ 进展表" [ref=e558] [cursor=pointer]
+                - row [ref=e559]:
+                  - cell "260824004" [ref=e560]:
+                    - generic "记录编号 260824004" [ref=e561]: "260824004"
+                  - cell [ref=e562]:
+                    - time [ref=e563]: 08-24
+                  - cell [ref=e564]:
+                    - strong [ref=e565]: 安踏
+                  - cell "消费/零售" [ref=e566]
+                  - cell "民营" [ref=e568]
+                  - cell "后端开发、前端开发、客户端开发、测试、数据、运维、机械、产品、运营、交互/设计、财务审计、风控、投融资、市场/营销、管理、人事、行政、法务、销售类、人工智能/算法、研发工程师、供应链、工业类、设计、公关媒介、物流、销售技术支持、化工、商务、咨询/调研、服装/纺织/皮革、电气/自动化、技术支持" [ref=e570]
+                  - cell "石家庄、太原、呼和浩特、沈阳、长春、哈尔滨、南京、苏州、杭州、厦门、泉州、龙岩、济南、青岛、郑州、商丘、武汉、长沙、广州、深圳、南宁、三亚、成都、贵阳、昆明、西安、兰州、北京、上海、重庆、天津、香港" [ref=e572]
+                  - cell "约 9k/月" [ref=e574]
+                  - cell "安踏是国内知名民营体育用品企业，核心业务为运动鞋服及配饰的研发、设计、制造与销售，旗下拥有多品牌矩阵，零售网络覆盖全国主要城市及香港地区" [ref=e576]
+                  - cell [ref=e578]:
+                    - link "查看公告 ↗" [ref=e579] [cursor=pointer]:
+                      - /url: https://campus.anta.com/campus-recruitment/antahr/142914/#/jobs
+                  - cell "27秋招 官网" [ref=e580]:
+                    - generic [ref=e581]:
+                      - generic [ref=e582]: 27秋招
+                      - generic [ref=e583]: 官网
+                  - cell "2026-11-30" [ref=e584]
+                  - cell [ref=e585]:
+                    - link "投递官网 ↗" [ref=e586] [cursor=pointer]:
+                      - /url: https://campus.anta.com/campus-recruitment/antahr/142914/#/jobs
+                  - cell [ref=e587]:
+                    - button "+ 进展表" [ref=e588] [cursor=pointer]
+                - row [ref=e589]:
+                  - cell "260824005" [ref=e590]:
+                    - generic "记录编号 260824005" [ref=e591]: "260824005"
+                  - cell [ref=e592]:
+                    - time [ref=e593]: 08-24
+                  - cell [ref=e594]:
+                    - strong [ref=e595]: 海能达通信
+                  - cell "通信" [ref=e596]
+                  - cell "民营" [ref=e598]
+                  - cell "后端开发、前端开发、客户端开发、测试、硬件工程师、电子/半导体、产品、运营、交互/设计、财务审计、证券类、投融资、市场/营销、管理、人事、销售类、人工智能/算法、项目、研发工程师、供应链、通信、翻译相关、工业类、设计、商务、咨询/调研、技术支持" [ref=e600]
+                  - cell "哈尔滨、南京、深圳、东莞、成都、北京" [ref=e602]
+                  - cell "约 11k/月" [ref=e604]
+                  - cell "海能达通信是民营上市通信设备企业，核心业务为专网通信设备及解决方案，产品涵盖对讲终端与系统，在深圳、南京等多地设有业务布局" [ref=e606]
+                  - cell [ref=e608]:
+                    - link "查看公告 ↗" [ref=e609] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus_apply/hytera/182194?recommendCode=DSJgA1m6#/jobs
+                  - cell "27秋招 官网" [ref=e610]:
+                    - generic [ref=e611]:
+                      - generic [ref=e612]: 27秋招
+                      - generic [ref=e613]: 官网
+                  - cell "2026-10-15" [ref=e614]
+                  - cell [ref=e615]:
+                    - link "投递官网 ↗" [ref=e616] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus_apply/hytera/182194?recommendCode=DSJgA1m6#/jobs
+                  - cell [ref=e617]:
+                    - button "+ 进展表" [ref=e618] [cursor=pointer]
+                - row [ref=e619]:
+                  - cell "260823001" [ref=e620]:
+                    - generic "记录编号 260823001" [ref=e621]: "260823001"
+                  - cell [ref=e622]:
+                    - time [ref=e623]: 08-23
+                  - cell [ref=e624]:
+                    - strong [ref=e625]: ZBS POS
+                  - cell "互联网/人工智能" [ref=e626]
+                  - cell "民营" [ref=e628]
+                  - cell "前端开发工程师、Java开发工程师、Android开发工程师、测试开发工程师、AI应用工程师、产品经理、技术支持专员、产品运营、HRBP、销售代表" [ref=e630]
+                  - cell "福州、海外" [ref=e632]
+                  - cell "约 10k/月" [ref=e634]
+                  - cell "ZBS POS是一家民营互联网科技企业，主营POS相关软件与硬件产品，业务含前端、Java、Android开发及AI应用等，在福州和海外开展技术与销售服务" [ref=e636]
+                  - cell [ref=e638]:
+                    - link "查看公告 ↗" [ref=e639] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/IRefPcgjJ35-lBGrkyJLZg
+                  - cell "27秋招 官网" [ref=e640]:
+                    - generic [ref=e641]:
+                      - generic [ref=e642]: 27秋招
+                      - generic [ref=e643]: 官网
+                  - cell "2026-10-25" [ref=e644]
+                  - cell [ref=e645]:
+                    - link "投递官网 ↗" [ref=e646] [cursor=pointer]:
+                      - /url: https://s.xinrenxinshi.com/recruitGate/home#/ey=0ebdb0048e4472688f15cda6cc39564385c764
+                  - cell [ref=e647]:
+                    - button "+ 进展表" [ref=e648] [cursor=pointer]
+                - row [ref=e649]:
+                  - cell "260823002" [ref=e650]:
+                    - generic "记录编号 260823002" [ref=e651]: "260823002"
+                  - cell [ref=e652]:
+                    - time [ref=e653]: 08-23
+                  - cell [ref=e654]:
+                    - strong [ref=e655]: 炎魂网络
+                  - cell "互联网/人工智能" [ref=e656]
+                  - cell "民营" [ref=e658]
+                  - cell "游戏客户端、游戏服务端、游戏引擎、技术美术、算法工程师、AI应用开发、中台产品、数仓开发、前端开发、后端开发、移动端开发、测试/测开、游戏运维(SRE)、安全工程师、系统策划、战斗策划、关卡策划、文案策划、市场营销、内容营销、广告营销、游戏运营、海外市场营销、角色原画、场景原画、角色模型、场景模型、游戏特效、动画导演、3D动作、GUI、平面设计、周边策划、游戏视频编导、视频创意设计、HR、行政" [ref=e660]
+                  - cell "杭州" [ref=e662]
+                  - cell "约 13k/月" [ref=e664]
+                  - cell "炎魂网络是杭州游戏企业，从事移动游戏研发与发行，涵盖客户端、服务端开发及游戏策划运营，产品面向国内外市场" [ref=e666]
+                  - cell [ref=e668]:
+                    - link "查看公告 ↗" [ref=e669] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/XCJo95T0pmte1qljGSaBHQ
+                  - cell "27秋招 公众号" [ref=e670]:
+                    - generic [ref=e671]:
+                      - generic [ref=e672]: 27秋招
+                      - generic [ref=e673]: 公众号
+                  - cell "2026-10-21" [ref=e674]
+                  - cell [ref=e675]:
+                    - link "投递官网 ↗" [ref=e676] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/XCJo95T0pmte1qljGSaBHQ
+                  - cell [ref=e677]:
+                    - button "+ 进展表" [ref=e678] [cursor=pointer]
+                - row [ref=e679]:
+                  - cell "260823003" [ref=e680]:
+                    - generic "记录编号 260823003" [ref=e681]: "260823003"
+                  - cell [ref=e682]:
+                    - time [ref=e683]: 08-23
+                  - cell [ref=e684]:
+                    - strong [ref=e685]: 杭州炎魂网络
+                  - cell "文化/传媒" [ref=e686]
+                  - cell "民营" [ref=e688]
+                  - cell "游戏客户端、游戏服务端、游戏引擎、技术美术、算法工程师、AI应用开发、中台产品、数仓开发、前端开发、后端开发、移动端开发、测试/测开、游戏运维（SRE）、安全工程师、系统策划、战斗策划、关卡策划、文案......" [ref=e690]
+                  - cell "杭州" [ref=e692]
+                  - cell "约 12k/月" [ref=e694]
+                  - cell "杭州炎魂网络是民营游戏公司，核心业务为游戏研发与运营。开展客户端、服务端、引擎开发及策划等游戏开发业务，公司位于杭州" [ref=e696]
+                  - cell [ref=e698]:
+                    - link "查看公告 ↗" [ref=e699] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/208WNfRBmOc8bueyawXWBw
+                  - cell "28秋招 官网" [ref=e700]:
+                    - generic [ref=e701]:
+                      - generic [ref=e702]: 28秋招
+                      - generic [ref=e703]: 官网
+                  - cell "2026-10-21" [ref=e704]
+                  - cell [ref=e705]:
+                    - link "投递官网 ↗" [ref=e706] [cursor=pointer]:
+                      - /url: https://app.mokahr.com/campus_apply/yanhun/24017#/jobs?zhineng
+                  - cell [ref=e707]:
+                    - button "+ 进展表" [ref=e708] [cursor=pointer]
+                - row [ref=e709]:
+                  - cell "260823004" [ref=e710]:
+                    - generic "记录编号 260823004" [ref=e711]: "260823004"
+                  - cell [ref=e712]:
+                    - time [ref=e713]: 08-23
+                  - cell [ref=e714]:
+                    - strong [ref=e715]: 灿芯半导体
+                  - cell "电子/半导体" [ref=e716]
+                  - cell "民营" [ref=e718]
+                  - cell "模拟电路设计与验证工程师、SerDes设计工程师、存储设计工程师、射频电路设计工程师、SoC设计工程师、数字前端IP设计/验证工程师、DFT工程师、后端设计" [ref=e720]
+                  - cell "上海、苏州、合肥、成都" [ref=e722]
+                  - cell "约 18k/月" [ref=e724]
+                  - cell "灿芯半导体是民营芯片设计服务企业，提供从前端到后端的IC设计服务与半导体IP，核心业务为定制芯片设计，布局上海、苏州、合肥、成都" [ref=e726]
+                  - cell [ref=e728]:
+                    - link "查看公告 ↗" [ref=e729] [cursor=pointer]:
+                      - /url: https://mp.weixin.qq.com/s/4tjD6NYjp2GR2oDwpxDBbw
+                  - cell "27秋招 官网" [ref=e730]:
+                    - generic [ref=e731]:
+                      - generic [ref=e732]: 27秋招
+                      - generic [ref=e733]: 官网
+                  - cell "2026-10-21" [ref=e734]
+                  - cell [ref=e735]:
+                    - link "投递官网 ↗" [ref=e736] [cursor=pointer]:
+                      - /url: https://britesemi.zhiye.com/campus/jobs
+                  - cell [ref=e737]:
+                    - button "+ 进展表" [ref=e738] [cursor=pointer]
+          - navigation "分页" [ref=e739]:
+            - generic "每页显示条数" [ref=e740]:
+              - generic [ref=e741]: 每页显示
+              - link "20条" [ref=e742] [cursor=pointer]:
+                - /url: /?q=%E5%89%8D%E7%AB%AF&pageSize=20
+              - link "50条" [ref=e743] [cursor=pointer]:
+                - /url: /?q=%E5%89%8D%E7%AB%AF&pageSize=50
+            - generic [ref=e744]:
+              - link "上一页":
+                - /url: /?q=%E5%89%8D%E7%AB%AF&page=1
+              - generic [ref=e745]: 第 1 / 4 页
+              - link "下一页" [ref=e746] [cursor=pointer]:
+                - /url: /?q=%E5%89%8D%E7%AB%AF&page=2
+            - generic [ref=e747]:
+              - generic [ref=e748]: 跳至
+              - spinbutton "输入要跳转的页码" [ref=e749]: "1"
+              - generic [ref=e750]: 页
+              - button "跳转" [ref=e751] [cursor=pointer]
+        - generic [ref=e752]:
+          - generic [ref=e753]:
+            - text: WHY US
+            - heading "精调细选，让每次求职都有戏" [level=2] [ref=e754]
+          - list [ref=e755]:
+            - listitem [ref=e756]:
+              - generic [ref=e757]: "01"
+              - generic [ref=e758]:
+                - strong [ref=e759]: 多维核验
+                - text: 交叉确认公司、岗位、日期与投递入口
+            - listitem [ref=e760]:
+              - generic [ref=e761]: "02"
+              - generic [ref=e762]:
+                - strong [ref=e763]: 统一标准
+                - text: 规范行业、性质、岗位和地点，信息更清晰
+            - listitem [ref=e764]:
+              - generic [ref=e765]: "03"
+              - generic [ref=e766]:
+                - strong [ref=e767]: 审慎发布
+                - text: 重点字段确认后上线，减少错漏与重复
+      - contentinfo [ref=e768]:
+        - link "JOBUP官网" [ref=e769] [cursor=pointer]:
+          - /url: /
+          - img "JOBUP" [ref=e771]
+          - strong [ref=e773]: JOBUP
+        - generic [ref=e774]:
+          - generic [ref=e775]:
+            - generic [ref=e776]: EXPLORE
+            - strong [ref=e777]: 网站信息
+          - navigation "页脚导航" [ref=e778]:
+            - link "01 网站介绍" [ref=e779] [cursor=pointer]:
+              - /url: /introduction
+              - generic [ref=e780]: "01"
+              - generic [ref=e781]: 网站介绍
+            - link "02 联系方式" [ref=e782] [cursor=pointer]:
+              - /url: /contact
+              - generic [ref=e783]: "02"
+              - generic [ref=e784]: 联系方式
+            - link "03 关于我们" [ref=e785] [cursor=pointer]:
+              - /url: /about
+              - generic [ref=e786]: "03"
+              - generic [ref=e787]: 关于我们
+        - generic [ref=e788]:
+          - paragraph [ref=e789]: 每条信息均经过整理、去重与审核；关键投递要求请以企业官方招聘页面为准。
+          - link "沪ICP备2026007149号-4" [ref=e790] [cursor=pointer]:
+            - /url: https://beian.miit.gov.cn/
+  - alert [ref=e791]

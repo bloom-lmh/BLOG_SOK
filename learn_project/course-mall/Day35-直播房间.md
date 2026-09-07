@@ -112,6 +112,8 @@ CREATE TABLE live_room (
     actual_end_time DATETIME DEFAULT NULL,
     replay_url VARCHAR(500) DEFAULT NULL,
     version INT NOT NULL DEFAULT 0,
+    created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+    updated_by BIGINT DEFAULT NULL COMMENT '最后修改人ID',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted TINYINT NOT NULL DEFAULT 0,
@@ -208,7 +210,9 @@ public record CreateLiveRoomRequest(
 ```java
 package com.mall.live.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -230,6 +234,12 @@ public class LiveRoom {
     private LocalDateTime actualEndTime;
     private String replayUrl;
     private Integer version;
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
     @TableLogic
     private Integer deleted;
 }

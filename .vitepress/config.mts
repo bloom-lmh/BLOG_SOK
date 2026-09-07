@@ -301,6 +301,7 @@ export default defineConfig({
           items: [
             { text: '枚举', link: '/learn_backend/java/Java核心/枚举' },
             { text: '注解', link: '/learn_backend/java/Java核心/注解' },
+            { text: 'Java代理', link: '/learn_backend/java/Java核心/代理' },
             { text: '异常', link: '/learn_backend/java/Java核心/异常' },
             { text: 'Java集合', link: '/learn_backend/java/Java核心/Java集合' },
             { text: 'JVM', link: '/learn_backend/java/Java核心/JVM' },
