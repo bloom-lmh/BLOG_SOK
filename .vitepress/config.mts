@@ -369,7 +369,17 @@ export default defineConfig({
         { text: 'FastAPI', link: '/learn_backend/python/FastAPI' },
       ],
       '/learn_database/': [
-        { text: 'MySQL', link: '/learn_database/MySQL' },
+        {
+          text: 'MySQL',
+          collapsed: false,
+          items: [
+            { text: '总览与核心原理', link: '/learn_database/MySQL' },
+            { text: 'SQL 语法与面试写题', link: '/learn_database/MySQL-SQL语法与面试写题' },
+            { text: 'SQL 优化实战', link: '/learn_database/MySQL-SQL优化实战' },
+            { text: '练习数据库', link: '/learn_database/MySQL-练习数据库' },
+            { text: '运维与排障', link: '/learn_database/MySQL-运维与排障' },
+          ],
+        },
         { text: 'Redis', link: '/learn_database/Redis' },
         { text: '分库分表', link: '/learn_database/分库分表' },
       ],

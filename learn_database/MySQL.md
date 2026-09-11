@@ -4,8 +4,12 @@
 
 ## 目录
 
-- [基础篇](#基础篇)：逻辑架构、存储引擎、数据类型、SQL 体系、索引、事务与隔离级别
-- [高级篇](#高级篇)：SQL 优化、EXPLAIN 执行计划、三大日志与两阶段提交、MVCC、锁体系、主从复制、高可用架构
+- [SQL 语法与面试写题](/learn_database/MySQL-SQL语法与面试写题)：JOIN、子查询、窗口函数与高频手写 SQL
+- [SQL 优化实战](/learn_database/MySQL-SQL优化实战)：慢 SQL 定位、执行计划、索引设计与改写验证
+- [MySQL 练习数据库](/learn_database/MySQL-练习数据库)：课程商城业务数据、事务锁实验与百万级 SQL 优化数据
+- [MySQL 运维与排障](/learn_database/MySQL-运维与排障)：运行日志、线上排障、备份恢复、复制、读写分离与高可用
+- [基础篇](#基础篇)：逻辑架构、存储引擎、数据类型、SQL 体系、常用函数、索引、事务与隔离级别
+- [高级篇](#高级篇)：SQL 优化、EXPLAIN、日志、MVCC、锁、主从与高可用、视图、存储程序、常用工具
 - [原理篇](#原理篇)：InnoDB 存储结构、页与行格式字节级布局、Buffer Pool、崩溃恢复、事务实现原理
 - [面试常问](#面试常问)
 - [相关知识](#相关知识)
@@ -16,240 +20,991 @@
 
 ### 1. 认识 MySQL 与整体架构
 
-**背景**：一个系统从「内存里临时放数据」到「数据不能丢、能被并发读写、能查出关联结果」，就必须有一个可靠的存储组件。MySQL 凭借开源免费、稳定、生态完善（配套主从复制、分库分表、各种中间件），成了事实上的行业标准。
+**定义**：MySQL 是一个 C/S 架构的关系型数据库管理系统。客户端通过 MySQL 协议发送 SQL，服务端负责理解 SQL、制定执行方案，并把具体的数据访问交给存储引擎。
 
-**定义**：MySQL 是一个 C/S 架构的关系型数据库管理系统（RDBMS），客户端通过 SQL 和它通信，服务端负责解析、优化、执行并把数据落到磁盘。
+#### 1.0 四个基础概念
 
-**MySQL 的逻辑架构（一条 SQL 的完整旅程）**
+| 概念 | 含义 | 关系 |
+| --- | --- | --- |
+| 数据库 DB | 按结构组织并持久化保存的数据集合 | 一个 MySQL 实例可以管理多个数据库 |
+| 数据库管理系统 DBMS | 管理数据库的软件 | MySQL、PostgreSQL、Oracle 都是 DBMS |
+| 关系型数据库 RDBMS | 使用二维表、关系、约束和 SQL 管理数据的 DBMS | MySQL 属于 RDBMS |
+| SQL | 操作关系型数据库的标准语言 | 用于定义结构、增删改查、权限和事务控制 |
 
-MySQL 采用「Server 层 + 存储引擎层」的分层设计，这也是理解它几乎所有高级特性的出发点：
+关系模型中，一张表由列和行组成：列描述属性及类型，行表示一条记录；主键唯一标识一行，外键或逻辑外键表示表之间的关系。
+
+先记住整个架构最核心的一句话：
+
+> **Server 层负责“理解 SQL、决定怎么执行”，存储引擎负责“真正读写数据”。**
+
+#### 1.1 整体分层
 
 ```text
-┌─────────────────────────── 客户端 ───────────────────────────┐
-│  JDBC / mysql-cli / Navicat ...                              │
-└─────────────────────────────┬─────────────────────────────────┘
-                              ▼
-┌─────────────────────────── Server 层（跨引擎通用）────────────┐
-│  ① 连接器     —— 建立连接、身份认证、权限校验                 │
-│  ② 查询缓存   —— MySQL 8.0 已移除（命中率低、失效频繁）        │
-│  ③ 分析器     —— 词法分析 + 语法分析，生成「解析树」           │
-│  ④ 优化器     —— 选索引、定 join 顺序，生成「执行计划」         │
-│  ⑤ 执行器     —— 调引擎接口执行，返回结果                     │
-├───────────────────────────────────────────────────────────────┤
-│  内置工具：binlog、线程池、缓存、函数、存储过程 ...             │
-└─────────────────────────────┬─────────────────────────────────┘
-                              ▼
-┌─────────────────────── 存储引擎层（可插拔）───────────────────┐
-│  InnoDB（默认） / MyISAM / Memory / CSV / Archive ...          │
-│  真正负责：数据落盘、索引组织、事务、锁、崩溃恢复                │
-└───────────────────────────────────────────────────────────────┘
+客户端
+JDBC / mysql-cli / Navicat
+        │
+        ▼
+Server 层（所有存储引擎共用）
+连接器 → 解析与语义检查 → 优化器 → 执行器
+        │
+        ▼ 统一的存储引擎接口
+存储引擎层（按表选择、可以替换）
+InnoDB / MyISAM / MEMORY / CSV / ARCHIVE ...
+        │
+        ▼
+内存与磁盘中的数据页、索引和日志
 ```
 
-**每个环节做了什么（面试常考「一条 update 语句的执行过程」）**：
+这两层的职责边界一定要分清：
 
-| 环节 | 职责 | 关键点 |
+| Server 层 | 存储引擎层（以 InnoDB 为例） |
+| --- | --- |
+| 建立连接、认证、权限管理 | 数据页和表空间 |
+| SQL 解析、名称解析、语义检查 | B+Tree 索引的组织和访问 |
+| SQL 改写与执行计划优化 | Buffer Pool |
+| 调度执行并返回结果 | 事务、MVCC、行锁 |
+| binlog、函数、存储过程、触发器、视图 | redo log、undo log、崩溃恢复 |
+
+::: warning 查询缓存不属于现代 MySQL 的执行主链
+旧版本会在解析 SQL 前检查查询缓存，但表发生任何修改都可能导致相关缓存失效，维护成本很高。查询缓存及其配置项已在 MySQL 8.0.3 移除，因此学习 MySQL 8 时，执行流程直接记为：**连接 → 解析 → 优化 → 执行 → 存储引擎**。
+:::
+
+#### 1.2 连接器：建立并管理会话
+
+客户端先通过 TCP、Unix Socket 等方式和 MySQL 建立连接。连接器主要负责：
+
+1. 建立连接并完成握手。
+2. 校验用户名、密码和认证插件。
+3. 建立当前会话，维护字符集、时区、事务隔离级别等会话状态。
+4. 校验当前账号是否具有相应权限。
+5. 管理连接空闲、断开和最大连接数。
+
+```text
+Java 应用
+  ↓ DataSource / HikariCP 从连接池借连接
+MySQL 连接器
+  ↓ 认证成功后建立 Session
+后续 SQL 复用该连接执行
+```
+
+注意：Spring Boot 中常说的 HikariCP 是**客户端连接池**。它缓存并复用已经建立的数据库连接，避免每条 SQL 都重新进行 TCP 握手和身份认证，并不是 MySQL Server 内部的查询缓存。
+
+#### 1.3 解析与语义检查：判断 SQL“写得对不对”
+
+为了便于理解，很多资料把这一阶段统一称为“分析器”，内部可以继续拆成：
+
+| 阶段 | 作用 | 示例 |
 | --- | --- | --- |
-| 连接器 | 管理连接、鉴权 | `wait_timeout`（默认 8h）空闲断开；用「连接池」复用避免频繁建连 |
-| 分析器 | 词法/语法分析 | 表名、列名不存在会在此报错 |
-| 优化器 | 决定「怎么查」 | 选哪个索引、多表 join 谁驱动谁，可用 `EXPLAIN` 看结果 |
-| 执行器 | 调用引擎接口 | 先查权限，再逐行扫描/走索引 |
+| 词法分析 | 把 SQL 拆成关键字、表名、列名、常量等 Token | 识别 `SELECT`、`course`、`id` |
+| 语法分析 | 检查 Token 的组合是否符合 SQL 语法，生成语法树 | `SELEC * FROM course` 会报语法错误 |
+| 名称解析/语义检查 | 根据数据字典解析表、列、别名和类型 | 表不存在、列不存在、列名歧义 |
 
-**一条 `UPDATE` 语句的完整执行过程（面试高频）**：
+例如：
+
+```sql
+SELECT title FROM course WHERE id = 10;
+```
+
+这一阶段会确定：这是查询语句；查询的是 `course` 表；需要读取 `title` 和 `id` 两列；这些对象是否真实存在、引用是否合法。
+
+#### 1.4 优化器：决定 SQL“怎么执行”
+
+同一句 SQL 可能有很多种执行方法。例如两张表连接时，可以先查课程表，也可以先查教师表；查询课程时，可以走主键索引、普通索引或者全表扫描。
+
+优化器会根据统计信息和成本估算选择执行计划，主要决定：
+
+- 使用哪个索引，还是全表扫描。
+- 多表连接时的连接顺序。
+- 使用哪种 Join 算法和访问路径。
+- 条件能否下推、子查询能否改写。
+- 是否需要排序、临时表和去重。
+
+```sql
+EXPLAIN SELECT title FROM course WHERE id = 10;
+```
+
+`EXPLAIN` 展示的是优化器选出的执行计划。优化器只是选择它认为成本最低的方案，并不保证永远选到实际运行最快的方案；统计信息过旧或数据分布不均时，也可能选错。
+
+#### 1.5 执行器：按照执行计划调度执行
+
+执行器不直接理解磁盘中的页结构，它根据执行计划调用存储引擎提供的统一接口，例如：
+
+- 按主键或索引查找一行。
+- 获取下一行。
+- 插入、修改或删除一行。
+- 创建和提交事务。
+
+存储引擎返回记录后，执行器继续完成 Server 层过滤、表达式计算、聚合等工作，最后按照 MySQL 通信协议把结果返回客户端。
+
+#### 1.6 一条 `SELECT` 的完整过程
+
+```text
+SELECT title FROM course WHERE id = 10;
+
+① 连接器：使用当前数据库连接和会话接收 SQL
+② 解析阶段：识别表、列、条件，完成语法和语义检查
+③ 优化器：判断 id 是主键，选择主键索引访问
+④ 执行器：按照计划调用 InnoDB 的索引查询接口
+⑤ InnoDB：先在 Buffer Pool 查找数据页
+   ├─ 命中：直接通过 B+Tree 定位记录
+   └─ 未命中：从磁盘读取数据页到 Buffer Pool，再定位记录
+⑥ InnoDB 把记录交给执行器，执行器把 title 返回客户端
+```
+
+#### 1.7 一条 `UPDATE` 的完整过程
 
 ```text
 UPDATE user SET name = '张三' WHERE id = 1;
 
-① 连接器：建立连接、校验账号密码和权限
-② 分析器：词法分析识别 UPDATE、表名 user、列 name/id；语法分析生成解析树
-③ 优化器：决定用主键索引 id 定位这一行（而不是全表扫描）
-④ 执行器：调 InnoDB 接口，按 id=1 找到这一行并更新
-   └─ InnoDB 内部：写 undo log（旧值）→ 改内存 → 写 redo log（prepare）
-⑤ 提交：写 binlog → redo log 置为 commit（两阶段提交，详见高级篇）
+① 连接器：接收 SQL，确认当前连接和账号可用
+② 解析阶段：解析表、列、赋值和 WHERE 条件
+③ 优化器：选择主键索引定位 id = 1
+④ 执行器：调用 InnoDB 的更新接口
+⑤ InnoDB：读取数据页、加必要的锁、记录 undo、修改 Buffer Pool 中的数据页并产生 redo
+⑥ 提交事务时：Server 层 binlog 与 InnoDB redo log 通过两阶段提交保持一致
+⑦ 执行器向客户端返回受影响行数
 ```
 
-**小结**：分层带来的好处是「Server 层一套逻辑 + 引擎层可插拔」。后续讲的 redo log、锁、MVCC 都是 InnoDB 引擎层的，而 binlog 是 Server 层的——记住这个分层，三大日志的区别就顺理成章了。
+##### “写 undo → 改内存 → redo prepare”到底是什么意思
+
+假设把账户余额从 `100` 改为 `80`：
+
+```text
+① 把数据页读入 Buffer Pool
+② 生成 undo 记录：保存足以把 80 恢复为 100 的回滚信息
+③ 修改 Buffer Pool 中的数据页：balance 变为 80，该页成为脏页
+④ 同时生成 redo 记录：保存崩溃后如何重做这次页修改
+
+事务提交阶段：
+⑤ redo log 刷盘并标记 prepare
+⑥ Server 层写入并按配置刷盘 binlog
+⑦ redo log 标记 commit
+⑧ 脏数据页以后由后台线程异步刷回表空间
+```
+
+所以“改内存”不是只修改 Java 变量，而是修改 MySQL **Buffer Pool 中的数据页副本**。此时磁盘表空间里的数据页可能还是旧值：
+
+- 事务要回滚：根据 `undo log` 执行反向修改。
+- 事务已提交但数据页还没刷盘就宕机：重启后根据 `redo log` 恢复。
+- `prepare → binlog → commit`：保证 InnoDB 的 redo 和 Server 层 binlog 对同一个事务保持一致。
+
+更严谨地说，redo 记录是在修改数据页过程中不断生成的；`prepare` 是**事务提交阶段**对 redo 的状态标记，不是每修改一行才开始生成 redo。
+
+::: tip 💡 面试题：一条 SQL 在 MySQL 中如何执行？
+客户端先通过连接器建立会话；Server 层完成 SQL 解析和语义检查，优化器生成执行计划，执行器按照计划调用存储引擎接口；InnoDB 通过 Buffer Pool 和 B+Tree 读写数据，并用事务、锁和日志保证并发安全与持久性。
+:::
+
+#### 1.8 安装、启动和连接
+
+MySQL 可以通过本机服务、Docker 或云数据库运行。学习环境建议使用 MySQL 8.x，并让项目、命令行和 IDEA 数据源连接同一个实例，避免“代码连的是 A，客户端看的却是 B”。
+
+```powershell
+# Windows：服务名以本机实际名称为准
+Get-Service *mysql*
+Start-Service MySQL84
+Stop-Service MySQL84
+```
+
+```bash
+# Linux systemd
+systemctl status mysqld
+systemctl start mysqld
+systemctl stop mysqld
+
+# 客户端连接；-p 后不要直接写密码，避免出现在命令历史中
+mysql -h 127.0.0.1 -P 3306 -u root -p
+```
+
+常用图形客户端有 IntelliJ IDEA Database、DataGrip、Navicat 和 DBeaver。图形界面只是代替你输入连接参数并展示结果，底层仍然通过 MySQL 协议发送 SQL。
 
 ---
 
-### 2. 存储引擎：InnoDB vs MyISAM
+### 2. 存储引擎：真正管理数据的模块
 
-**背景**：既然存储引擎是插件式的，不同引擎的取舍就成了第一道选择题。生产环境 99% 用 InnoDB，但面试一定要能讲清楚「为什么」。
+#### 2.1 什么是存储引擎
 
-**InnoDB 的核心特性**：
+存储引擎是 MySQL Server 内部一个**可插拔的数据访问模块**。它不是独立数据库，也通常不是单独进程，而是运行在 `mysqld` 中，通过统一接口接受执行器的调用。
 
-- 支持事务（ACID），用 redo log + undo log 支撑。
-- 支持行级锁，并发能力远强于 MyISAM 的表锁。
-- 支持外键约束。
-- 崩溃恢复能力强：WAL + 双写缓冲（doublewrite）+ redo log。
-- 索引组织表：主键索引的叶子节点直接存整行数据（聚簇索引）。
-- 支持 MVCC，读写不互斥。
+可以把它理解为：
 
-**MyISAM 的特点（为什么逐渐被淘汰）**：
+```text
+Server 层：我要找到 course 表中 id = 10 的记录
+        ↓ 调用统一接口
+InnoDB：我知道数据页放在哪里、B+Tree 怎么走、是否要读磁盘
+        ↓
+返回记录给 Server 层
+```
 
-- 不支持事务、不支持外键、只有表级锁。
-- 查询性能在纯读场景曾优于 InnoDB（索引与数据分离、无 MVCC 开销）。
-- 不支持崩溃自动恢复，宕机可能丢数据。
-- 适合：只读报表、历史归档等几乎无写入的冷数据。
+Server 层只提出“读取、插入、更新、删除哪条记录”，具体怎样组织文件、怎样建立索引、怎样加锁和恢复数据，由存储引擎决定。
+
+#### 2.2 存储引擎负责什么
+
+不同存储引擎可以采用完全不同的实现策略，通常需要负责：
+
+1. **数据的物理存储**：数据放在什么文件、表空间和数据页中。
+2. **索引组织**：使用 B+Tree、哈希还是不支持索引。
+3. **缓存管理**：数据页和索引页怎样缓存在内存中。
+4. **并发控制**：支持表锁还是行锁，怎样处理并发读写。
+5. **事务能力**：是否支持提交、回滚、隔离级别和 MVCC。
+6. **日志与恢复**：是否能够在宕机后恢复未落盘的数据。
+7. **特定能力**：外键、全文索引、空间索引等是否支持。
+
+下面这些不是存储引擎的主要职责：
+
+- 不负责解析 SQL 语法。
+- 不负责决定多表 Join 的整体执行计划。
+- 不负责 JDBC、用户名密码认证。
+- `binlog` 属于 Server 层，不属于 InnoDB。
+
+#### 2.3 为什么说存储引擎“可插拔”
+
+MySQL 为存储引擎定义了统一接口，因此：
+
+- 同一个 MySQL 实例可以安装和支持多个引擎。
+- 同一个数据库中的不同表可以选择不同引擎。
+- 一张普通表在同一时刻只使用一种存储引擎。
+- 上层应用仍然使用 SQL，一般不需要了解底层文件格式。
+
+```sql
+CREATE TABLE course (...) ENGINE = InnoDB;
+CREATE TABLE temp_data (...) ENGINE = MEMORY;
+```
+
+这里两张表属于同一个数据库，但数据存储方式、事务能力和锁机制可能完全不同。
+
+#### 2.4 MySQL 常见存储引擎
+
+| 引擎 | 核心特点 | 典型用途/限制 |
+| --- | --- | --- |
+| `InnoDB` | 默认引擎；支持事务、行级锁、MVCC、外键和崩溃恢复 | 常规业务表的首选 |
+| `MyISAM` | 不支持事务和外键，主要使用表级锁 | 旧系统或只读/读多写少场景；新业务通常不选 |
+| `MEMORY` | 数据保存在内存中，访问快；服务重启后数据丢失 | 非关键的临时数据；不能代替 Redis |
+| `CSV` | 表数据直接保存为 CSV 文本，不支持索引 | 与能读写 CSV 的程序交换数据 |
+| `ARCHIVE` | 高压缩、适合追加和归档；不支持普通索引 | 很少查询的历史、审计数据 |
+| `BLACKHOLE` | 接收写入但不保存数据，查询永远为空 | 特殊复制、日志转发和测试场景 |
+| `MERGE` | 把结构相同的多个 MyISAM 表作为一张表访问 | 兼容旧系统，现代业务很少使用 |
+| `FEDERATED` | 通过网络访问远程 MySQL 表，本地不保存数据 | 特殊远程表访问；默认通常未启用 |
+| `NDB`/`NDBCLUSTER` | 面向 MySQL NDB Cluster 的分布式存储引擎 | 集群、高可用场景；不是普通单机 MySQL 的默认组件 |
+
+实际安装支持哪些引擎，不要凭表格猜，直接执行：
+
+```sql
+SHOW ENGINES;
+```
+
+结果中的 `Support` 常见值：
+
+| 值 | 含义 |
+| --- | --- |
+| `DEFAULT` | 已支持，并且是默认引擎 |
+| `YES` | 已支持，但不是默认引擎 |
+| `NO` | 当前版本或安装没有启用 |
+| `DISABLED` | 编译或安装了，但被配置禁用 |
+
+#### 2.5 为什么业务表通常选择 InnoDB
+
+课程商城中的用户、课程、订单、支付记录都应该使用 InnoDB，因为它同时提供：
+
+- 事务：订单创建失败时可以整体回滚。
+- 行级锁：不同用户操作不同行时可以并发执行。
+- MVCC：大量读取不必总是阻塞写入。
+- redo log：已提交事务在宕机后可以恢复。
+- undo log：支持回滚和一致性读取。
+- 聚簇索引：主键查询效率高。
+- 外键能力：虽然互联网项目常使用逻辑外键，但引擎本身支持外键约束。
+
+#### 2.6 InnoDB 与 MyISAM 高频对比
 
 | 对比项 | InnoDB（默认） | MyISAM |
 | --- | --- | --- |
-| 事务 | ✅ 支持 | ❌ 不支持 |
-| 行级锁 | ✅ 支持 | ❌ 仅表锁 |
-| 外键 | ✅ 支持 | ❌ 不支持 |
-| 崩溃恢复 | ✅ redo log + doublewrite | ❌ 依赖修复，易丢数据 |
-| 索引组织 | 聚簇索引（数据即索引） | 非聚簇（索引与数据分离） |
-| 全文索引 | 5.6 后支持 | 原生支持 |
-| 数据存储 | `.ibd`（表空间） | `.MYD`（数据）+ `.MYI`（索引） |
-| 缓存机制 | Buffer Pool 缓存数据与索引 | 只有索引缓存（key cache） |
-| 行数统计 | 需 `COUNT(*)` 扫描 | 表里存了行数，直接返回 |
-| 适用场景 | 高并发、需事务的生产库 | 只读、归档 |
+| 事务 | 支持 | 不支持 |
+| 并发控制 | 支持行级锁，也有表级锁 | 主要是表级锁 |
+| MVCC | 支持 | 不支持 |
+| 外键 | 支持 | 不支持 |
+| 崩溃恢复 | redo log、doublewrite 等机制 | 能力弱，异常后可能需要修复 |
+| 索引组织 | 聚簇索引，主键叶子节点存整行 | 数据与索引分离 |
+| 缓存 | Buffer Pool 缓存数据页和索引页 | Key Cache 主要缓存索引块 |
+| `COUNT(*)` | 不维护精确总行数，需要执行统计 | 保存表行数，无条件统计可直接读取 |
+| 适用场景 | 事务、高并发、可靠性要求高的业务 | 旧系统或特殊只读场景 |
 
-::: tip 💡 面试题：InnoDB 和 MyISAM 的区别？
-一句话结论：InnoDB 支持事务、行级锁和崩溃恢复，是生产默认引擎；MyISAM 只有表锁且无事务，只适合只读场景。原因：InnoDB 靠 redo log 保证崩溃不丢数据、靠行锁支撑高并发，MyISAM 追求极致读性能但牺牲了安全与并发。
+::: tip 💡 面试题：什么是存储引擎？为什么通常选择 InnoDB？
+存储引擎是 MySQL 中真正负责数据和索引存储、事务、锁与崩溃恢复的可插拔模块。业务系统通常选择 InnoDB，因为它支持事务、行级锁、MVCC 和崩溃恢复，能够满足高并发业务对一致性与可靠性的要求。
 :::
 
-**如何指定 / 查看引擎**：
+#### 2.7 查看、指定和切换引擎
 
 ```sql
--- 建表时指定引擎
-CREATE TABLE t (id INT PRIMARY KEY) ENGINE = InnoDB;
+-- 查看当前实例支持的引擎
+SHOW ENGINES;
+
+-- 查看默认存储引擎
+SHOW VARIABLES LIKE 'default_storage_engine';
 
 -- 查看表使用的引擎
-SHOW TABLE STATUS LIKE 't';
+SHOW TABLE STATUS LIKE 'course';
 
--- 查看当前库支持的引擎
-SHOW ENGINES;
+-- 建表时指定引擎
+CREATE TABLE demo (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+) ENGINE = InnoDB;
+
+-- 修改已有表的引擎：会重建表，大表操作要谨慎
+ALTER TABLE demo ENGINE = InnoDB;
 ```
+
+参考：[MySQL 8.4 支持的存储引擎](https://dev.mysql.com/doc/refman/8.4/en/storage-engines.html)、[可插拔存储引擎架构](https://dev.mysql.com/doc/refman/8.4/en/pluggable-storage.html)。
 
 ---
 
 ### 3. 数据类型
 
-**背景**：选对数据类型不只是「省点空间」，它直接决定索引效率、排序性能、精度是否丢失。很多「查询慢」的坑其实是字段类型选错了（比如用 varchar 存数字、用 text 存状态）。
+**背景**：数据类型决定了取值范围、存储空间、计算精度和索引体积。选择原则不是“能存就行”，而是用满足业务范围的最小、最准确类型。
 
-**整数类型（int 系列）**：
+MySQL 数据类型可以分成五类：
 
-| 类型 | 字节数 | 有符号范围 | 使用场景 |
+| 分类 | 常见类型 | 主要用途 |
+| --- | --- | --- |
+| 数值类型 | `TINYINT`、`INT`、`BIGINT`、`DECIMAL`、`DOUBLE` | 数量、状态、金额、统计值 |
+| 字符串与二进制类型 | `CHAR`、`VARCHAR`、`TEXT`、`BINARY`、`BLOB` | 文本、编码、二进制内容 |
+| 日期时间类型 | `DATE`、`TIME`、`DATETIME`、`TIMESTAMP`、`YEAR` | 日期和时间 |
+| JSON 类型 | `JSON` | 半结构化扩展数据 |
+| 空间类型 | `POINT`、`LINESTRING`、`POLYGON`、`GEOMETRY` | 地理坐标和空间数据 |
+
+#### 3.1 数值类型
+
+##### 整数类型
+
+| 类型 | 字节 | 有符号范围 | `UNSIGNED` 范围 | 常见场景 |
+| --- | ---: | --- | --- | --- |
+| `TINYINT` | 1 | -128 ~ 127 | 0 ~ 255 | 状态、等级、小范围枚举 |
+| `SMALLINT` | 2 | -32768 ~ 32767 | 0 ~ 65535 | 年份、小范围计数 |
+| `MEDIUMINT` | 3 | -8388608 ~ 8388607 | 0 ~ 16777215 | 中等规模计数，使用较少 |
+| `INT` / `INTEGER` | 4 | 约 -21 亿 ~ 21 亿 | 0 ~ 约 42 亿 | 普通计数、业务整数 |
+| `BIGINT` | 8 | 约 ±922 亿亿 | 0 ~ 约 1844 亿亿 | 主键、订单 ID、雪花 ID |
+
+```sql
+status TINYINT NOT NULL DEFAULT 1 COMMENT '状态：1正常，0禁用',
+stock  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '库存',
+id     BIGINT NOT NULL COMMENT '雪花主键'
+```
+
+- `UNSIGNED` 表示不允许负数，并扩大正数上限；Java 没有与 MySQL 无符号整数完全对应的常用类型，读取前仍要确认范围。
+- `BOOLEAN` / `BOOL` 在 MySQL 中是 `TINYINT(1)` 的同义写法，数据库实际仍保存 `0` 或 `1`。
+- `INT(11)` 中的 `11` 曾表示显示宽度，不决定存储范围；整数显示宽度和 `ZEROFILL` 已在 MySQL 8 中弃用，不要再用于新项目。
+
+##### 精确小数与近似小数
+
+| 类型 | 是否精确 | 含义 | 常见场景 |
 | --- | --- | --- | --- |
-| TINYINT | 1 | -128 ~ 127 | 状态、性别、布尔 |
-| SMALLINT | 2 | -32768 ~ 32767 | 小范围计数 |
-| MEDIUMINT | 3 | -8388608 ~ 8388607 | 中等数量 |
-| INT | 4 | -2^31 ~ 2^31-1（约 ±21 亿） | 主键 id、用户 id |
-| BIGINT | 8 | -2^63 ~ 2^63-1 | 订单号、雪花 id |
+| `DECIMAL(M,D)` / `NUMERIC(M,D)` | 是 | `M` 是总位数，`D` 是小数位数 | 金额、利率、财务数据 |
+| `FLOAT` | 否 | 单精度浮点数 | 对精度要求不高的测量值 |
+| `DOUBLE` | 否 | 双精度浮点数 | 科学计算、统计近似值 |
 
-> `INT(11)` 里的 11 是**显示宽度**（配合 ZEROFILL 使用），不影响存储范围。8.0 已弃用显示宽度。
+```sql
+price      DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+score_rate DOUBLE DEFAULT NULL
+```
 
-**字符串类型**：
-
-| 类型 | 说明 | 场景 |
-| --- | --- | --- |
-| CHAR(n) | 定长，存不满补空格，最多 255 字符 | 固定长度如手机号、MD5、性别 |
-| VARCHAR(n) | 变长，n 是最大字符数（字节受行大小限制） | 用户名、邮箱、可变文本 |
-| TEXT | 大文本，最多 64KB，不能有默认值 | 文章正文、简介 |
-| BLOB | 二进制大对象 | 存图片、文件（一般不建议存库里） |
-
-**小数类型**：
-
-| 类型 | 说明 | 场景 |
-| --- | --- | --- |
-| FLOAT/DOUBLE | 浮点数，有精度丢失 | 不需要精确的科学计算 |
-| DECIMAL(M,D) | 定点数，精确，M 总位数 D 小数位 | 金额（必须用这个） |
+`DECIMAL(10,2)` 最多保存 10 位数字，其中 2 位小数，例如 `99999999.99`。Java 中通常映射为 `BigDecimal`。
 
 ::: tip 💡 面试题：存金额为什么不用 FLOAT/DOUBLE，要用 DECIMAL？
 一句话结论：浮点数是二进制近似存储，无法精确表示十进制小数，会丢精度；DECIMAL 以字符串/定点方式存储，精确到分。原因：0.1 在二进制里是无限循环小数，浮点存储必然有舍入误差，累加后误差放大。展开：金额、利率等场景必须用 `DECIMAL(10,2)`，绝不能用 `double`（Java 里对应的也是 `BigDecimal`，见 [Java集合](/learn_backend/java/Java核心/Java集合) 里的精度讨论）。
 :::
 
-**日期时间类型**：
+##### 位类型
+
+`BIT(M)` 保存位值，`M` 的范围是 1~64。它适合真正需要位运算的标志集合；普通业务布尔值使用 `TINYINT` 更直观。
+
+#### 3.2 字符串与二进制类型
+
+##### `CHAR` 与 `VARCHAR`
+
+| 类型 | 特点 | 常见场景 |
+| --- | --- | --- |
+| `CHAR(n)` | 定长，长度稳定时空间与比较行为更可预测，最多 255 字符 | 国家码、固定编码、哈希值 |
+| `VARCHAR(n)` | 变长，只保存实际内容并额外记录长度 | 用户名、邮箱、标题、URL |
+
+```sql
+country_code CHAR(2),
+phone        VARCHAR(20),
+title        VARCHAR(200)
+```
+
+手机号是否用 `CHAR(11)` 要看业务：如果永远只支持中国大陆手机号可以；若考虑国际区号、脱敏字符或格式变化，`VARCHAR(20)` 更稳妥。`VARCHAR(n)` 的 `n` 是**字符数**，实际字节数还受字符集影响；InnoDB 单行还受到约 65KB 行大小限制。
+
+##### 大文本与大二进制
+
+| 文本类型 | 最大长度（约） | 二进制对应类型 | 常见场景 |
+| --- | ---: | --- | --- |
+| `TINYTEXT` | 255 B | `TINYBLOB` | 很短的附加文本 |
+| `TEXT` | 64 KB | `BLOB` | 简介、正文片段 |
+| `MEDIUMTEXT` | 16 MB | `MEDIUMBLOB` | 较长富文本 |
+| `LONGTEXT` | 4 GB | `LONGBLOB` | 超大文本，实际使用要慎重 |
+
+- `TEXT` 按字符集保存文本；`BLOB` 保存原始字节，不进行字符集比较。
+- 图片、视频和普通附件通常放对象存储，数据库只保存 URL、对象 key、大小和类型；否则会让备份、复制和查询变重。
+- `BINARY(n)` / `VARBINARY(n)` 适合保存固定或可变长度的原始字节，例如二进制摘要。
+
+##### `ENUM` 与 `SET`
+
+| 类型 | 含义 | 建议 |
+| --- | --- | --- |
+| `ENUM('A','B')` | 一列只能选择一个预定义值 | 值极稳定时可用；频繁新增状态会涉及 DDL |
+| `SET('A','B')` | 一列可选择多个预定义值 | 查询和扩展不直观，业务系统通常改用关联表 |
+
+状态字段在 Java 项目中更常使用 `TINYINT + Java enum + CHECK/业务校验`，扩展性通常比数据库 `ENUM` 更好。
+
+#### 3.3 日期时间类型
 
 | 类型 | 范围 | 说明 |
 | --- | --- | --- |
-| DATE | 1000-01-01 ~ 9999-12-31 | 只有日期 |
-| TIME | -838:59:59 ~ 838:59:59 | 只有时间 |
-| DATETIME | 1000-01-01 00:00:00 ~ 9999-12-31 | 日期+时间，不依赖时区 |
-| TIMESTAMP | 1970-01-01 ~ 2038-01-19 | 依赖时区，自动转 UTC 存储 |
+| `DATE` | 1000-01-01 ~ 9999-12-31 | 只有日期，如生日、课程日期 |
+| `TIME` | -838:59:59 ~ 838:59:59 | 时间或持续时长，不只是一天中的时刻 |
+| `DATETIME` | 1000-01-01 00:00:00 ~ 9999-12-31 | 日期时间，保存原始值，不做时区转换 |
+| `TIMESTAMP` | 1970-01-01 ~ 2038-01-19 左右 | 保存时按会话时区转 UTC，读取时再转换 |
+| `YEAR` | 1901 ~ 2155 | 单独保存年份，使用较少 |
 
-> 优先用 `DATETIME`（范围大、不依赖时区）；`TIMESTAMP` 有 2038 年溢出问题且受时区影响，只适合需要「自动按客户端时区展示」的场景。
+```sql
+create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+```
+
+- `DATETIME(3)`、`TIMESTAMP(6)` 中的数字表示秒的小数精度，范围为 0~6。
+- 业务系统普遍使用 `DATETIME` 保存本地业务时间；跨时区系统要统一约定 UTC，并在应用层转换。
+- 时间范围查询使用左闭右开：`create_time >= '2026-09-01' AND create_time < '2026-10-01'`。
+
+#### 3.4 JSON 类型
+
+`JSON` 会校验输入是否为合法 JSON，并采用适合快速读取成员的内部格式；它适合字段不固定、查询频率不高的扩展属性，不应替代正常的关系模型。
+
+```sql
+CREATE TABLE course_extra (
+    course_id BIGINT PRIMARY KEY,
+    attributes JSON NOT NULL
+);
+
+INSERT INTO course_extra VALUES
+(1, JSON_OBJECT('level', 'beginner', 'tags', JSON_ARRAY('Java', 'Spring')));
+
+-- -> 返回 JSON，->> 返回去掉引号后的文本
+SELECT attributes->>'$.level' AS level
+FROM course_extra
+WHERE course_id = 1;
+```
+
+高频检索的 JSON 成员应抽成普通列，或者建立生成列/多值索引；否则条件查询和约束管理会越来越困难。
+
+#### 3.5 空间类型
+
+| 类型 | 表示什么 | 示例场景 |
+| --- | --- | --- |
+| `POINT` | 一个坐标点 | 门店经纬度 |
+| `LINESTRING` | 一条线 | 行驶轨迹 |
+| `POLYGON` | 一个区域 | 配送范围 |
+| `GEOMETRY` | 任意受支持的几何对象 | 通用空间数据 |
+
+普通课程商城暂时用不到，涉及“附近门店、配送范围、地图围栏”时再学习空间索引和 `ST_Distance_Sphere()`。
+
+#### 3.6 Java 项目中的类型映射
+
+| MySQL | Java 常用类型 | 示例 |
+| --- | --- | --- |
+| `TINYINT` / `INT` | `Integer` | 状态、库存 |
+| `BIGINT` | `Long` | 主键、用户 ID |
+| `DECIMAL` | `BigDecimal` | 价格、金额 |
+| `CHAR` / `VARCHAR` / `TEXT` | `String` | 标题、简介 |
+| `DATE` | `LocalDate` | 生日、日期 |
+| `DATETIME` / `TIMESTAMP` | `LocalDateTime` / `Instant` | 创建时间、绝对时间点 |
+| `JSON` | DTO、`JsonNode` 或字符串 | 扩展属性 |
+
+#### 3.7 选择类型的实战原则
+
+1. 金额用 `DECIMAL`，Java 用 `BigDecimal`。
+2. 主键优先 `BIGINT`，为数据增长和分布式 ID 留空间。
+3. 能用数值表示的状态不要用长字符串；但不要为了省 1~2 字节牺牲可读性。
+4. 固定长度才用 `CHAR`，大多数普通文本用 `VARCHAR`。
+5. 大文本、JSON 不要参与高频排序和联合索引；高频查询字段应单独建列。
+6. 类型、长度和字符集必须与关联列一致，否则 JOIN 可能发生隐式转换并影响索引。
+7. `NOT NULL + 合理默认值` 能减少三值逻辑，但“未知”和“空值”确有业务含义时应保留 `NULL`。
+
+参考：[MySQL 8.4 Data Types](https://dev.mysql.com/doc/refman/8.4/en/data-types.html)。
 
 ---
 
 ### 4. SQL 分类与常用语句体系
 
-**背景**：SQL（Structured Query Language）是操作关系型数据库的统一语言，按功能分四大类，面试常考「DDL / DML / DQL / DCL 分别是什么」。
+SQL（Structured Query Language）是操作关系型数据库的语言。常见教程将它分成 DDL、DML、DQL、DCL 四类，再补充事务控制 TCL。
 
-| 分类 | 全称 | 作用 | 常用关键字 |
+::: warning 先纠正一个概念
+`DML` 的全称是 **Data Manipulation Language（数据操纵语言）**，不是“数据库管理语言”。另外，MySQL 官方手册把 `SELECT` 也放在 Data Manipulation Statements 中；但国内教学和面试通常把查询单独称为 `DQL`。两种分类不冲突，面试时按下面这套回答即可。
+:::
+
+| 分类 | 中文 | 解决什么问题 | 必须掌握的语句 |
 | --- | --- | --- | --- |
-| DDL | Data Definition Language | 定义结构（库/表/索引） | CREATE / ALTER / DROP / TRUNCATE |
-| DML | Data Manipulation Language | 操作数据 | INSERT / UPDATE / DELETE |
-| DQL | Data Query Language | 查询数据 | SELECT / WHERE / JOIN / GROUP BY |
-| DCL | Data Control Language | 权限控制 | GRANT / REVOKE |
+| DDL | 数据定义语言 | 定义数据库对象和表结构 | `CREATE`、`ALTER`、`DROP`、`TRUNCATE`、`RENAME` |
+| DML | 数据操纵语言 | 新增、修改、删除表中数据 | `INSERT`、`UPDATE`、`DELETE` |
+| DQL | 数据查询语言 | 从表中查询数据 | `SELECT`、`WHERE`、`JOIN`、`GROUP BY`、`HAVING`、`ORDER BY`、`LIMIT` |
+| DCL | 数据控制语言 | 管理用户、角色和权限 | `GRANT`、`REVOKE` |
+| TCL | 事务控制语言 | 控制事务提交和回滚 | `START TRANSACTION`、`COMMIT`、`ROLLBACK`、`SAVEPOINT` |
 
-**DDL 建表完整示例**：
+下面覆盖日常开发中最常用的 SQL；复杂 JOIN、子查询、窗口函数和面试手写题见 [SQL 语法与面试写题](/learn_database/MySQL-SQL语法与面试写题)。
+
+#### 4.0 SQL 通用书写规则
+
+- SQL 关键字通常不区分大小写，但建议关键字大写、库表字段小写。
+- 一条语句以分号 `;` 结束；字符串使用单引号 `'text'`。
+- 库名、表名、字段名需要转义时使用反引号，例如 `` `order` ``，不要把双引号当成通用字符串写法。
+- 单行注释可用 `-- `（两个短横线后必须有空白）或 `#`，多行注释使用 `/* ... */`。
+- 命名统一使用小写下划线，不使用关键字、空格和中文名称。
+
+#### 4.1 DDL：数据定义语言
+
+DDL 操作的是数据库对象的**结构和元数据**，例如数据库、表、字段、索引、视图，而不是普通业务数据。
+
+##### 创建和选择数据库
+
+```sql
+-- 创建数据库并明确字符集、排序规则
+CREATE DATABASE IF NOT EXISTS course_mall
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_0900_ai_ci;
+
+-- 切换当前数据库
+USE course_mall;
+
+-- 查看创建数据库时的完整定义
+SHOW CREATE DATABASE course_mall;
+
+-- 删除数据库及其中全部对象，生产环境执行前必须确认目标和备份
+DROP DATABASE IF EXISTS course_mall_test;
+```
+
+##### 创建表
 
 ```sql
 CREATE TABLE `user` (
-  `id`          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
-  `username`    VARCHAR(50)  NOT NULL                COMMENT '用户名',
-  `phone`       CHAR(11)     DEFAULT NULL            COMMENT '手机号',
-  `balance`     DECIMAL(10,2) NOT NULL DEFAULT 0.00  COMMENT '余额',
-  `status`      TINYINT      NOT NULL DEFAULT 0      COMMENT '状态 0正常 1禁用',
-  `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-                              ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_username` (`username`),
-  KEY `idx_phone` (`phone`),
-  KEY `idx_status_create` (`status`, `create_time`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT = '用户表';
--- 为什么用 utf8mb4：utf8 在 MySQL 里其实是 utf8mb3，最多 3 字节，存不了 emoji（4 字节）
+    `id`          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `username`    VARCHAR(50)   NOT NULL COMMENT '用户名',
+    `phone`       CHAR(11)      DEFAULT NULL COMMENT '手机号',
+    `balance`     DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '余额',
+    `status`      TINYINT       NOT NULL DEFAULT 1 COMMENT '状态：1正常，0禁用',
+    `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                      ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_username` (`username`),
+    KEY `idx_phone` (`phone`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COMMENT = '用户表';
 ```
 
-**DML 增删改**：
+常用约束：
+
+| 约束 | 作用 | 示例 |
+| --- | --- | --- |
+| `PRIMARY KEY` | 主键，唯一且非空 | `PRIMARY KEY (id)` |
+| `NOT NULL` | 不允许空值 | `username VARCHAR(50) NOT NULL` |
+| `UNIQUE` | 值不能重复 | `UNIQUE KEY uk_username (username)` |
+| `DEFAULT` | 未传值时使用默认值 | `status TINYINT DEFAULT 1` |
+| `CHECK` | 校验数据条件，MySQL 8.0.16+ 真正执行 | `CHECK (price >= 0)` |
+| `AUTO_INCREMENT` | 自动生成递增整数值，一个表只能有一个且必须被索引 | `id BIGINT AUTO_INCREMENT` |
+| `FOREIGN KEY` | 维护引用完整性 | `FOREIGN KEY (user_id) REFERENCES user(id)` |
+
+互联网项目常使用“逻辑外键”：数据库中保留 `user_id`，由业务代码保证关联关系，不创建物理外键，以减少表之间的强耦合。但这并不等于外键没有价值，小型系统和强一致场景仍可使用。
+
+##### 修改表结构
 
 ```sql
--- 插入
-INSERT INTO user (username, phone, balance) VALUES ('张三', '13800138000', 100.00);
--- 批量插入（比逐条插入快得多，减少网络/解析开销）
-INSERT INTO user (username, phone) VALUES ('a','1'), ('b','2'), ('c','3');
+-- 增加字段
+ALTER TABLE user ADD COLUMN email VARCHAR(100) DEFAULT NULL COMMENT '邮箱';
 
--- 更新（WHERE 条件必须带，否则全表更新）
-UPDATE user SET balance = balance - 50 WHERE id = 1;
+-- 修改字段类型和约束
+ALTER TABLE user MODIFY COLUMN username VARCHAR(100) NOT NULL;
 
--- 删除（生产环境慎用 DELETE，大表用逻辑删除字段 status 标记）
+-- 修改字段名并同时重新声明类型
+ALTER TABLE user CHANGE COLUMN phone mobile CHAR(11) DEFAULT NULL;
+
+-- 删除字段
+ALTER TABLE user DROP COLUMN email;
+
+-- 添加和删除索引
+ALTER TABLE user ADD INDEX idx_status_create_time (status, create_time);
+ALTER TABLE user DROP INDEX idx_status_create_time;
+
+-- 修改表名
+RENAME TABLE user TO sys_user;
+```
+
+##### `DELETE`、`TRUNCATE`、`DROP` 的区别
+
+| 语句 | 分类 | 删除内容 | 保留表结构 | 支持 `WHERE` | 能否常规回滚 |
+| --- | --- | --- | --- | --- | --- |
+| `DELETE FROM user WHERE ...` | DML | 满足条件的数据行 | 是 | 是 | InnoDB 事务中可以 |
+| `TRUNCATE TABLE user` | DDL | 全部数据，通常重置自增值 | 是 | 否 | 不可以，会隐式提交 |
+| `DROP TABLE user` | DDL | 表结构和全部数据 | 否 | 否 | 不可以，会隐式提交 |
+
+MySQL 8 支持原子 DDL，表示一条 DDL 要么完整成功、要么完整失败；但它仍然会隐式提交事务，**不代表可以通过 `ROLLBACK` 撤销 DDL**。
+
+::: tip 💡 面试题：DDL 有哪些？
+DDL 用于定义数据库对象，常用语句是 `CREATE`、`ALTER`、`DROP`、`TRUNCATE` 和 `RENAME`。它主要修改库、表、字段和索引结构，多数 DDL 会隐式提交，不能通过普通事务回滚。
+:::
+
+#### 4.2 DML：数据操纵语言
+
+DML 操作表中的业务数据，核心就是 `INSERT`、`UPDATE`、`DELETE`。
+
+##### 插入数据
+
+```sql
+-- 单行插入：明确写出字段名，不依赖表字段顺序
+INSERT INTO user (username, phone, balance)
+VALUES ('张三', '13800138000', 100.00);
+
+-- 批量插入：比循环发送多条 INSERT 减少网络和解析开销
+INSERT INTO user (username, phone)
+VALUES ('user_a', '13800000001'),
+       ('user_b', '13800000002'),
+       ('user_c', '13800000003');
+
+-- 从查询结果插入另一张表
+INSERT INTO user_backup (id, username, phone)
+SELECT id, username, phone
+FROM user
+WHERE status = 0;
+
+-- 唯一键冲突时更新：常用于幂等写入
+INSERT INTO user (username, phone)
+VALUES ('张三', '13800138000') AS new
+ON DUPLICATE KEY UPDATE phone = new.phone;
+```
+
+`INSERT IGNORE` 会把部分错误降级为警告，容易掩盖脏数据；除非明确知道要忽略哪些错误，否则不要把它当成通用幂等方案。
+
+##### 更新数据
+
+```sql
+-- 根据主键更新
+UPDATE user
+SET balance = balance - 50,
+    update_time = NOW()
+WHERE id = 1;
+
+-- 条件更新：余额足够才扣减，可用于保证库存/余额不被扣成负数
+UPDATE user
+SET balance = balance - 50
+WHERE id = 1
+  AND balance >= 50;
+```
+
+更新后要检查受影响行数：返回 `1` 表示成功，返回 `0` 可能是记录不存在或业务条件不成立。
+
+##### 删除数据
+
+```sql
+-- 物理删除
 DELETE FROM user WHERE id = 1;
--- 清空表（DDL，直接 drop 重建，比 DELETE 逐行删快，且自增 id 归零）
-TRUNCATE TABLE user;
+
+-- 逻辑删除：真实项目更常见
+UPDATE user
+SET deleted_at = NOW()
+WHERE id = 1
+  AND deleted_at IS NULL;
 ```
 
-**DQL 查询全链路示例**：
+::: danger DML 安全底线
+执行 `UPDATE` 和 `DELETE` 前先写同条件的 `SELECT`，确认命中范围；生产操作必须检查 `WHERE`，大批量修改要分批执行并关注锁、事务大小和 binlog 压力。
+:::
+
+::: tip 💡 面试题：DML 有哪些？
+DML 用来操作表中的业务数据，核心是 `INSERT`、`UPDATE` 和 `DELETE`。在 InnoDB 事务中，DML 可以通过 `ROLLBACK` 回滚。
+:::
+
+#### 4.3 DQL：数据查询语言
+
+DQL 的核心是 `SELECT`。日常查询可以按下面的固定骨架书写：
 
 ```sql
--- SELECT 执行顺序（面试必背）：FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT
-SELECT u.status, COUNT(*) AS cnt
-FROM user u
-WHERE u.create_time >= '2025-01-01'     -- 先过滤
-GROUP BY u.status                        -- 再分组
-HAVING cnt > 100                         -- 分组后过滤（聚合条件放这，不能用 WHERE）
-ORDER BY cnt DESC                        -- 再排序
-LIMIT 10;                                -- 最后截取
+SELECT [DISTINCT] 字段或表达式
+FROM 表
+[JOIN 表 ON 连接条件]
+[WHERE 行过滤条件]
+[GROUP BY 分组字段]
+[HAVING 分组过滤条件]
+[ORDER BY 排序字段 ASC | DESC]
+[LIMIT 偏移量, 返回行数];
 ```
 
-**JOIN 关联查询（多表连接）**：
+##### 基础查询和别名
+
+```sql
+-- 避免在业务代码中使用 SELECT *，明确需要的字段
+SELECT id, username, balance
+FROM user;
+
+-- AS 设置结果列别名；表别名可以省略 AS
+SELECT u.username AS user_name,
+       u.balance * 100 AS balance_cent
+FROM user u;
+
+-- DISTINCT 对整个结果字段组合去重
+SELECT DISTINCT status FROM user;
+```
+
+##### `WHERE` 常用条件
+
+```sql
+SELECT id, username
+FROM user
+WHERE status = 1
+  AND balance >= 100
+  AND id IN (1, 2, 3)
+  AND create_time BETWEEN '2026-01-01' AND '2026-12-31'
+  AND username LIKE '张%'
+  AND phone IS NOT NULL;
+```
+
+| 条件 | 含义 | 注意 |
+| --- | --- | --- |
+| `=、<>、>、>=、<、<=` | 比较 | SQL 的不等于通常写 `<>` 或 `!=` |
+| `AND、OR、NOT` | 逻辑组合 | `AND` 优先级高于 `OR`，复杂条件加括号 |
+| `IN (...)` | 属于给定集合 | 集合很大时考虑临时表或关联查询 |
+| `BETWEEN a AND b` | 闭区间 `[a,b]` | 时间范围通常推荐左闭右开，避免边界问题 |
+| `LIKE 'abc%'` | 前缀模糊匹配 | 前缀固定时可能使用索引；`'%abc'` 通常难以走普通索引 |
+| `IS NULL` | 判断空值 | 不能写 `= NULL`，因为结果不是 `TRUE` |
+
+时间范围推荐：
+
+```sql
+-- 查询 2026 年数据：左闭右开，能覆盖带时分秒的数据
+WHERE create_time >= '2026-01-01'
+  AND create_time <  '2027-01-01';
+```
+
+##### 聚合、分组和过滤
+
+常见聚合函数：`COUNT`、`SUM`、`AVG`、`MAX`、`MIN`。
+
+```sql
+SELECT status,
+       COUNT(*) AS user_count,
+       SUM(balance) AS total_balance,
+       AVG(balance) AS avg_balance
+FROM user
+WHERE deleted_at IS NULL
+GROUP BY status
+HAVING COUNT(*) >= 10;
+```
+
+- `WHERE` 在分组前过滤数据行，不能直接使用聚合结果。
+- `HAVING` 在分组后过滤分组结果，常用于 `COUNT(*) > 10`。
+- `COUNT(*)` 统计行数；`COUNT(phone)` 只统计 `phone` 非 `NULL` 的行。
+
+##### 排序和分页
+
+```sql
+-- 排序字段相同时再按 id 排序，保证翻页顺序稳定
+SELECT id, username, create_time
+FROM user
+WHERE status = 1
+ORDER BY create_time DESC, id DESC
+LIMIT 20 OFFSET 0;
+
+-- MySQL 也支持 LIMIT offset, size
+LIMIT 0, 20;
+```
+
+深分页 `LIMIT 100000, 20` 需要扫描并丢弃大量数据，后续应使用覆盖索引、延迟关联或基于上一页最大 id 的游标分页。
+
+##### JOIN 关联查询
 
 | JOIN 类型 | 含义 |
 | --- | --- |
-| INNER JOIN | 取两表交集（都满足条件） |
-| LEFT JOIN | 左表全保留，右表匹配不到补 NULL |
-| RIGHT JOIN | 右表全保留，左表匹配不到补 NULL |
-| FULL JOIN | 并集（MySQL 不支持，用 UNION 模拟） |
+| `INNER JOIN` | 只保留左右两表都匹配的记录 |
+| `LEFT JOIN` | 左表全部保留，右表匹配不到的字段填 `NULL` |
+| `RIGHT JOIN` | 右表全部保留，左表匹配不到的字段填 `NULL` |
+| `CROSS JOIN` | 笛卡尔积，左右每行两两组合 |
+| `FULL OUTER JOIN` | MySQL 不直接支持，可根据业务用 `UNION` 组合 |
 
 ```sql
--- 内连接：只查有订单的用户
-SELECT u.username, o.order_no FROM user u INNER JOIN orders o ON u.id = o.user_id;
--- 左连接：所有用户都查出来，没订单的 order_no 为 NULL
-SELECT u.username, o.order_no FROM user u LEFT JOIN orders o ON u.id = o.user_id;
+-- 隐式内连接：能运行，但连接条件容易遗漏，新代码不推荐
+SELECT u.username, o.order_no
+FROM user u, orders o
+WHERE u.id = o.user_id;
+
+-- 显式内连接：连接关系写在 ON 中，结构更清楚
+SELECT u.username, o.order_no
+FROM user u
+INNER JOIN orders o ON o.user_id = u.id;
 ```
 
-#### 4.1 CTE（公用表表达式）
+```sql
+-- 查询所有用户及其订单；没有订单的用户也保留
+SELECT u.id,
+       u.username,
+       o.order_no,
+       o.amount
+FROM user u
+LEFT JOIN orders o ON o.user_id = u.id
+WHERE u.status = 1;
+```
+
+连接条件写在 `ON` 中；如果对右表字段的过滤写进 `WHERE`，可能把 `LEFT JOIN` 实际变成 `INNER JOIN`：
+
+```sql
+-- 仍然保留没有已支付订单的用户
+LEFT JOIN orders o
+       ON o.user_id = u.id
+      AND o.status = 'PAID';
+```
+
+##### 子查询、集合操作和条件判断
+
+```sql
+-- IN：用户是否存在订单
+SELECT id, username
+FROM user
+WHERE id IN (SELECT user_id FROM orders);
+
+-- EXISTS：只判断相关记录是否存在
+SELECT u.id, u.username
+FROM user u
+WHERE EXISTS (
+    SELECT 1
+    FROM orders o
+    WHERE o.user_id = u.id
+);
+
+-- UNION 去重；UNION ALL 不去重，通常性能更好
+SELECT phone AS contact FROM user
+UNION ALL
+SELECT phone AS contact FROM teacher;
+
+-- CASE 条件表达式
+SELECT username,
+       CASE status
+           WHEN 1 THEN '正常'
+           WHEN 0 THEN '禁用'
+           ELSE '未知'
+       END AS status_name
+FROM user;
+```
+
+##### SQL 书写顺序与逻辑执行顺序
+
+```text
+书写顺序：SELECT → FROM/JOIN → WHERE → GROUP BY → HAVING → ORDER BY → LIMIT
+逻辑顺序：FROM/JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT
+```
+
+这解释了为什么 `WHERE` 不能直接使用同层 `SELECT` 才产生的别名，而 `ORDER BY` 通常可以使用。
+
+::: tip 💡 面试题：WHERE 和 HAVING 有什么区别？
+`WHERE` 在分组前过滤原始数据行，不能直接使用聚合函数；`HAVING` 在 `GROUP BY` 后过滤分组结果，常用于对 `COUNT`、`SUM` 等聚合结果设置条件。
+:::
+
+#### 4.4 DCL：数据控制语言
+
+DCL 用于管理账号、角色和权限。真实项目遵循**最小权限原则**：应用账号只获得所需数据库和表的权限，不要直接使用 `root` 连接业务系统。
+
+```sql
+-- 创建只能从指定网段连接的业务账号
+CREATE USER 'course_app'@'10.0.%'
+IDENTIFIED BY 'ReplaceWithStrongPassword';
+
+-- 修改账号密码
+ALTER USER 'course_app'@'10.0.%'
+IDENTIFIED BY 'AnotherStrongPassword';
+
+-- 授予课程商城库的常用读写权限
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON course_mall.*
+TO 'course_app'@'10.0.%';
+
+-- 查看账号已有权限
+SHOW GRANTS FOR 'course_app'@'10.0.%';
+
+-- 撤销删除权限
+REVOKE DELETE
+ON course_mall.*
+FROM 'course_app'@'10.0.%';
+
+-- 删除账号
+DROP USER 'course_app'@'10.0.%';
+```
+
+MySQL 8 使用 `CREATE USER` 创建账号、`GRANT` 授权；执行这些标准账号管理语句后不需要再手动执行 `FLUSH PRIVILEGES`。只有直接修改授权表等特殊情况才可能需要刷新。
+
+账号由 `'用户名'@'主机范围'` 共同确定：`localhost` 只允许本机，`10.0.%` 表示指定网段，`%` 表示任意主机。生产业务账号不要随意使用 `%`。
+
+| 常用权限 | 允许的操作 |
+| --- | --- |
+| `SELECT` | 查询数据 |
+| `INSERT`、`UPDATE`、`DELETE` | 写入、修改、删除数据 |
+| `CREATE`、`ALTER`、`DROP` | 创建和修改数据库对象 |
+| `INDEX` | 创建或删除索引 |
+| `EXECUTE` | 执行存储过程/函数 |
+| `ALL PRIVILEGES` | 指定层级的全部可授予权限，业务账号慎用 |
+
+常见权限层级：
+
+```text
+*.*                     全局权限
+course_mall.*           数据库级权限
+course_mall.course      表级权限
+course_mall.course(title) 列级权限
+```
+
+::: tip 💡 面试题：DCL 有哪些？
+DCL 主要通过 `GRANT` 授予权限、`REVOKE` 撤销权限，并配合 `CREATE USER`、`DROP USER` 和角色管理实现数据库访问控制；业务账号应遵循最小权限原则。
+:::
+
+#### 4.5 TCL：事务控制语句
+
+```sql
+START TRANSACTION;
+
+UPDATE account SET balance = balance - 100 WHERE id = 1;
+UPDATE account SET balance = balance + 100 WHERE id = 2;
+
+COMMIT;
+-- 任一步失败时执行 ROLLBACK;
+```
+
+保存点允许回滚事务的一部分：
+
+```sql
+START TRANSACTION;
+UPDATE account SET balance = balance - 100 WHERE id = 1;
+
+SAVEPOINT after_debit;
+UPDATE account SET balance = balance + 100 WHERE id = 2;
+
+ROLLBACK TO SAVEPOINT after_debit;
+COMMIT;
+```
+
+MySQL 默认开启 `autocommit`，未显式开启事务时，每条语句通常作为一个独立事务自动提交。Spring 项目一般通过 `@Transactional` 管理事务，而不是在业务代码中手写 `COMMIT`。
+
+#### 4.6 常用管理与诊断语句
+
+这些语句不必硬塞进 DDL/DML/DQL/DCL，它们属于 MySQL 常用管理或工具语句：
+
+```sql
+SHOW DATABASES;                 -- 查看数据库
+SHOW TABLES;                    -- 查看当前库中的表
+SHOW CREATE TABLE course;       -- 查看完整建表语句
+SHOW INDEX FROM course;         -- 查看索引
+SHOW ENGINES;                   -- 查看存储引擎
+SHOW PROCESSLIST;               -- 查看当前连接和正在执行的语句
+
+DESCRIBE course;                -- 查看字段结构，可简写为 DESC course
+EXPLAIN SELECT * FROM course;   -- 查看执行计划
+USE course_mall;                -- 切换数据库
+```
+
+#### 4.7 CTE（公用表表达式）
 
 **背景**：复杂查询（递归树、多次引用同一子查询）用子查询嵌套很深，可读性差。CTE 把子查询提取到 `WITH` 子句里，命名后复用，让 SQL 像搭积木一样清晰。
 
@@ -313,18 +1068,334 @@ SELECT * FROM course WHERE category_id IN (SELECT id FROM cate_tree);
 | 可读性 | 嵌套深时难以理解 | 平铺定义，层次分明 |
 | 复用 | 多次引用需重复写 | 定义一次，`WITH` 后可多次引用 |
 | 递归 | ❌ 不支持 | ✅ `WITH RECURSIVE` 支持遍历树 |
-| 性能 | 多次引用可能多次执行 | 优化器可能只执行一次 |
+| 性能 | 由优化器决定是否改写/物化 | 同样由优化器决定，不保证只执行一次 |
 | 调试 | 不直观 | 可以先查 CTE 本身看中间结果 |
 
 **小结**：CTE 的核心价值是「把复杂查询拆成可命名的步骤」，非递归 CTE 替代子查询提升可读性，递归 CTE 解决树形查询（分类、菜单、组织架构）——这是 MySQL 8.0 的一大亮点，也是面试中「查分类树」的标准答案。**指定层数加 `WHERE cte.level < N` 即可**，写在递归成员里提前打断比外面过滤更高效。
 
-**小结**：SQL 是操作 MySQL 的唯一入口，四分类 + 执行顺序是后续 SQL 优化、索引调优的基础。记住「WHERE 在分组前、HAVING 在分组后、LIMIT 最后」，能解释很多「条件写错位置」的 bug。
+#### 4.8 约束、表关系与多表查询补充
+
+##### 外键及更新/删除行为
+
+```sql
+ALTER TABLE orders
+ADD CONSTRAINT fk_orders_user
+FOREIGN KEY (user_id) REFERENCES user(id)
+ON UPDATE RESTRICT
+ON DELETE RESTRICT;
+
+ALTER TABLE orders DROP FOREIGN KEY fk_orders_user;
+```
+
+| 行为 | 父表记录被修改/删除时怎么处理 |
+| --- | --- |
+| `RESTRICT` / `NO ACTION` | 有子表引用时拒绝操作，MySQL 中二者效果基本相同 |
+| `CASCADE` | 自动更新或删除子表对应记录 |
+| `SET NULL` | 子表外键设为 `NULL`，要求该字段允许为空 |
+
+物理外键能从数据库层保证引用完整性，但增加表之间的耦合。互联网项目常保留 `user_id` 这类逻辑外键，不创建约束，由应用和数据治理保证一致性；是否使用要根据项目规模和一致性要求决定。
+
+##### 三种表关系
+
+| 关系 | 建模方式 | 课程商城示例 |
+| --- | --- | --- |
+| 一对多 | 在“多”的一方保存外键 | `course.teacher_id`：一个讲师有多门课程 |
+| 多对多 | 建立中间表，通常用两个外键组成唯一键 | `user_course(user_id, course_id)`：用户与已购课程 |
+| 一对一 | 任意一方保存外键并增加 `UNIQUE` | 用户表与用户实名详情表 |
+
+```sql
+CREATE TABLE user_course (
+    id        BIGINT PRIMARY KEY,
+    user_id   BIGINT NOT NULL,
+    course_id BIGINT NOT NULL,
+    UNIQUE KEY uk_user_course (user_id, course_id)
+);
+```
+
+##### 自连接
+
+自连接是同一张表扮演两个角色。例如员工表中的 `manager_id` 仍然指向员工表：
+
+```sql
+SELECT e.name AS employee_name,
+       m.name AS manager_name
+FROM employee e
+LEFT JOIN employee m ON m.id = e.manager_id;
+```
+
+##### 子查询分类
+
+| 分类 | 子查询结果 | 常用运算符 |
+| --- | --- | --- |
+| 标量子查询 | 一行一列 | `=、>、<` |
+| 列子查询 | 多行一列 | `IN、NOT IN、ANY、ALL` |
+| 行子查询 | 一行多列 | `(a,b) = (...)` |
+| 表子查询 | 多行多列 | 放在 `FROM` 中作为派生表 |
+| 相关子查询 | 内层引用外层当前行 | `EXISTS`、`NOT EXISTS` |
+
+```sql
+-- 标量：高于平均价格的课程
+SELECT id, title, price
+FROM course
+WHERE price > (SELECT AVG(price) FROM course);
+
+-- 列：购买过指定课程集合的用户
+SELECT id, username
+FROM user
+WHERE id IN (SELECT user_id FROM orders WHERE status = 'PAID');
+
+-- ALL：价格高于该分类中的每一门课程（即高于其中最大值）
+SELECT id, title, price
+FROM course
+WHERE price > ALL (
+    SELECT price FROM course WHERE category_id = 10
+);
+
+-- ANY/SOME：价格高于该分类中的至少一门课程
+SELECT id, title, price
+FROM course
+WHERE price > ANY (
+    SELECT price FROM course WHERE category_id = 10
+);
+
+-- 行：同时匹配讲师和分类
+SELECT *
+FROM course
+WHERE (teacher_id, category_id) = (
+    SELECT teacher_id, category_id FROM course WHERE id = 1
+);
+
+-- 表：先聚合订单，再与用户关联
+SELECT u.id, u.username, x.total_amount
+FROM user u
+JOIN (
+    SELECT user_id, SUM(amount) AS total_amount
+    FROM orders
+    GROUP BY user_id
+) x ON x.user_id = u.id;
+
+-- 相关子查询：只返回至少有一个已支付订单的用户
+SELECT u.id, u.username
+FROM user u
+WHERE EXISTS (
+    SELECT 1 FROM orders o
+    WHERE o.user_id = u.id AND o.status = 'PAID'
+);
+```
+
+`EXISTS` 表示“是否存在”，找到第一条匹配记录即可停止；`IN` 表示“值是否属于集合”。现代 MySQL 优化器可能把二者都改写成半连接，不能只背“EXISTS 一定更快”，应该查看执行计划和数据分布。
+
+**小结**：SQL 常按 DDL、DML、DQL、DCL、TCL 五类理解。它们是后续 SQL 优化、索引调优和事务学习的基础。记住「WHERE 在分组前、HAVING 在分组后、LIMIT 最后」，能解释很多「条件写错位置」的 bug。
+
+参考：[MySQL 8.4 SQL Statements](https://dev.mysql.com/doc/refman/8.4/en/sql-statements.html)、[Data Definition Statements](https://dev.mysql.com/doc/refman/8.4/en/sql-data-definition-statements.html)、[Transactional and Locking Statements](https://dev.mysql.com/doc/en/sql-transactional-statements.html)。
 
 ---
 
-### 5. 索引
+### 5. 常用函数
 
-#### 5.1 什么是索引，为什么需要它
+函数接收参数并返回一个结果，可以出现在 `SELECT`、`WHERE`、`ORDER BY`、`GROUP BY` 等位置。先掌握字符串、数值、日期、流程控制和聚合函数，就能覆盖绝大多数业务 SQL。
+
+#### 5.1 字符串函数
+
+| 函数 | 作用 | 示例结果 |
+| --- | --- | --- |
+| `CONCAT(a,b,...)` | 拼接字符串；任一参数为 `NULL` 时结果为 `NULL` | `CONCAT('Course','Mall')` → `CourseMall` |
+| `CONCAT_WS(sep,a,b,...)` | 使用分隔符拼接，并跳过 `NULL` | `CONCAT_WS('-', '2026', '09', '11')` |
+| `LOWER(s)` / `UPPER(s)` | 转小写/大写 | `LOWER('SQL')` → `sql` |
+| `CHAR_LENGTH(s)` | 字符数 | 中文一个字算一个字符 |
+| `LENGTH(s)` | 字节数 | `utf8mb4` 中文通常占 3 个字节 |
+| `SUBSTRING(s,pos,len)` | 截取字符串，位置从 1 开始 | `SUBSTRING('CourseMall',1,6)` → `Course` |
+| `LEFT(s,n)` / `RIGHT(s,n)` | 取左/右侧 n 个字符 | `LEFT('13800138000',3)` → `138` |
+| `TRIM(s)` | 去除首尾空格 | `TRIM(' Java ')` → `Java` |
+| `LPAD(s,n,pad)` / `RPAD(...)` | 左/右填充到指定长度 | `LPAD('7',3,'0')` → `007` |
+| `REPLACE(s,from,to)` | 替换所有匹配文本 | `REPLACE('a-b','-','_')` → `a_b` |
+| `LOCATE(substr,s)` | 返回子串起始位置，找不到返回 0 | `LOCATE('Mall','CourseMall')` → `7` |
+
+```sql
+-- 生成展示名称并对手机号脱敏
+SELECT CONCAT_WS(' - ', title, teacher_name) AS display_name,
+       CONCAT(LEFT(phone, 3), '****', RIGHT(phone, 4)) AS masked_phone
+FROM course_view;
+```
+
+#### 5.2 数值函数
+
+| 函数 | 作用 | 示例 |
+| --- | --- | --- |
+| `ABS(x)` | 绝对值 | `ABS(-10)` → `10` |
+| `CEIL(x)` / `CEILING(x)` | 向上取整 | `CEIL(1.1)` → `2` |
+| `FLOOR(x)` | 向下取整 | `FLOOR(1.9)` → `1` |
+| `ROUND(x,d)` | 四舍五入保留 d 位 | `ROUND(12.345,2)` → `12.35` |
+| `TRUNCATE(x,d)` | 直接截断到 d 位 | `TRUNCATE(12.345,2)` → `12.34` |
+| `MOD(x,y)` / `x % y` | 取余 | `MOD(7,4)` → `3` |
+| `POW(x,y)` | 幂运算 | `POW(2,3)` → `8` |
+| `RAND()` | 生成 `[0,1)` 随机数 | 测试数据、随机排序 |
+
+```sql
+-- 折扣价只用于展示；真正结算仍应在 Java 中用 BigDecimal 明确舍入规则
+SELECT id, title, ROUND(price * 0.8, 2) AS discount_price
+FROM course;
+
+-- 生成 6 位演示验证码；真实验证码应由应用层安全随机数生成器产生
+SELECT LPAD(FLOOR(RAND() * 1000000), 6, '0');
+```
+
+`ORDER BY RAND()` 会为大量记录生成随机值并排序，只适合小表或测试数据，不能用来随机抽取大表记录。
+
+#### 5.3 日期时间函数
+
+| 函数 | 作用 | 示例 |
+| --- | --- | --- |
+| `CURDATE()` / `CURRENT_DATE` | 当前日期 | `2026-09-11` |
+| `CURTIME()` / `CURRENT_TIME` | 当前时间 | `21:30:00` |
+| `NOW()` / `CURRENT_TIMESTAMP` | 当前日期时间 | `2026-09-11 21:30:00` |
+| `YEAR(d)` / `MONTH(d)` / `DAY(d)` | 提取年月日 | `YEAR(NOW())` |
+| `DATE_ADD(d, INTERVAL n unit)` | 增加时间 | `DATE_ADD(NOW(), INTERVAL 7 DAY)` |
+| `DATE_SUB(d, INTERVAL n unit)` | 减少时间 | `DATE_SUB(NOW(), INTERVAL 30 MINUTE)` |
+| `DATEDIFF(a,b)` | 相差天数，结果是 `a-b` | `DATEDIFF('2026-09-11','2026-09-01')` → `10` |
+| `TIMESTAMPDIFF(unit,a,b)` | 按指定单位计算 `b-a` | 计算分钟、月份、年龄 |
+| `DATE_FORMAT(d,fmt)` | 日期转字符串 | `DATE_FORMAT(NOW(),'%Y-%m-%d')` |
+| `STR_TO_DATE(s,fmt)` | 字符串转日期 | `STR_TO_DATE('2026/09/11','%Y/%m/%d')` |
+| `LAST_DAY(d)` | 返回所在月份最后一天 | 月末统计 |
+
+```sql
+-- 最近 30 天创建的课程：对常量计算，保留 create_time 原值，方便使用索引
+SELECT id, title
+FROM course
+WHERE create_time >= DATE_SUB(NOW(), INTERVAL 30 DAY);
+
+-- 计算课程上线天数
+SELECT title, DATEDIFF(CURDATE(), DATE(publish_time)) AS online_days
+FROM course;
+
+-- 按月统计（展示方便，但函数作用在列上通常不能直接利用普通索引定位）
+SELECT DATE_FORMAT(create_time, '%Y-%m') AS month_key,
+       COUNT(*) AS order_count
+FROM orders
+GROUP BY DATE_FORMAT(create_time, '%Y-%m');
+```
+
+#### 5.4 流程控制与空值函数
+
+| 函数/表达式 | 作用 |
+| --- | --- |
+| `IF(condition,a,b)` | 条件为真返回 a，否则返回 b，MySQL 特有 |
+| `IFNULL(value,default)` | value 为 `NULL` 时返回默认值 |
+| `COALESCE(a,b,c,...)` | 返回第一个非 `NULL` 值，标准 SQL，优先掌握 |
+| `NULLIF(a,b)` | a=b 返回 `NULL`，否则返回 a |
+| `CASE ... WHEN ... THEN ... ELSE ... END` | 多分支判断，标准 SQL、可移植性最好 |
+
+```sql
+-- 简单 CASE：与一个值逐项比较
+SELECT title,
+       CASE status
+           WHEN 1 THEN '已上架'
+           WHEN 0 THEN '已下架'
+           ELSE '未知'
+       END AS status_name
+FROM course;
+
+-- 搜索 CASE：每个 WHEN 都是独立条件
+SELECT title,
+       CASE
+           WHEN price = 0 THEN '免费'
+           WHEN price < 100 THEN '入门价'
+           ELSE '精品课'
+       END AS price_level
+FROM course;
+
+-- 防止除零：当 total_count=0 时先转 NULL，最终返回 0
+SELECT COALESCE(success_count / NULLIF(total_count, 0), 0) AS success_rate
+FROM task_stat;
+```
+
+#### 5.5 聚合函数
+
+| 函数 | 作用 | `NULL` 行为 |
+| --- | --- | --- |
+| `COUNT(*)` | 统计结果行数 | 行存在就统计 |
+| `COUNT(column)` | 统计该列非 `NULL` 的行数 | 忽略 `NULL` |
+| `SUM(column)` | 求和 | 忽略 `NULL` |
+| `AVG(column)` | 平均值 | 忽略 `NULL` |
+| `MAX(column)` / `MIN(column)` | 最大值/最小值 | 忽略 `NULL` |
+| `GROUP_CONCAT(column)` | 把组内值拼成一个字符串 | 忽略 `NULL`，长度受系统变量限制 |
+
+```sql
+SELECT category_id,
+       COUNT(*) AS course_count,
+       COALESCE(SUM(buy_count), 0) AS total_buy_count,
+       GROUP_CONCAT(title ORDER BY buy_count DESC SEPARATOR '、') AS titles
+FROM course
+WHERE deleted_at IS NULL
+GROUP BY category_id;
+```
+
+#### 5.6 类型转换函数
+
+```sql
+SELECT CAST('123' AS UNSIGNED);                    -- 字符串转无符号整数
+SELECT CAST(price AS CHAR);                        -- 数值转字符串
+SELECT CAST('2026-09-11' AS DATE);                 -- 字符串转日期
+SELECT CONVERT('CourseMall' USING utf8mb4);        -- 转换字符集
+```
+
+类型不一致会触发隐式转换，可能改变比较结果并导致索引无法有效定位。关联列、查询参数和数据库列应尽量使用相同类型。
+
+#### 5.7 JSON 函数
+
+| 函数 | 作用 |
+| --- | --- |
+| `JSON_OBJECT(k,v,...)` | 构造 JSON 对象 |
+| `JSON_ARRAY(v,...)` | 构造 JSON 数组 |
+| `JSON_EXTRACT(doc,path)` / `->` | 提取 JSON 值 |
+| `JSON_UNQUOTE(...)` / `->>` | 提取为普通字符串 |
+| `JSON_SET(doc,path,value)` | 新增或替换指定路径 |
+| `JSON_REMOVE(doc,path)` | 删除指定路径 |
+| `JSON_CONTAINS(doc,candidate,path)` | 判断是否包含指定 JSON 值 |
+
+```sql
+SELECT attributes->>'$.level' AS level
+FROM course_extra;
+
+UPDATE course_extra
+SET attributes = JSON_SET(attributes, '$.level', 'advanced')
+WHERE course_id = 1;
+```
+
+#### 5.8 窗口函数
+
+窗口函数会在**保留原始行**的同时，对一组相关记录计算排名、累计值或前后值；这与 `GROUP BY` 聚合后只保留一行不同。
+
+```sql
+-- 每个分类内按销量排名
+SELECT id,
+       title,
+       category_id,
+       buy_count,
+       ROW_NUMBER() OVER (
+           PARTITION BY category_id
+           ORDER BY buy_count DESC, id
+       ) AS row_no,
+       RANK() OVER (
+           PARTITION BY category_id
+           ORDER BY buy_count DESC
+       ) AS sales_rank
+FROM course;
+```
+
+常用窗口函数有 `ROW_NUMBER()`、`RANK()`、`DENSE_RANK()`、`LAG()`、`LEAD()`，以及 `SUM(...) OVER (...)`。面试手写题见 [SQL 语法与面试写题](/learn_database/MySQL-SQL语法与面试写题)。
+
+::: warning 函数与索引
+`WHERE YEAR(create_time)=2026` 把函数作用在索引列上，普通索引通常不能直接按原始值定位。改成范围条件：`create_time >= '2026-01-01' AND create_time < '2027-01-01'`。如果业务必须按表达式高频查询，可考虑函数索引或生成列索引。
+:::
+
+参考：[MySQL 8.4 Functions and Operators](https://dev.mysql.com/doc/refman/8.4/en/functions.html)。
+
+---
+
+### 6. 索引
+
+#### 6.1 什么是索引，为什么需要它
 
 **背景**：没有索引时，`SELECT * FROM t WHERE id = 100` 要逐行扫描整张表（全表扫描），数据量一大，磁盘 IO 次数就是性能灾难。索引的本质是「**为数据建立的一种排好序的、能快速定位的数据结构**」，用空间换时间，把 O(n) 的全表扫描降到 O(log n)。
 
@@ -369,7 +1440,7 @@ SELECT * FROM course WHERE category_id IN (SELECT id FROM cate_tree);
 一句话结论：B+ 树「矮胖」且叶子节点是双向有序链表，同时兼顾等值查询、范围查询和排序。原因：非叶子节点只存索引不存数据，单页能装更多 key，树高最低、磁盘 IO 最少；哈希只支持等值、B 树中间节点存数据导致树更高。
 :::
 
-#### 5.2 聚簇索引 vs 二级索引（回表）
+#### 6.2 聚簇索引 vs 二级索引（回表）
 
 **聚簇索引（Clustered Index）**：InnoDB 把**整行数据**直接存在主键索引（聚簇索引）的叶子节点里，即「数据即索引」。一张表**有且只有一个**聚簇索引。
 
@@ -407,11 +1478,11 @@ SELECT name, age, email FROM user WHERE name = '张三';
 
 这就是为什么推荐「**给高频查询建联合索引、让查询只走索引不回表**」，而不是无脑 `SELECT *`。
 
-#### 5.3 联合索引与最左前缀原则
+#### 6.3 联合索引与最左前缀原则
 
 **联合索引**：多个列组成一个索引，如 `INDEX idx(a, b, c)`。它是按 `a → b → c` 的顺序依次排序的：先按 a 排序，a 相同再按 b 排序，再按 c 排序。
 
-**最左前缀原则**：联合索引 `(a, b, c)` 等价于建立了 `(a)`、`(a,b)`、`(a,b,c)` 三个索引。查询条件必须**从最左列开始连续匹配**才能走这个索引：
+**最左前缀原则**：联合索引 `(a, b, c)` 的物理排序可以支持以 `(a)`、`(a,b)`、`(a,b,c)` 为连续前缀的访问方式，但不是真的建立了三个独立索引。查询通常从最左列开始连续匹配，才能高效确定扫描区间：
 
 ```sql
 CREATE INDEX idx_order ON orders(user_id, status, create_time);
@@ -424,27 +1495,28 @@ SELECT * FROM orders WHERE user_id = 1;
 SELECT * FROM orders WHERE user_id = 1 AND status = 'paid';
 -- ❌ 不能走索引（跳过了最左列 user_id）
 SELECT * FROM orders WHERE status = 'paid';
--- ❌ 只能用到 user_id 这一列（status 后面断了，create_time 用不上）
+-- ⚠️ 通常只能用 user_id 确定扫描区间；create_time 仍可能参与 ICP 过滤
 SELECT * FROM orders WHERE user_id = 1 AND create_time > '2025-01-01';
 ```
 
-**建联合索引的实用口诀**：
+**建联合索引的实用原则**：
 
-1. 等值查询的列放最前，范围查询的列放最后。
-2. 区分度高的列放前面（能过滤更多数据）。
-3. 尽量避免用重复值多的列（如性别、状态）单独建索引。
+1. 先根据真实查询里的 `WHERE + ORDER BY/GROUP BY + SELECT` 设计，而不是只看单列区分度。
+2. 通常把稳定的等值条件放前面，把范围条件放在需要继续定位的列之后；范围列后的列仍可能参与 ICP 或覆盖索引，但通常不能继续缩小 B+ 树扫描区间。
+3. 高频排序/分组要考虑索引顺序，查询列可酌情放在末尾形成覆盖索引，但不要为了覆盖把索引做得过宽。
+4. 低区分度列不适合单独建索引，但与其他列组成联合索引仍可能很有价值，例如 `(status, create_time)` 服务“按状态查询最近数据”。
 
-#### 5.4 索引失效的常见场景（背这 7 条）
+#### 6.4 索引失效的常见场景（背这 7 条）
 
 | 场景 | 反例 | 说明 |
 | --- | --- | --- |
 | 1. 索引列做函数/运算 | `WHERE YEAR(create_time) = 2025` | 索引存的是原始值，运算后无法匹配 |
 | 2. 隐式类型转换 | `WHERE phone = 13800138000`（phone 是 varchar） | MySQL 会把列转成数字，触发全表扫描 |
 | 3. 前置模糊 | `WHERE name LIKE '%张'` | 左侧通配符破坏有序性，`LIKE '张%'` 可以走 |
-| 4. 破坏最左前缀 | `WHERE b = 1`（索引是 (a,b,c)） | 必须从最左列连续匹配 |
-| 5. OR 连接非索引列 | `WHERE id = 1 OR name = 'x'` | name 没索引，只能全表扫描 |
-| 6. 索引列比较 | `WHERE id != 1` / `NOT IN` | 优化器判断走索引收益低 |
-| 7. 使用 `IS NULL`/`IS NOT NULL` 不当 | 视索引列数据分布而定 | 大部分非空时 `IS NOT NULL` 可能全表 |
+| 4. 不满足最左前缀 | `WHERE b = 1`（索引是 (a,b,c)） | 通常不能直接利用该索引定位；MySQL 8 某些场景可能选择 Skip Scan |
+| 5. OR 的部分条件无合适索引 | `WHERE id = 1 OR name = 'x'` | 可能全表扫描；两边都有索引时也可能使用 Index Merge |
+| 6. 低选择性范围条件 | `WHERE status != 1` / `NOT IN (...)` | 不是语法上失效，而是命中行太多时全表扫描成本更低 |
+| 7. `IS NULL`/`IS NOT NULL` 命中太多 | 视数据分布而定 | 两者都可以走索引，是否使用由成本和数据分布决定 |
 
 ```sql
 -- 定位是否走索引：看 type 是否 ALL、key 是否 NULL
@@ -452,7 +1524,7 @@ EXPLAIN SELECT * FROM orders WHERE YEAR(create_time) = 2025;   -- type=ALL 全�
 EXPLAIN SELECT * FROM orders WHERE create_time >= '2025-01-01'; -- type=range 走索引
 ```
 
-#### 5.5 索引下推（Index Condition Pushdown，ICP）
+#### 6.5 索引下推（Index Condition Pushdown，ICP）
 
 **背景**：MySQL 5.6 之前，联合索引中「索引列」无法完全过滤的记录要回表后再判断，白白多了很多回表。ICP 让存储引擎在**索引层面**就把能用索引列的过滤条件先过滤掉，减少回表次数。
 
@@ -466,11 +1538,85 @@ SELECT * FROM user WHERE name LIKE '张%' AND age = 20;
 
 `EXPLAIN` 的 `Extra` 出现 `Using index condition` 就说明用了 ICP。
 
+#### 6.6 索引分类与管理语法
+
+| 索引 | 特点 | 示例 |
+| --- | --- | --- |
+| 主键索引 | 唯一且非空，InnoDB 的聚簇索引 | `PRIMARY KEY (id)` |
+| 唯一索引 | 保证非 `NULL` 值不重复 | `UNIQUE INDEX uk_phone(phone)` |
+| 普通索引 | 只提高查询效率，不保证唯一 | `INDEX idx_status(status)` |
+| 联合索引 | 多列按顺序组成一个索引 | `INDEX idx_user_status(user_id,status)` |
+| 全文索引 | 面向自然语言文本搜索 | `FULLTEXT INDEX ft_content(content)` |
+| 空间索引 | 加速空间数据查询 | `SPATIAL INDEX sp_location(location)` |
+
+```sql
+-- 创建索引
+CREATE UNIQUE INDEX uk_user_phone ON user(phone);
+CREATE INDEX idx_order_user_status_time
+    ON orders(user_id, status, create_time DESC);
+
+-- 查看索引
+SHOW INDEX FROM orders;
+
+-- 删除索引
+DROP INDEX idx_order_user_status_time ON orders;
+-- 或 ALTER TABLE orders DROP INDEX idx_order_user_status_time;
+```
+
+#### 6.7 前缀索引
+
+长字符串直接建完整索引会占用大量空间。前缀索引只索引前 n 个字符：
+
+```sql
+CREATE INDEX idx_user_email_prefix ON user(email(12));
+
+-- 比较不同前缀长度的选择性，越接近 1 区分度越高
+SELECT COUNT(DISTINCT LEFT(email, 12)) / COUNT(*) AS selectivity
+FROM user;
+```
+
+前缀索引更小，但不能完整覆盖原字段，通常无法直接满足按完整字段的覆盖查询和排序。应在索引大小与选择性之间取平衡。
+
+#### 6.8 索引设计原则
+
+1. 为高频 `WHERE`、`JOIN ON`、`ORDER BY`、`GROUP BY` 字段设计索引。
+2. 优先根据完整查询设计联合索引，避免给每个字段各建一个单列索引。
+3. 联合索引通常把稳定等值条件放前面，再考虑范围和排序；最终仍以执行计划和实测为准。
+4. 选择性很低的字段通常不单独建索引，但 `(status, create_time)` 这类组合仍可能服务明确查询。
+5. 使用覆盖索引减少回表，但不要为了覆盖塞入过多大字段。
+6. 主键应短、稳定、非空并尽量有序；二级索引叶子节点会保存主键，主键过大会放大所有索引。
+7. 索引不是越多越好：每个索引都会占空间，并增加 `INSERT/UPDATE/DELETE` 的维护成本。
+8. 上线索引前检查重复索引、慢 SQL、数据分布和写入压力，建立后用 `EXPLAIN ANALYZE` 验证收益。
+
+#### 6.9 SQL 索引提示
+
+```sql
+SELECT id, username
+FROM user USE INDEX (idx_user_status)
+WHERE status = 1;
+
+SELECT id, username
+FROM user IGNORE INDEX (idx_user_status)
+WHERE status = 1;
+
+SELECT id, username
+FROM user FORCE INDEX (idx_user_status)
+WHERE status = 1;
+```
+
+| 提示 | 含义 |
+| --- | --- |
+| `USE INDEX` | 建议优化器只在指定索引集合中选择，但仍可全表扫描 |
+| `IGNORE INDEX` | 不考虑指定索引 |
+| `FORCE INDEX` | 强烈要求使用指定索引，认为全表扫描代价很高 |
+
+索引提示是最后手段，不是常规优化方案。数据分布和 MySQL 版本变化后，今天正确的强制索引可能变成错误选择；应先更新统计信息、检查索引和改写 SQL，再通过实测决定是否使用。
+
 ---
 
-### 6. 事务与隔离级别
+### 7. 事务与隔离级别
 
-#### 6.1 什么是事务，ACID 是什么
+#### 7.1 什么是事务，ACID 是什么
 
 **背景**：转账「A 扣 100、B 加 100」这两步要么都成功、要么都失败，不能扣了 A 的钱却没加到 B 头上。事务就是把一组操作打包成**一个不可分割的最小执行单元**。
 
@@ -485,7 +1631,7 @@ SELECT * FROM user WHERE name LIKE '张%' AND age = 20;
 | 隔离性 Isolation | 并发事务互不干扰 | **MVCC + 锁** |
 | 持久性 Durability | 事务提交后数据永久保存 | **redo log**（重做日志） |
 
-#### 6.2 并发带来的问题与四种隔离级别
+#### 7.2 并发带来的问题与四种隔离级别
 
 并发执行事务会带来三个经典问题：
 
@@ -515,7 +1661,7 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 一句话结论：默认是「可重复读」（RR），靠 MVCC 快照读 + 间隙锁（next-key lock）解决幻读。原因：普通 `SELECT` 走 MVCC 读历史版本（快照读），不会被新插入的行影响；`SELECT ... FOR UPDATE` 走当前读，会加间隙锁锁住区间，阻止别的行插入。
 :::
 
-#### 6.3 MVCC 的版本链（基础理解）
+#### 7.3 MVCC 的版本链（基础理解）
 
 **背景**：如果每次读都加锁，读写会互相阻塞，吞吐极低。MVCC（Multi-Version Concurrency Control，多版本并发控制）让**读不加锁、读写不互斥**，是 InnoDB 高并发的核心。
 
@@ -551,7 +1697,7 @@ InnoDB 给每行记录加了两个**隐藏列**（原理篇会展开字节级细
 
 ---
 
-### 7. 锁的基础认识
+### 8. 锁的基础认识
 
 **背景**：MVCC 解决「读」的并发，但「写」之间、读写之间仍需要锁来协调，否则两个事务同时改同一行就会互相覆盖。
 
@@ -578,9 +1724,9 @@ SELECT * FROM user WHERE id = 1 LOCK IN SHARE MODE;  -- 8.0 后推荐 FOR SHARE
 SELECT * FROM user WHERE id = 1 FOR UPDATE;
 ```
 
-> **关键认知**：InnoDB 的行锁是**加载索引上**的。如果 UPDATE 的 WHERE 条件没走索引，会退化成锁全表（把所有记录的行锁都加上）。这就是为什么「WHERE 没索引的更新」特别容易引发死锁和锁等待。
+> **关键认知**：InnoDB 的记录锁加在索引记录上。如果 `UPDATE/DELETE` 没有合适索引，就会扫描并锁住大量记录，效果可能接近锁表，因此特别容易引发锁等待和死锁。
 
-**基础篇小结**：到这里已经掌握 MySQL 的「骨架」——架构分层、引擎选择、数据类型、SQL 四分类、B+ 树索引、事务与隔离级别、锁的概念。下一步进入高级篇，把这些概念串成「一条 SQL 从优化到落盘再到主从同步」的完整闭环。
+**基础篇小结**：到这里已经掌握 MySQL 的「骨架」——架构分层、引擎选择、数据类型、SQL 五分类、常用函数、B+ 树索引、事务与隔离级别、锁的概念。下一步进入高级篇，把这些概念串成「一条 SQL 从优化到落盘再到主从同步」的完整闭环。
 
 ---
 
@@ -604,16 +1750,16 @@ EXPLAIN ANALYZE SELECT * FROM orders WHERE user_id = 1;
 
 | 字段 | 含义 | 怎么看 |
 | --- | --- | --- |
-| `type` | **访问类型（最关键）** | 越靠前越好，最低要求 `range`，出现 `ALL` 要警惕 |
+| `type` | **访问类型（重要但不能单独下结论）** | `ALL` 表示全表扫描；小表或返回大量数据时可能是合理计划 |
 | `key` | 实际使用的索引 | `NULL` 表示没走索引，等于全表扫描 |
 | `rows` | 优化器**预估**要扫描的行数 | 越小越好，与 `type=ALL` 一起看最能发现问题 |
 | `key_len` | 索引实际用到的字节数 | 越大说明联合索引用到的列越多（越左前缀匹配越充分） |
 | `Extra` | 额外信息 | `Using index`/`Using filesort` 等关键线索 |
-| `id` | 查询序号 | 越大越先执行；相同 id 从上往下顺序执行 |
+| `id` | 查询块标识 | 用于区分查询层级，不能单独当作真实执行顺序；复杂 SQL 看 `FORMAT=TREE` 或 `EXPLAIN ANALYZE` |
 | `select_type` | 查询类型 | `SIMPLE`/`PRIMARY`/`SUBQUERY`/`DERIVED`/`UNION` |
 | `possible_keys` | 可能用到的索引 | 候选，可能为空 |
 | `ref` | 与索引比较的是常量还是列 | `const` 或 `表.列名` |
-| `filtered` | 按条件过滤后剩余行数占比 | 越大越好（越接近 100 说明过滤效果好） |
+| `filtered` | 通过本表条件后预计保留的百分比 | 结合 `rows` 看，预计流向下一步的行数约为 `rows × filtered%` |
 
 #### 1.1 type 从优到劣（面试必背）
 
@@ -650,8 +1796,8 @@ EXPLAIN SELECT * FROM user;                            -- type=ALL 全表
 | `Using index` | 覆盖索引，只读索引不回表 | ✅ 最好 |
 | `Using index condition` | 用了索引下推（ICP） | ✅ 较好 |
 | `Using where` | 存储引擎返回后 Server 层再过滤 | ⚠️ 一般 |
-| `Using temporary` | 用了临时表（`GROUP BY`/`DISTINCT`/`UNION` 没走索引） | ❌ 差，要优化 |
-| `Using filesort` | 文件排序（`ORDER BY` 没走索引，需额外排序） | ❌ 差，要优化 |
+| `Using temporary` | 需要内部临时结果，常见于分组、去重和 UNION | ⚠️ 关注数据量和是否落盘，不代表一定有问题 |
+| `Using filesort` | 未按索引顺序直接返回，需要额外排序 | ⚠️ 小结果集内存排序很正常，大结果集才重点优化 |
 | `Using join buffer` | join 被驱动表无索引，用内存缓冲做全表匹配 | ❌ 差 |
 
 ```sql
@@ -667,13 +1813,15 @@ EXPLAIN SELECT * FROM orders ORDER BY create_time;          -- 走索引，无�
 一句话结论：都是「没走索引导致额外排序/临时表」的信号，是慢 SQL 的常见元凶。原因：`ORDER BY`/`GROUP BY` 的列不在索引里时，MySQL 只能把结果拿出来单独排序或建临时表。展开：给排序/分组列建合适的联合索引，让数据在索引里天然有序，即可消除 filesort/temporary。
 :::
 
-**小结**：EXPLAIN 的核心是看三件事——`type` 是不是 `ALL`、`key` 是不是 `NULL`、`Extra` 有没有 `Using filesort/temporary`。三者任何一条命中，基本都能锁定慢 SQL 的根因。
+**小结**：EXPLAIN 先看访问方式与索引，再看预计扫描行数和额外操作。出现 `ALL`、`key=NULL`、`Using filesort/temporary` 只是调查线索，必须结合表大小、返回比例以及 `EXPLAIN ANALYZE` 的实际行数和耗时判断。
 
 ---
 
 ### 2. SQL 优化实战
 
 **背景**：掌握了 EXPLAIN，就有了「诊断工具」，这一节讲「治病的套路」——从定位慢 SQL，到索引优化、深分页、count、join 等高频实战场景。
+
+本节是核心速览；完整的诊断流程、准确的执行计划解读和十类改写案例见 [SQL 优化实战](/learn_database/MySQL-SQL优化实战)。
 
 #### 2.1 慢查询定位
 
@@ -698,9 +1846,9 @@ SHOW VARIABLES LIKE 'slow_query_log_file';
 2. **索引列不做函数/运算/隐式转换**（会破坏索引匹配）。
 3. **遵循最左前缀原则**建联合索引（等值列在前、范围列在后）。
 4. **用覆盖索引**让查询只走索引不回表。
-5. **小表驱动大表**做 join。
+5. **让过滤后结果集更小的一侧尽早参与 JOIN**，并给被查找一侧的连接列建立索引；通常由优化器按成本选择顺序。
 6. **深分页用游标**（`WHERE id > 上次id`）替代大偏移 `LIMIT`。
-7. **`IN` / `EXISTS` 恰当选择**（外表大用 `EXISTS`，外表小用 `IN`）。
+7. **`IN` / `EXISTS` 先保证语义正确，再看执行计划**；MySQL 8 可能将两者改写成半连接，不能只背“谁大用谁”。
 8. **大表加索引用在线 DDL**（`pt-osc`/`gh-ost`），避免锁表阻塞业务。
 9. **尽量批量插入**，减少网络/解析开销。
 10. **控制事务大小、避免长事务**（长事务占用 undo log 和锁，拖累并发）。
@@ -724,7 +1872,7 @@ SELECT * FROM orders WHERE id > 1000000 ORDER BY id LIMIT 10;
 #### 2.4 COUNT(*) 优化
 
 - **MyISAM** 表里直接存了行数，`COUNT(*)` O(1) 返回；**InnoDB** 没有存，必须扫描（所以慢）。
-- `COUNT(*)`、`COUNT(1)`、`COUNT(主键)` 性能几乎一样（都按行计数），`COUNT(列)` 会忽略 NULL，且若列无索引会更慢。
+- 无条件统计行数优先写 `COUNT(*)`，语义最清楚；`COUNT(列)` 只统计非 NULL。InnoDB 会按成本选择较小的可用索引扫描，不能靠把 `*` 改成 `1` 获得稳定性能提升。
 - 精确计数慢时，可用 `information_schema.tables` 的 `table_rows` 拿**估算值**，或用 Redis 计数器维护精确值。
 
 ```sql
@@ -734,9 +1882,9 @@ SELECT table_rows FROM information_schema.tables WHERE table_name = 'orders';
 
 #### 2.5 JOIN 优化
 
-- **小表驱动大表**：让行数少的表做驱动表（外层），行数多的做被驱动表（内层）。优化器通常会自动选，但要能看懂 `EXPLAIN` 里的顺序。
+- **关注过滤后的结果集，而不是表的物理大小**：优化器通常会选择成本更低的连接顺序。真正关键的是尽早减少参与连接的行数。
 - **被驱动表的 join 列必须有索引**：否则对被驱动表每行匹配都要全表扫（`Extra` 出现 `Using join buffer`）。
-- **`IN` vs `EXISTS`**：外表大用 `EXISTS`（内层小表匹配到即返回），外表小用 `IN`（内层大表走索引）。
+- **`IN` vs `EXISTS`**：两者语义不同，尤其 `NOT IN` 遇到 NULL 会产生 UNKNOWN；MySQL 8 还能把子查询优化成半连接，应以 `EXPLAIN ANALYZE` 的实际计划为准。
 
 ```sql
 -- 被驱动表 o.user_id 建索引后，join 才高效
@@ -745,10 +1893,116 @@ EXPLAIN SELECT * FROM user u INNER JOIN orders o ON u.id = o.user_id;
 ```
 
 ::: tip 💡 面试题：JOIN 优化要点？什么是小表驱动大表？
-一句话结论：让行数少的表做驱动表、被驱动表的连接列建索引，减少匹配次数。原因：驱动表每行都要去被驱动表匹配，驱动表越小、被驱动表走索引，整体 IO 越少。展开：小表驱动大表本质是「外层循环次数最少 + 内层查找 O(log n)」。
+一句话结论：尽早过滤出较小结果集，并让另一侧连接列具备合适索引。原因：连接成本取决于参与匹配的行数和单次匹配成本，而不只是两张表谁的物理行数更少；最终用 `EXPLAIN ANALYZE` 验证优化器的选择。
 :::
 
-**小结**：SQL 优化是一套「定位（慢日志 + EXPLAIN）→ 诊断（type/key/Extra）→ 对症（建索引/改写法/覆盖索引/游标分页）」的流程，没有万能药，但九成慢 SQL 都死在「没走索引」和「扫描行数太多」这两件事上。
+#### 2.6 SQL 执行频率与耗时定位
+
+```sql
+-- 查看服务启动以来各种语句的执行次数
+SHOW GLOBAL STATUS LIKE 'Com_______';
+
+-- 查看当前会话是否支持旧版 profiling
+SELECT @@have_profiling;
+SET profiling = 1;
+SHOW PROFILES;
+SHOW PROFILE FOR QUERY 1;
+```
+
+`SHOW PROFILE` 属于旧式诊断手段，新项目优先使用慢查询日志、`EXPLAIN ANALYZE`、Performance Schema 和 `sys` schema：
+
+```sql
+-- 汇总执行次数、总延迟、平均延迟和扫描行数较高的语句
+SELECT query,
+       exec_count,
+       total_latency,
+       avg_latency,
+       rows_examined
+FROM sys.statement_analysis
+ORDER BY total_latency DESC
+LIMIT 20;
+```
+
+#### 2.7 INSERT 与大批量导入优化
+
+```sql
+-- 1. 多值批量插入，减少网络往返和 SQL 解析
+INSERT INTO course_tag(course_id, tag_id)
+VALUES (1, 10), (1, 11), (1, 12);
+
+-- 2. 多批次写入时放进一个合理大小的事务，避免每条都单独提交
+START TRANSACTION;
+INSERT INTO course_tag(course_id, tag_id) VALUES (2, 10), (2, 11);
+INSERT INTO course_tag(course_id, tag_id) VALUES (3, 10), (3, 11);
+COMMIT;
+
+-- 3. 文件导入通常比大量 INSERT 更快
+LOAD DATA LOCAL INFILE 'D:/data/course.csv'
+INTO TABLE course
+FIELDS TERMINATED BY ','
+OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES;
+```
+
+实战原则：
+
+1. 使用批量参数，而不是 Java 循环发送单条 SQL。
+2. 每批大小要受 SQL 长度、内存、锁持有时间和 `max_allowed_packet` 约束，常从 500~1000 行压测。
+3. 尽量按主键顺序写入，减少聚簇索引页分裂和随机 IO。
+4. 大导入使用 `LOAD DATA`，但 `LOCAL` 涉及客户端文件读取权限，只在可信环境启用。
+
+#### 2.8 主键优化
+
+- 主键应尽量**短**：所有二级索引叶子节点都保存主键，主键越大，全部索引越大。
+- 主键应**稳定**：不要更新主键，否则相当于移动聚簇索引记录，并修改相关二级索引。
+- 主键应尽量**递增或趋势递增**：自增 ID、雪花 ID 通常比随机 UUID 更利于顺序写入。
+- 不要使用身份证号、手机号等有业务含义且可能变化的数据作为主键。
+- 分布式系统不能跨库依赖单库自增时，可使用雪花 ID、号段模式或数据库序列服务。
+
+随机字符串主键会让新记录频繁插入 B+ 树中间位置，增加页分裂、数据移动和索引体积；如果必须使用 UUID，可考虑有序 UUID，并评估 `BINARY(16)` 存储。
+
+#### 2.9 ORDER BY 与 GROUP BY 优化
+
+```sql
+CREATE INDEX idx_course_status_time
+    ON course(status, create_time DESC, id DESC);
+
+-- WHERE 等值匹配最左列，后续列顺序与 ORDER BY 一致，可利用索引有序性
+SELECT id, title, create_time
+FROM course
+WHERE status = 1
+ORDER BY create_time DESC, id DESC
+LIMIT 20;
+```
+
+- 排序字段的顺序、方向要与索引兼容；混合升降序可在 MySQL 8 中建立降序索引。
+- `Using filesort` 表示不能直接利用索引顺序，需要额外排序；它不一定是磁盘排序，也不代表一定慢，应结合行数判断。
+- `GROUP BY` 同样可能利用联合索引的有序性；先用 `WHERE` 缩小数据，再按真实分组顺序设计索引。
+- 不要为了消除一次小结果集排序建立低收益索引，索引会增加写成本。
+
+#### 2.10 UPDATE 与 DELETE 优化
+
+```sql
+-- 条件列有唯一/普通索引时，存储引擎能快速定位并只锁必要范围
+UPDATE course
+SET status = 0
+WHERE id = 1001;
+
+-- 大批量历史数据分批删除，避免超大事务
+DELETE FROM operation_log
+WHERE create_time < '2025-01-01'
+ORDER BY id
+LIMIT 1000;
+```
+
+1. 更新和删除条件必须有合适索引，否则会扫描并锁住大量记录。
+2. 修改前先用同条件 `SELECT` 验证范围，并检查受影响行数。
+3. 大更新/删除拆批提交，减少 undo、redo、binlog、锁等待和主从延迟。
+4. 避免频繁更新索引列；更新索引列不仅改数据，还要维护对应 B+ 树。
+5. 需要防并发覆盖时使用版本号条件更新，并以影响行数判断是否成功。
+
+**小结**：SQL 优化是一套「定位（慢日志）→ 诊断（执行计划与锁等待）→ 修改（索引/SQL/模型）→ 实测 → 回归」的闭环。常见根因是扫描行数过多、随机回表、排序聚合成本高或锁等待，而不是简单的“没有索引”。
 
 ---
 
@@ -960,8 +2214,17 @@ SELECT * FROM user WHERE id > 5 FOR UPDATE;      -- 范围 → Next-Key Lock 区
 | **自增锁 AUTO-INC** | 插入自增主键时，保证并发插入的自增值唯一（8.0 有优化，插入完即释放） |
 | **MDL 元数据锁** | 保护表结构：DML 加 MDL 读锁，DDL 加 MDL 写锁；**长事务不提交会阻塞 DDL** |
 | **表锁** | 锁整张表，MyISAM 只有这种；InnoDB 也支持手动 `LOCK TABLES` |
+| **全局读锁** | `FLUSH TABLES WITH READ LOCK` 让整个实例只读，常用于特定备份场景，会阻塞业务写入 |
 
-**关键认知**：InnoDB 的**行锁是加在索引上的**。如果 UPDATE/DELETE 的 WHERE 条件没走索引，行锁退化成「锁全表所有记录的行锁」，极易引发锁等待和死锁。
+```sql
+-- 全局只读锁：当前会话断开或显式解锁后释放
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+```
+
+对 InnoDB 做逻辑备份通常优先使用 `mysqldump --single-transaction` 获取一致性快照，避免全局读锁长期阻塞写入；它不适用于不支持事务的表。
+
+**关键认知**：InnoDB 的记录锁是加在索引记录上的。`UPDATE/DELETE` 的条件没有合适索引时，会扫描并锁住大量记录，效果可能接近锁表，极易引发锁等待和死锁；这不是把锁类型直接“升级成表锁”。
 
 #### 5.4 死锁
 
@@ -982,11 +2245,11 @@ SELECT * FROM user WHERE id > 5 FOR UPDATE;      -- 范围 → Next-Key Lock 区
 
 1. 按**固定的顺序**访问表和行（都先锁 id 小的）。
 2. 事务尽量**短小**，减少持锁时间。
-3. **给 WHERE 加索引**，避免锁全表。
+3. **给 WHERE 条件设计合适索引**，避免扫描并锁住大量记录。
 4. 尽量用一次性锁住所有需要的资源（`SELECT ... FOR UPDATE` 提前加锁）。
 
 ::: tip 💡 面试题：死锁是怎么产生的？如何避免？
-一句话结论：死锁是两个事务互相等待对方持有的锁形成循环等待；InnoDB 用死锁检测回滚其中一个来打破。原因：加锁顺序不一致 + 持锁时间过长导致。展开：避免方法是「统一加锁顺序、缩短事务、WHERE 加索引避免锁全表」。
+一句话结论：死锁是两个事务互相等待对方持有的锁形成循环等待；InnoDB 用死锁检测回滚其中一个来打破。原因：加锁顺序不一致 + 持锁时间过长导致。展开：避免方法是「统一加锁顺序、缩短事务、让 WHERE 使用合适索引」。
 :::
 
 #### 5.5 乐观锁 vs 悲观锁
@@ -1098,13 +2361,302 @@ Slave：
 
 ---
 
+### 8. 视图
+
+视图是保存在数据库中的 `SELECT` 定义。查询视图时才根据定义产生结果，因此它通常是“虚拟表”，不是一份独立复制的数据。
+
+#### 8.1 创建、查询、修改和删除
+
+```sql
+-- 只暴露允许前端后台查询的课程字段
+CREATE OR REPLACE VIEW v_course_public AS
+SELECT id, title, cover, price, teacher_id, category_id
+FROM course
+WHERE status = 1
+  AND deleted_at IS NULL
+WITH CASCADED CHECK OPTION;
+
+SELECT * FROM v_course_public WHERE category_id = 10;
+SHOW CREATE VIEW v_course_public;
+
+ALTER VIEW v_course_public AS
+SELECT id, title, cover, price
+FROM course
+WHERE status = 1
+WITH CASCADED CHECK OPTION;
+
+DROP VIEW IF EXISTS v_course_public;
+```
+
+`WITH CHECK OPTION` 要求通过视图新增或修改后的记录仍满足视图条件：
+
+| 检查方式 | 含义 |
+| --- | --- |
+| `LOCAL` | 只检查当前视图自身条件 |
+| `CASCADED` | 同时检查当前视图及依赖的底层视图条件，默认方式 |
+
+#### 8.2 视图能否更新
+
+简单的单表视图通常可更新；包含下面结构的视图通常不可直接更新：聚合函数、`DISTINCT`、`GROUP BY`、`HAVING`、`UNION`、窗口函数以及某些复杂 JOIN/子查询。
+
+视图的价值主要是：
+
+1. 封装复杂查询，统一复用口径。
+2. 只暴露部分行和列，配合权限增强数据安全。
+3. 给调用方提供相对稳定的查询接口，降低底层表变化的影响。
+
+视图不会天然提升性能；复杂视图层层嵌套反而会让执行计划难读，应像普通 SQL 一样使用 `EXPLAIN` 验证。
+
+---
+
+### 9. 存储过程、存储函数与触发器
+
+它们都是把 SQL 逻辑保存在 MySQL 服务端的数据库对象。面试需要会基本语法，Java 微服务项目则应谨慎使用：复杂业务逻辑放在数据库里，会增加版本管理、单元测试、调试、迁移和扩容难度。
+
+#### 9.1 存储过程
+
+存储过程通过 `CREATE PROCEDURE` 创建，使用 `CALL` 调用；它可以返回结果集，也可以通过 `OUT/INOUT` 参数传回值。
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE p_course_stat(
+    IN p_category_id BIGINT,
+    OUT p_course_count INT
+)
+BEGIN
+    SELECT COUNT(*)
+    INTO p_course_count
+    FROM course
+    WHERE category_id = p_category_id
+      AND deleted_at IS NULL;
+END //
+
+DELIMITER ;
+
+CALL p_course_stat(10, @course_count);
+SELECT @course_count;
+
+SHOW CREATE PROCEDURE p_course_stat;
+DROP PROCEDURE IF EXISTS p_course_stat;
+```
+
+`DELIMITER` 是 MySQL 客户端命令，用来临时更换语句结束符，避免过程体内部的分号提前结束 `CREATE PROCEDURE`；它不是存储过程语法本身。
+
+##### 参数模式
+
+| 模式 | 作用 |
+| --- | --- |
+| `IN` | 调用方传入，只作为输入，默认模式 |
+| `OUT` | 过程内部赋值，调用后传回 |
+| `INOUT` | 调用前有值，过程可修改并传回 |
+
+##### 三类变量
+
+```sql
+-- 系统变量：影响 MySQL 或当前会话行为
+SELECT @@global.max_connections;
+SELECT @@session.transaction_isolation;
+SET SESSION sql_safe_updates = 1;
+
+-- 用户变量：当前连接内有效，以 @ 开头，不必声明
+SET @course_count = 0;
+SELECT COUNT(*) INTO @course_count FROM course;
+
+-- 局部变量：只能在 BEGIN...END 中使用，必须 DECLARE
+DECLARE current_count INT DEFAULT 0;
+```
+
+`DECLARE` 必须写在当前 `BEGIN...END` 块的开头，并且声明顺序通常是：局部变量 → 游标 → 条件处理器。
+
+##### 条件与循环
+
+```sql
+IF score >= 85 THEN
+    SET level_name = '优秀';
+ELSEIF score >= 60 THEN
+    SET level_name = '及格';
+ELSE
+    SET level_name = '不及格';
+END IF;
+
+CASE
+    WHEN price = 0 THEN SET price_level = '免费';
+    WHEN price < 100 THEN SET price_level = '入门价';
+    ELSE SET price_level = '精品课';
+END CASE;
+```
+
+| 循环 | 特点 | 退出方式 |
+| --- | --- | --- |
+| `WHILE condition DO ... END WHILE` | 先判断再执行，可能一次不执行 | 条件变为假 |
+| `REPEAT ... UNTIL condition END REPEAT` | 先执行再判断，至少执行一次 | `UNTIL` 为真 |
+| `[label:] LOOP ... END LOOP` | 无条件循环 | `LEAVE label` |
+
+`ITERATE label` 类似 Java 的 `continue`，`LEAVE label` 类似带标签的 `break`。
+
+##### 游标与条件处理器
+
+游标用于逐行读取查询结果。能使用集合 SQL 一次完成时，不要使用游标，因为逐行处理通常更慢。
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE p_collect_course_titles(IN p_category_id BIGINT)
+BEGIN
+    DECLARE done BOOLEAN DEFAULT FALSE;
+    DECLARE v_title VARCHAR(200);
+
+    DECLARE course_cursor CURSOR FOR
+        SELECT title FROM course WHERE category_id = p_category_id;
+
+    -- FETCH 没有下一行时设置 done=true，然后继续执行
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN course_cursor;
+
+    read_loop: LOOP
+        FETCH course_cursor INTO v_title;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- 在这里处理当前行；示例只输出
+        SELECT v_title;
+    END LOOP;
+
+    CLOSE course_cursor;
+END //
+
+DELIMITER ;
+```
+
+条件处理器语法：
+
+```sql
+DECLARE CONTINUE HANDLER FOR NOT FOUND ...;
+DECLARE EXIT HANDLER FOR SQLEXCEPTION ...;
+```
+
+- `CONTINUE`：处理异常后继续执行。
+- `EXIT`：处理异常后退出当前 `BEGIN...END` 块。
+- 常用条件有 `NOT FOUND`、`SQLWARNING`、`SQLEXCEPTION`，也可以指定 `SQLSTATE`。
+
+#### 9.2 存储函数
+
+存储函数必须通过 `RETURN` 返回一个值，可以像内置函数一样出现在表达式中。
+
+```sql
+DELIMITER //
+
+CREATE FUNCTION f_course_level(p_price DECIMAL(10,2))
+RETURNS VARCHAR(20)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN CASE
+        WHEN p_price = 0 THEN '免费'
+        WHEN p_price < 100 THEN '入门价'
+        ELSE '精品课'
+    END;
+END //
+
+DELIMITER ;
+
+SELECT title, f_course_level(price) AS price_level
+FROM course;
+
+DROP FUNCTION IF EXISTS f_course_level;
+```
+
+`DETERMINISTIC` 表示相同输入总会得到相同结果；还可按实际行为声明 `NO SQL`、`READS SQL DATA` 等特征。开启 binlog 时，创建未正确声明特征的存储函数可能需要额外权限或 `log_bin_trust_function_creators` 配置，不要为了绕过校验随意修改生产全局变量。
+
+| 对比 | 存储过程 | 存储函数 |
+| --- | --- | --- |
+| 调用 | `CALL procedure(...)` | 在 SQL 表达式中调用 |
+| 返回 | 可返回结果集或通过 `OUT` 参数返回多个值 | 必须 `RETURN` 一个值 |
+| 主要用途 | 执行一组数据库操作 | 封装可复用计算 |
+
+#### 9.3 触发器
+
+触发器绑定到表，在 `INSERT`、`UPDATE`、`DELETE` 的 `BEFORE` 或 `AFTER` 时机自动执行。MySQL 触发器是行级触发器：一次更新 100 行，就会触发 100 次。
+
+| 事件 | `OLD` | `NEW` |
+| --- | --- | --- |
+| `INSERT` | 不可用 | 新记录 |
+| `UPDATE` | 修改前记录 | 修改后记录 |
+| `DELETE` | 删除前记录 | 不可用 |
+
+```sql
+CREATE TABLE course_audit (
+    id           BIGINT PRIMARY KEY AUTO_INCREMENT,
+    course_id    BIGINT NOT NULL,
+    old_status   TINYINT,
+    new_status   TINYINT,
+    operate_time DATETIME NOT NULL
+);
+
+DELIMITER //
+
+CREATE TRIGGER trg_course_after_update
+AFTER UPDATE ON course
+FOR EACH ROW
+BEGIN
+    INSERT INTO course_audit(course_id, old_status, new_status, operate_time)
+    VALUES (NEW.id, OLD.status, NEW.status, NOW());
+END //
+
+DELIMITER ;
+
+SHOW TRIGGERS;
+DROP TRIGGER IF EXISTS trg_course_after_update;
+```
+
+触发器适合非常简单、必须贴近数据的数据审计或约束补充。复杂业务不建议放触发器：它是隐式执行，容易出现性能抖动、递归依赖、排查困难和主从复制影响；业务审计通常更适合应用事件、消息队列或 binlog CDC。
+
+参考：[MySQL 8.4 Stored Objects](https://dev.mysql.com/doc/en/stored-objects.html)、[Using Views](https://dev.mysql.com/doc/refman/8.4/en/views.html)。
+
+---
+
+### 10. 系统数据库与常用工具
+
+#### 10.1 四个系统数据库
+
+| 数据库 | 作用 |
+| --- | --- |
+| `mysql` | 用户、权限、时区等系统数据，不能随意手改 |
+| `information_schema` | 库、表、列、索引等元数据的只读视图 |
+| `performance_schema` | 采集语句、等待、锁、内存等运行性能数据 |
+| `sys` | 对 Performance Schema 的结果进行更易读的汇总 |
+
+#### 10.2 命令行工具
+
+| 工具 | 主要用途 | 常用示例 |
+| --- | --- | --- |
+| `mysql` | 连接数据库、执行 SQL | `mysql -h127.0.0.1 -P3306 -uroot -p course_mall` |
+| `mysqladmin` | 查看状态、执行简单管理命令 | `mysqladmin -uroot -p status` |
+| `mysqlbinlog` | 查看和按时间/位置读取 binlog | `mysqlbinlog binlog.000001` |
+| `mysqlshow` | 快速查看库、表和字段信息 | `mysqlshow -uroot -p course_mall` |
+| `mysqldump` | 逻辑备份库或表 | `mysqldump -uroot -p --single-transaction course_mall > backup.sql` |
+| `mysqlimport` | 从文本文件批量导入表 | `mysqlimport --local -uroot -p course_mall course.txt` |
+
+```sql
+-- 在 mysql 客户端中导入 SQL 文件
+SOURCE E:/backup/course_mall.sql;
+```
+
+InnoDB 在线逻辑备份常加 `--single-transaction`，以一致性快照导出并减少锁表影响；若还要备份存储过程、事件和触发器，要检查 `--routines`、`--events`、`--triggers` 选项。生产恢复必须定期演练，只有“备份成功”日志而没有恢复验证不算可靠备份。
+
+---
+
 ### 高级篇小结
 
-- SQL 优化 = 慢日志定位 + EXPLAIN 诊断（type/key/Extra）+ 对症下药（建索引/覆盖索引/游标分页）。
+- SQL 优化 = 慢日志定位 + EXPLAIN/ANALYZE 诊断 + 针对性修改 + 实测与回归，不能只靠是否走索引下结论。
 - 三大日志分工：redo 崩溃恢复、binlog 主从复制、undo 回滚 + MVCC；两阶段提交保证 redo/binlog 一致。
 - MVCC = 版本链 + ReadView，RC 每次读新建 ReadView，RR 复用第一个；快照读不加锁、当前读加锁。
-- 锁体系核心：Record/Gap/Next-Key 三兄弟，间隙锁防幻读，行锁加载索引上，没索引锁全表。
+- 锁体系核心：Record/Gap/Next-Key 三兄弟，间隙锁防幻读；记录锁加在索引记录上，缺少合适索引会扫描并锁住大量记录。
 - 高可用演进：主从读写分离 → 半同步/MHA 故障切换 → 分库分表。
+- 数据库对象：视图封装查询；存储过程/函数/触发器要会读写基本语法，但 Java 微服务中谨慎承载复杂业务。
 
 ---
 
@@ -1374,7 +2926,7 @@ UPDATE account SET balance = balance - 50 WHERE id = 1;
 
 - **Q：Record/Gap/Next-Key Lock 区别？** A：Record 锁一行，Gap 锁区间（防幻读），Next-Key = 记录 + 间隙（RR 默认）。
 - **Q：间隙锁解决什么？** A：锁住索引记录之间的空隙，防止插入，解决 RR 下当前读的幻读。
-- **Q：为什么行锁会锁全表？** A：行锁加载索引上，UPDATE 的 WHERE 没走索引时，退化成锁所有记录。
+- **Q：为什么没有索引的更新看起来像锁表？** A：InnoDB 的记录锁加在索引记录上；条件无法有效定位时会扫描并锁住大量记录，效果可能接近锁表，但并非直接升级为表锁。
 - **Q：死锁怎么处理？** A：InnoDB 检测等待图回滚一个事务；避免方法是统一加锁顺序、缩短事务、加索引。
 
 **日志与崩溃恢复**
@@ -1385,7 +2937,7 @@ UPDATE account SET balance = balance - 50 WHERE id = 1;
 
 **SQL 优化**
 
-- **Q：EXPLAIN 看什么？** A：type（不能是 ALL）、key（不能是 NULL）、Extra（不能有 filesort/temporary）。
+- **Q：EXPLAIN 看什么？** A：先看访问方式、实际索引、预计扫描行数和 Extra，再用 `EXPLAIN ANALYZE` 对照实际耗时、行数与循环次数；`ALL/filesort/temporary` 是线索，不是必然错误。
 - **Q：深分页怎么优化？** A：大 offset 要丢弃大量行，用 `WHERE id > 上次id` 游标分页或延迟关联。
 - **Q：Buffer Pool 冷热分离为什么？** A：防止全表扫描/预读污染热区，新页先放冷区、待够时间再晋升。
 
