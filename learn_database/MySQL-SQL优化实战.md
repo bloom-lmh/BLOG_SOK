@@ -556,6 +556,26 @@ InnoDB 二级索引叶子会保存主键值，因此主键过长会放大所有�
 - 反范式通过冗余字段或汇总表减少复杂 JOIN 和在线聚合。
 - 是否冗余取决于读写比例、一致性要求和维护成本，不是“表越拆越专业”。
 
+#### 函数依赖与 Armstrong 公理
+
+**函数依赖** `X → Y` 表示：在一张表中，只要两行的 `X` 值相同，`Y` 值就必须相同。它描述的是**业务规则**，不是 Java 函数，也不能只凭当前几行数据恰好相同就断定依赖成立。
+
+例如在课程信息表中，每门课程只归属一位讲师、每个讲师编号对应一位讲师时，有 `course_id → teacher_id` 和 `teacher_id → teacher_name`。
+
+**Armstrong 公理**用于从已知函数依赖推导出必然成立的新依赖。设 `X`、`Y`、`Z` 都是字段集合：
+
+| 公理 | 规则 | 用课程表理解 |
+| --- | --- | --- |
+| 自反律 | 若 `Y ⊆ X`，则 `X → Y` | `{course_id, teacher_id} → teacher_id` |
+| 增广律 | 若 `X → Y`，则 `XZ → YZ` | `course_id → teacher_id`，所以 `{course_id, status} → {teacher_id, status}` |
+| 传递律 | 若 `X → Y` 且 `Y → Z`，则 `X → Z` | `course_id → teacher_id → teacher_name`，所以 `course_id → teacher_name` |
+
+这里的 `XZ` 表示把两组字段合在一起。还能从三条公理推出**合并律**（`X → Y` 且 `X → Z`，则 `X → YZ`）和**分解律**（`X → YZ`，则 `X → Y`、`X → Z`）；不需要把它们当作另外三条基本公理背诵。
+
+**与表设计的关系**：如果把 `teacher_name` 重复存在每条课程记录里，讲师改名就要更新多行，容易产生更新异常。规范化时可拆成 `course(course_id, teacher_id, ...)` 和 `teacher(teacher_id, teacher_name, ...)`；若为了减少高频查询的 JOIN 而冗余讲师名，就是有意识地反范式设计，必须同时考虑冗余字段的更新一致性。Armstrong 公理帮助判断“哪些字段能决定哪些字段”，不是让数据库自动检查这些业务规则。
+
+参考：[Carnegie Mellon University 数据库课程：函数依赖与 Armstrong 公理](https://www.cs.cmu.edu/~natassa/courses/15-415/S03/notes/17Norm2up.pdf)。
+
 ### 8.4 冷热数据
 
 历史订单无限增长时，单靠索引不能解决全部问题。可以根据业务采用分区、归档表、冷热分离或分库分表，但这些属于数据生命周期设计，不能替代单条 SQL 的基本优化。
