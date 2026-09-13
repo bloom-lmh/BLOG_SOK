@@ -2030,90 +2030,173 @@ LIMIT 1000;
 
 ### 3. 三大日志与两阶段提交
 
-**背景**：InnoDB 为什么「崩溃不丢数据、能回滚、能做主从」？答案藏在三个日志里。这是理解 MySQL 持久性、原子性和高可用的钥匙，也是「一条 update 到底干了什么」的完整答案。
+以 MySQL 8.4、InnoDB 表、开启 binlog 的普通事务为例。先记住分工：**undo 负责撤销和旧版本，redo 负责崩溃后修复数据页，binlog 负责复制和基于备份的时间点恢复**。三者不是同一份日志，也不在同一时刻才开始写。
+
+下面的“写日志”要区分三件事：**生成记录 → 写入内存缓冲/缓存 → 写入文件并刷盘（fsync）**。执行 SQL 时生成日志，不等于每条 SQL 都立刻把所有日志刷到磁盘。
 
 #### 3.1 redo log（重做日志，InnoDB 引擎层）
 
-- **是什么**：物理日志，记录「对哪个数据页做了什么修改」（如「把 page 100 的偏移 200 处改成 xxx」）。
-- **核心思想 WAL（Write-Ahead Logging，先写日志再写盘）**：更新时先把改动写 redo log 并刷盘，数据页稍后异步刷盘。这样即使中途宕机，重启后重放 redo log 就能恢复已提交但未落盘的数据。
-- **为什么快**：数据页是随机写（慢），redo log 是顺序追加写（快）。先顺序写日志，再后台慢慢刷随机写的数据页，把随机 IO 变成顺序 IO。
-- **循环写**：redo log 是固定大小的一组文件，写满后覆盖最旧的（`innodb_log_file_size`、`innodb_log_files_in_group` 配置）。所以它只能「恢复最近一段」，不能长期保存。
+- **记录什么**：InnoDB 数据页、undo 页等底层修改的重做信息。它不是原始 SQL，也不是“整行旧值”；可以粗略理解为“某个页需要重做哪些改动”。
+- **何时产生**：执行 `UPDATE`、`INSERT`、`DELETE` 并修改页时就产生 redo 记录。InnoDB 先在一次内部 **mini-transaction（mtr）** 中收集相关页的记录；mtr 结束时把整组记录放入内存 **log buffer**。后台 log writer 写文件，log flusher 负责刷盘。这里的 mtr 是“页操作的小原子单元”，**不是**用户写的 `START TRANSACTION ... COMMIT`。
+- **WAL 的准确含义**：**数据页刷到磁盘之前，相应的 redo 必须先持久化**。内存中的数据页可以先被修改；WAL 不是“必须先把 redo 刷盘，才能改内存”。
+- **为什么快**：先顺序写 redo，让随机分布的数据页以后再刷盘。脏页甚至可能在事务提交前刷盘，所以磁盘数据页上出现未提交的修改也不奇怪；宕机后还会用 undo 撤销它。
+- **存在哪**：log buffer 在内存；MySQL 8.4 的 redo 文件通常在 `datadir/#innodb_redo/#ib_redoN`。总容量主要由 `innodb_redo_log_capacity` 控制；旧资料常写的 `innodb_log_file_size` / `innodb_log_files_in_group` 不应再当作 8.4 的首选配置。
+- **为什么会复用空间**：LSN（日志序列号）持续递增；checkpoint 表示此前的必要脏页已落盘，相关旧 redo 才能回收空间。因此 redo **不是备份**，不能靠它恢复一周前误删的数据。
 
+假设 `UPDATE account SET balance = 80 WHERE id = 1` 已提交，但更新后的数据页仍在 Buffer Pool：此时突然断电，重启时 InnoDB 从 checkpoint 后检查 redo，把还没落到数据文件的页修改重做出来。**redo 修复的是页，不负责判断“这笔事务该不该保留”；提交状态还要结合事务/两阶段提交信息。**
+
+##### redo 记录到底长什么样？
+
+它是**二进制记录流**，不能像应用日志那样打开看到 `UPDATE account ...`。MySQL 8.4 的 redo 文件由 log block 组成；一个 block 为 512 字节，含头部、记录数据、校验信息。单条页修改记录会包含**操作类型、表空间 ID、页号、具体操作所需的二进制内容**。源码里能看到 `MLOG_REC_UPDATE_IN_PLACE` 这样的操作类型，但不是说每次 `UPDATE` 都只生成这一条记录。
+
+下面是**帮助理解的伪记录，不是从 redo 文件读出的真实文本或固定字段布局**：
+
+```text
+SQL: UPDATE account SET balance = 80 WHERE id = 1;
+
+某个 mtr 的 redo 记录组（例如 LSN 600～680）：
+  记录 A：type=某种 undo 页修改，space_id=9， page_no=5，   payload=<二进制操作参数>
+  记录 B：type=MLOG_REC_UPDATE_IN_PLACE，space_id=42，page_no=123，payload=<二进制更新内容>
+
+磁盘数据页：space_id=42、page_no=123，仍是 balance=100、page_LSN=500
+内存数据页：同一页已经是 balance=80，记录了较新的修改 LSN
 ```
-redo log（环形，固定大小）:
-┌────────────────────────────────────────────┐
-│  log file 1  │  log file 2  │  log file 3   │
-└────────────────────────────────────────────┘
-   write pos（写指针）          checkpoint（擦除点）
-   两者之间是「待刷盘数据」，写满则需先 checkpoint 推进
+
+这里的 `space_id + page_no` 相当于“哪一个数据页”；`type + payload` 相当于“对这个页做什么”。**主键 `id=1`、旧值 `100`、新值 `80` 不一定以这几个可读字段直接躺在 redo 中**；旧值主要由 undo 保留。一个 SQL 可能改聚簇索引页、二级索引页、undo 页等，因此可对应多条 redo，甚至多个 mtr。LSN 是 redo 流的位置编号，上面的数字只为演示，**不是单条记录固定自带的 `LSN` 字段**。
+
+##### UPDATE 时先写 redo，还是先改数据？
+
+把“写”拆开就不矛盾了。以一次成功提交的更新为例：
+
+```text
+① 找到记录，准备 undo（以后可能要从 80 撤销回 100）
+② 修改 Buffer Pool 中的页，同时在 mtr 内收集“如何重做页修改”的 redo
+③ mtr 结束：这一组 redo 进入内存 log buffer；页被标脏
+④ 后台线程：log buffer → redo 文件 → fsync（时点受配置/提交等待影响）
+⑤ 数据页刷盘：可以晚于 COMMIT，也可能在提交前；刷盘前必须保证对应 redo 已持久化
 ```
+
+所以，**不是“先把 redo 文件写好，再执行内存 UPDATE”**。WAL（预写日志）要求的是 **④ 必须早于对应数据页的⑤**，而不是④必须早于②。提交事务且采用安全刷盘配置时，即便⑤还没发生，MySQL 也能用已持久化的 redo 找回这次更新。对应的 [InnoDB 源码说明](https://dev.mysql.com/doc/dev/mysql-server/8.4.11/PAGE_INNODB_REDO_LOG.html)明确写到：mtr 收集页修改记录，结束后成组写入 log buffer；刷数据页的线程要等待 redo 刷到该页最新修改的 LSN。
+
+##### 宕机后拿到这些 redo，具体怎么处理？
+
+继续使用上面的页和 LSN，假设 redo 组 `600～680` 已刷盘、磁盘页仍停在 `page_LSN=500`：
+
+1. **找起点**：MySQL 重启时读取最近的 checkpoint LSN，从那里向后扫描 redo 文件；检查日志块和记录组是否完整，不把尾部残缺记录当成有效操作。
+2. **找目标页**：解析出 `space_id=42、page_no=123`，把对应数据页读进 Buffer Pool。
+3. **决定是否重放**：磁盘页的 LSN 仍是 500，落后于这组修改，就对该页应用 redo，使它达到修改后的状态（示意为 `balance=80`）。若页已经刷过、LSN 足够新，就不再重复应用；这就是恢复能够安全重复检查的关键。
+4. **决定事务结果**：**redo 重放不等于事务最终提交**。如果这笔事务已提交，保留 80；如果宕机时仍未提交，InnoDB 再沿 undo 撤销，余额回到 100；如果卡在 redo prepare 与 binlog 之间，按后文的两阶段提交规则判定。
+5. **之后刷页**：恢复后的内存页按正常刷盘机制写回表空间，redo 在 checkpoint 推进后才可复用。
+
+再看一个反例：如果②已改内存，但对应 redo **只在内存 log buffer、尚未持久化**，事务也没提交，此时断电就不要求保存这次修改；WAL 保证对应的脏数据页也不会在缺少持久 redo 的情况下安全落盘。**如果已向客户端确认提交，却因把 `innodb_flush_log_at_trx_commit` 调成低持久性配置而尚未刷 redo，机器断电后就可能丢最近的事务。**
+
+> 你可以用 `SHOW GLOBAL STATUS` 观察当前、已刷盘、checkpoint 的 LSN（见 3.8），但这只显示进度数字；**普通 SQL 不能把某次 UPDATE 的 redo 直接打印成上面的伪记录**。不要手工修改 redo 文件验证恢复。
 
 #### 3.2 binlog（归档日志，Server 层）
 
-- **是什么**：逻辑日志，记录 SQL 语句的原始逻辑（statement）或每行数据的变更（row）。
-- **追加写**：不会覆盖，会一直增长（所以要做归档/清理）。
-- **用途**：主从复制（从库重放 binlog）、数据恢复（按时间点回放）、数据同步（Canal 订阅做缓存一致性）。
-- **三种格式**：
+- **记录什么**：Server 层记录数据变更的事件；`ROW` 格式记行变更事件，`STATEMENT` 格式记语句，`MIXED` 混用。`SELECT` 不写入 binlog；ROW 格式的具体前后镜像受 `binlog_row_image` 等配置影响。
+- **何时产生**：执行事务中的变更语句时，事件先放进该会话的 **binlog cache**（太大时可能借助临时文件）；事务 `COMMIT` 时，Server 层才把完整事务写入 binlog 文件。`ROLLBACK` 的纯 InnoDB 事务不会把这些未提交变更作为已提交事务发布出去。非事务表另当别论。
+- **存在哪**：缓存先在内存/临时文件；正式 binlog 位于 `log_bin_basename` 指定的前缀位置，通常在 `datadir` 下，形成 `binlog.000001`、`binlog.000002` 等文件和索引文件。它是追加/轮转的，不像 redo 那样循环覆盖；保留时间与归档策略需要单独管理。
+- **怎么用**：从库接收并重放事件；需要恢复到某个时间点时，**先恢复全量备份，再回放备份之后、目标时间之前的 binlog**。binlog 不是事务内 `ROLLBACK` 的工具。
 
 | 格式 | 记录内容 | 优点 | 缺点 |
 | --- | --- | --- | --- |
-| `statement` | 记录 SQL 语句本身 | 日志小 | 主从可能不一致（如 `NOW()`、`LIMIT` 无 order） |
-| `row`（默认） | 记录每行改动前后 | 精确、可恢复 | 日志大 |
+| `statement` | 记录 SQL 语句本身 | 通常较小 | 依赖不确定行顺序或执行环境的语句可能使复制结果不一致 |
+| `row`（默认） | 记录受影响行的变更事件 | 复制结果更确定 | 通常比 statement 大 |
 | `mixed` | 默认 statement，特殊场景切 row | 折中 | 复杂 |
 
-```sql
--- 查看和设置 binlog 格式
-SHOW VARIABLES LIKE 'binlog_format';
-SET GLOBAL binlog_format = 'ROW';
--- 查看 binlog 内容（8.0）
-SHOW BINLOG EVENTS IN 'binlog.000001';
-```
+例如没有确定排序的 `UPDATE ... LIMIT` 就可能依赖实际访问顺序；学习时先理解 ROW 与 STATEMENT 记录的对象不同。
 
 #### 3.3 undo log（回滚日志，InnoDB 引擎层）
 
-- **是什么**：逻辑日志，记录「修改前的旧值」（如 update 前把旧值 c=0 记到 undo）。
-- **两个用途**：
-  1. **事务回滚**：执行 `ROLLBACK` 时，用 undo 里的旧值把数据改回去（保证原子性）。
-  2. **MVCC**：undo 里的旧版本串成「版本链」，供快照读找到可见的历史版本（保证隔离性）。
-- undo log 本身也需要 redo log 保护（否则 undo 丢了也回滚不了）。
+- **记录什么**：足以撤销本事务对聚簇索引记录的修改的信息。可以粗略理解为：`INSERT` 要能删除新行，`DELETE` 要能恢复旧行，`UPDATE` 要能恢复旧值；实际记录并非总是“复制一整行”。
+- **何时产生**：InnoDB 修改行时，**在可回滚的修改发生前准备相应 undo 记录**，随后修改 Buffer Pool 中的数据页。undo 所在页的修改也会产生 redo，以便崩溃后仍能完成必要的回滚（用户临时表的 undo 有例外）。
+- **存在哪**：不是一个名叫 `undo.log` 的文本文件。普通 InnoDB 表的 undo 放在回滚段所在的 **undo tablespace** 中；MySQL 8.4 默认有 `innodb_undo_001`、`innodb_undo_002`，位于 `innodb_undo_directory`，未配置时通常在 `datadir`。
+- **怎么用**：事务主动 `ROLLBACK` 时，沿 undo 记录反向撤销；快照读需要旧版本时，沿记录上的回滚指针找到合适版本。事务提交后，不再需要用该事务的 undo 做主动回滚，但旧版本**不能立刻全部删除**：仍可能有旧 ReadView 需要它，之后由 purge 清理。
 
-#### 3.4 三日志对比（面试必背）
+例如余额 `100 → 80` 后主动回滚：InnoDB 根据 undo 把余额恢复为 `100`；这个“恢复”的页修改本身也会产生 redo。**undo 是操作的反向依据，不是简单把整个文件倒着执行一遍。**
 
-| 日志 | 所在层 | 内容 | 写入方式 | 主要作用 |
+#### 3.4 一条 UPDATE：三份日志分别在什么时候写？
+
+假设原值为 `100`，事务执行 `UPDATE account SET balance = 80 WHERE id = 1`，随后 `COMMIT`。这里的顺序是**教学用的逻辑阶段**；InnoDB 内部日志写入、刷盘和批量提交可以交错，不要把它当成逐行源码调用顺序。
+
+| 阶段 | 内存/缓存里发生什么 | 何时持久化、去哪 |
+| --- | --- | --- |
+| ① 执行 UPDATE | 读入页；准备 undo；把 Buffer Pool 中的值改为 80；为 undo 页和数据页生成 redo；Server 收集 binlog 事件 | undo 页、数据页之后刷到各自表空间；redo 先进入 log buffer，binlog 先进入 binlog cache |
+| ② COMMIT：prepare | InnoDB 将事务置于准备提交状态 | 确保对应 redo 的 prepare 状态按配置写入/刷盘到 redo 文件 |
+| ③ COMMIT：写 binlog | Server 把整个事务的 binlog cache 写入正式 binlog | `sync_binlog=1` 时提交前同步到磁盘；同一批事务可 group commit |
+| ④ COMMIT：引擎提交 | InnoDB 完成提交并记录相应提交状态；之后返回成功 | redo 记录与脏页的刷盘时点不是同一回事，脏数据页可稍后落盘 |
+| ⑤ 后台工作 | 刷脏页、推进 checkpoint；不再需要的 undo 由 purge 清理 | 数据页/undo 页在表空间中；旧 redo 可复用，binlog 按保留策略归档/清理 |
+
+**关键：执行 UPDATE 时已经有 undo/redo/binlog cache 的工作；“redo prepare → binlog → redo commit”说的是提交决策，不是三大日志从零开始产生的顺序。**
+
+#### 3.5 三日志对比
+
+| 日志 | 谁负责 | 主要记录 | 正式存储 | 解决的问题 |
 | --- | --- | --- | --- | --- |
-| **redo log** | InnoDB | 物理（页的修改） | 循环写 | 崩溃恢复、持久性 |
-| **binlog** | Server | 逻辑（SQL/行变更） | 追加写 | 主从复制、归档恢复 |
-| **undo log** | InnoDB | 逻辑（旧值） | 随机写 | 事务回滚、MVCC |
+| **undo** | InnoDB | 撤销操作所需的信息、旧版本 | undo tablespace | 主动/崩溃回滚，MVCC |
+| **redo** | InnoDB | 页修改的重做信息 | `#innodb_redo` 中的 redo 文件 | 宕机后修复尚未落盘的页 |
+| **binlog** | Server | 已提交事务的数据变更事件 | 按 `log_bin_basename` 轮转的文件 | 复制、从备份做时间点恢复 |
 
-#### 3.5 两阶段提交（2PC）
+#### 3.6 主动回滚与宕机恢复：到底怎么执行？
 
-**背景问题**：redo log 是 InnoDB 的，binlog 是 Server 层的，两者是两份独立的日志。如果「写 redo」和「写 binlog」不同步，宕机后主库（靠 redo 恢复）和从库（靠 binlog 恢复）就会数据不一致。两阶段提交就是保证这两份日志**要么都成功、要么都不成功**。
+**主动 `ROLLBACK`**：当前事务在内存里已经把余额改成 80，但未提交。InnoDB 按 undo 撤销到 100，生成相应 redo，释放事务持有的锁；事务的 binlog cache 中的 InnoDB 变更不会作为已提交事务写入 binlog。别把 “回滚” 理解为“删掉刚写的 redo”。
 
+**MySQL 进程/机器意外中断**：重启时 InnoDB 从 checkpoint 后读取 redo，把需要的页修改**向前重放**到可恢复状态。这些修改可能既包含已提交事务，也包含未提交事务；接着按事务状态处理：该提交的保留，未完成/该回滚的事务用 undo 撤销。恢复未完成事务可能在服务恢复期间继续进行，不能简单理解为“只重放已提交 redo”。
+
+| 宕机时机 | 重启后的事务结果（正常持久化配置下） |
+| --- | --- |
+| UPDATE 执行中、尚未提交 | 必要时 redo 恢复页，再根据 undo 回滚；客户端未得到成功 |
+| 已提交、数据页还没刷盘 | redo 补齐数据页；事务仍然是已提交 |
+| 已进入 prepare，binlog 事务不完整 | 回滚 prepared 事务 |
+| 已进入 prepare，完整 binlog 已持久化，但 InnoDB 尚未完成 commit | 根据 binlog 中的事务标识（XID）决定提交 prepared 事务 |
+
+**不要混淆两种“恢复”**：重启后从 redo/undo 恢复的是**本机崩溃前的事务状态**，通常自动完成；从备份加 binlog 恢复的是**误删、磁盘损坏后的历史时间点**，需要备份和运维操作。redo 不能代替备份，binlog 也不能代替 undo。
+
+#### 3.7 为什么还需要“两阶段提交”？
+
+redo 属于 InnoDB、binlog 属于 Server。如果“本机认定已提交”却没有完整 binlog，从库/备份回放看不到该事务；反过来 binlog 有事务而本机回滚，也会不一致。因此 MySQL 在**事务提交阶段**协调两者：
+
+```text
+InnoDB redo: prepare（我已准备好，宕机后也能找回这个事务）
+       ↓
+Server binlog: 写入完整事务，并按 sync_binlog 策略刷盘
+       ↓
+InnoDB redo: commit（最终提交）
 ```
-两阶段提交流程（一条 update 提交时）：
-  ① 执行器：写 redo log，标记为 prepare（准备态）
-  ② 执行器：写 binlog
-  ③ 执行器：把 redo log 标记为 commit（提交态）
+
+若恰好在中间崩溃，重启时 Server 扫描 binlog 中**完整有效的事务**及 XID：对应 prepared 事务若有完整 binlog 就提交，没有就回滚，并丢弃 binlog 末尾不完整部分。这里的 2PC 是 **MySQL 内部协调 binlog 与 InnoDB 的提交**，不要和业务里的“跨多个服务/数据库的分布式事务”混成一件事。
+
+持久性还有前提：常见安全配置是 `innodb_flush_log_at_trx_commit=1` 与 `sync_binlog=1`。降低刷盘频率可能提高吞吐，但机器/操作系统崩溃时会有最近事务丢失或日志不一致风险；即使用安全值，也依赖存储设备正确执行刷盘。
+
+#### 3.8 只读查看本机配置与日志位置
+
+```sql
+SHOW VARIABLES WHERE Variable_name IN (
+  'datadir', 'innodb_undo_directory', 'innodb_redo_log_capacity',
+  'log_bin', 'log_bin_basename', 'binlog_format',
+  'innodb_flush_log_at_trx_commit', 'sync_binlog'
+);
+
+SHOW BINARY LOGS; -- 列出正式 binlog 文件；需相应权限
+SELECT FILE_NAME FROM performance_schema.innodb_redo_log_files;
+SHOW GLOBAL STATUS WHERE Variable_name IN (
+  'Innodb_redo_log_current_lsn',
+  'Innodb_redo_log_flushed_to_disk_lsn',
+  'Innodb_redo_log_checkpoint_lsn'
+);
+SELECT NAME, SPACE_TYPE
+FROM information_schema.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo';
 ```
 
-**为什么必须先 redo prepare 再 binlog 再 redo commit**（用反证法理解）：
+路径以查询到的本机配置为准；权限不足时部分查询可能报错。**不要直接编辑、删除 redo/undo/binlog 文件来“测试恢复”**，要在独立练习库用 `START TRANSACTION`、`UPDATE`、`ROLLBACK` 和两个会话观察可见性。
 
-- 若「先写 redo 成功、binlog 没写」就宕机 → 主库恢复后有这行数据，但从库（按 binlog）没有 → 主从不一致。
-- 若「先写 binlog 成功、redo 没写」就宕机 → 从库有这行数据，主库恢复后没有 → 主从不一致。
-- 两阶段提交后：宕机重启时，检查 redo 处于 `prepare` 状态的记录，**如果对应的 binlog 已完整写入，则提交；否则回滚**。这样主从始终一致。
-
-```
-崩溃恢复判断逻辑（简化伪代码）：
-if redo 事务处于 prepare 态:
-    if binlog 里能找到该事务的完整记录:
-        提交（redo 置 commit，恢复数据）    // 从库会有，主库必须有
-    else:
-        回滚（丢弃）                       // 从库没有，主库也不能有
-```
-
-::: tip 💡 面试题：redo log 和 binlog 的区别？为什么要两阶段提交？
-一句话结论：redo 是 InnoDB 物理日志、循环写、用于崩溃恢复；binlog 是 Server 逻辑日志、追加写、用于主从复制；两阶段提交是为了保证两份日志一致，避免主从不一致。原因：两者归属不同层、用途不同，提交时用「redo prepare → binlog → redo commit」的 2PC 保证原子性。
+::: tip 💡 面试题：一条 UPDATE 如何保证能回滚、断电后能恢复、主从一致？
+一句话：执行时产生 undo 和 redo，并把变更暂存到 binlog cache；提交阶段协调 redo prepare、完整 binlog、InnoDB commit。主动回滚靠 undo；宕机后先用 redo 修复页，再撤销未提交事务；主从/时间点恢复依赖 binlog。
 :::
+
+官方资料：[Redo Log](https://dev.mysql.com/doc/refman/8.4/en/innodb-redo-log.html)、[InnoDB redo 源码说明](https://dev.mysql.com/doc/dev/mysql-server/8.4.11/PAGE_INNODB_REDO_LOG.html)、[Redo 记录头源码](https://dev.mysql.com/doc/dev/mysql-server/8.4.11/mtr0log_8ic.html)、[Undo Logs](https://dev.mysql.com/doc/refman/8.4/en/innodb-undo-logs.html)、[The Binary Log](https://dev.mysql.com/doc/refman/8.4/en/binary-log.html)、[InnoDB Recovery](https://dev.mysql.com/doc/refman/8.4/en/innodb-recovery.html)。
 
 ---
 
@@ -2147,6 +2230,17 @@ ReadView {
 
 对于版本链上的某个版本，其修改事务 id 为 `trx_id`，判断规则：
 
+先固定一张用于对照的 ReadView：**事务 30 此前已修改过另一行，现在做普通 SELECT**；此时事务 20、25、30 仍活跃，下一笔将分配的事务 ID 为 35。
+
+```text
+ReadView {
+  creator_trx_id = 30
+  m_ids          = [20, 25, 30]
+  min_trx_id     = 20
+  max_trx_id     = 35
+}
+```
+
 ```
 1. trx_id == creator_trx_id            → 自己改的，可见 ✅
 2. trx_id <  min_trx_id                → 生成 ReadView 前已提交，可见 ✅
@@ -2157,7 +2251,19 @@ ReadView {
 不可见则顺着 roll_ptr 找上一个旧版本，重复上述判断。
 ```
 
-**用一句话概括**：一个版本只有「在 ReadView 生成那一刻，它的修改事务已经提交」才对当前事务可见。
+把数字代入上面的规则：
+
+| 某版本的 `trx_id` | 命中哪条规则 | 能否看见 |
+| --- | --- | --- |
+| 30 | 规则 1：自己修改 | ✅ |
+| 18 | 规则 2：`18 < 20`，快照前已提交 | ✅ |
+| 36 | 规则 3：`36 >= 35`，快照后才出现 | ❌ |
+| 25 | 规则 4：在 `[20,35)` 内，且在 `m_ids` 中 | ❌ |
+| 23 | 规则 4：在 `[20,35)` 内，但不在 `m_ids` 中 | ✅ |
+
+例如余额这一行的版本链是 `70（trx_id=36）→ 80（trx_id=25）→ 90（trx_id=23）`。事务 30 沿链依次跳过 70 和 80，最终读到 **90**。即使事务 25 后来提交，只要事务 30 在 RR 下复用这张 ReadView，80 对它仍不可见；36 是更晚启动的事务，也不可见。`trx_id=30` 的“自己修改”规则可用另一行理解，不必硬塞进这条余额版本链。
+
+**用一句话概括**：普通快照读能看自己修改的版本，也能看 ReadView 生成时已经提交的版本；看不到的就沿 `roll_ptr` 找更旧的版本。
 
 #### 4.4 RC 与 RR 的本质区别：ReadView 生成时机
 
@@ -2873,33 +2979,27 @@ doublewrite 流程：
 | 特性 | 靠什么 | 机制 |
 | --- | --- | --- |
 | 原子性 A | undo log | 回滚时用旧值还原 |
-| 持久性 D | redo log + WAL | 提交即落盘，崩溃重放恢复 |
+| 持久性 D | redo log + WAL | 提交时按配置持久化 redo；数据页可以稍后刷盘 |
 | 隔离性 I | MVCC + 锁 | 读走快照，写加锁 |
 | 一致性 C | 以上三者 | 是最终目标，不是单独机制 |
 
-#### 5.2 一条 UPDATE 的完整生命周期（源码级流程）
+#### 5.2 一条 UPDATE 的完整生命周期（回顾）
 
 ```sql
 UPDATE account SET balance = balance - 50 WHERE id = 1;
 ```
 
-```
-① 执行器：调用 InnoDB 接口，通过主键索引在 Buffer Pool 找到 id=1 这一行
-② 记录 undo log：把旧值 balance=100 写入 undo log（用于回滚和 MVCC）
-③ 修改内存数据页：把 Buffer Pool 里的 balance 改成 50（页变脏页）
-④ 写 redo log（prepare 态）：记录「对某页某偏移做了什么修改」
-⑤ 写 binlog：记录这条 update 的逻辑（row 格式记录前后值）
-⑥ redo log 置为 commit 态（两阶段提交完成）
-⑦ 返回客户端「成功」
-⑧ 后台异步：脏页刷盘、undo log 回收、redo log 循环推进 checkpoint
+```text
+执行阶段：定位并锁定记录 → 生成 undo → 修改 Buffer Pool 页并生成 redo
+                                 → 变更事件暂存 binlog cache
+提交阶段：redo prepare → 完整 binlog 写入/按配置刷盘 → InnoDB commit
+之后：返回成功；脏页按需刷盘，旧 undo 待不再被快照读使用后清理
 ```
 
-**为什么先写 undo 再改数据**：如果先改数据后写 undo，写 undo 时宕机，数据已经改了却没记录旧值，就无法回滚了。先记 undo 保证「任何时候都能退回旧值」。
-
-**为什么先写 redo 再改数据（WAL）**：redo 记录「要改成什么」，数据页改的是内存，redo 先落盘，即使内存改完没刷盘就宕机，也能用 redo 重放恢复。顺序是先写 redo（prepare）→ 改内存 → 写 binlog → redo commit。
+**WAL 的“先写”指的是数据页落盘前，相关 redo 必须先持久化**，不是内存页修改前必须先刷 redo；redo 也不是到 prepare 阶段才开始生成。具体回滚与崩溃分支见前面的“三大日志与两阶段提交”。
 
 ::: tip 💡 面试题：一条 UPDATE 从执行到落盘经历了什么？
-一句话结论：找行 → 写 undo（旧值）→ 改内存页 → 写 redo（prepare）→ 写 binlog → redo 置 commit，返回成功后脏页异步落盘。原因：undo 保证能回滚，redo 保证崩溃能恢复，两阶段提交保证主从一致。
+一句话结论：执行时生成 undo/redo 并暂存 binlog 事件；提交时协调 redo prepare、完整 binlog 和 InnoDB commit。回滚靠 undo，崩溃修复页靠 redo，复制靠 binlog；数据页不必等到提交就刷盘，也不要求提交时立刻刷盘。
 :::
 
 #### 5.3 事务提交的 group commit（组提交）

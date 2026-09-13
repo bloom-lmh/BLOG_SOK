@@ -187,6 +187,10 @@ WHERE id = ?
 - 普通 `SELECT` 与 `SELECT ... FOR UPDATE` 的区别。
 - 长事务为什么会阻塞 DDL。
 
+### 6.5 长事务与锁等待
+
+在两个 Query Console 中复用 6.2 的 `SELECT ... FOR UPDATE`：让事务 A 暂不提交，观察事务 B 的 `UPDATE account` 等待；随后让 A 提交、B 回滚。再缩短 A 的事务持续时间重复一次，对比等待时间。说清楚：事务不提交时锁为什么不能释放，以及为什么不应在事务里等待远程接口。
+
 ## 7. SQL 优化实战
 
 `access_log` 故意只创建主键。每次优化必须遵守：
@@ -240,13 +244,14 @@ WHERE path LIKE '/api/order%'
 ```sql
 SELECT * FROM access_log ORDER BY id LIMIT 800000, 20;
 
+-- @last_id 必须是上一页最后一条记录的实际 id，不是页码或 OFFSET
 SELECT * FROM access_log
-WHERE id > 800000
+WHERE id > @last_id
 ORDER BY id
 LIMIT 20;
 ```
 
-再写一次“先查 ID、再延迟关联回表”的分页方案，并说明游标分页为什么不能随意跳到第 1000 页。
+先从上一页结果中取出最后一条的 `id`，赋给 `@last_id` 后再执行第二条 SQL。再写一次“先查 ID、再延迟关联回表”的分页方案，并说明游标分页为什么不能随意跳到第 1000 页。
 
 ### 7.5 排序、分组和统计
 
@@ -259,9 +264,22 @@ LIMIT 20;
 ### 7.6 写入代价
 
 1. 记录 `access_log` 当前索引数量。
-2. 创建多个实验索引后批量插入 10 万行，记录耗时。
-3. 删除无用索引后重复测试。
-4. 总结为什么索引能加速读取，却会增加空间、页分裂和写入维护成本。
+2. 用不同 ID 范围分别执行单条 `INSERT` 和多值 `INSERT`，比较同样行数的耗时；控制每批大小。
+3. 创建多个实验索引后批量插入 10 万行，记录耗时。
+4. 删除无用索引后重复测试。
+5. 总结为什么索引能加速读取，却会增加空间、页分裂和写入维护成本。
+
+### 7.7 JOIN 优化
+
+用 `mall_user` JOIN `orders` 查询禁用用户的订单：先比较 `u.status = 0` 与 `u.status = 1` 的过滤后行数；再用 `EXPLAIN ANALYZE` 观察 JOIN 顺序、扫描行数与循环次数。确认 `orders.user_id` 的索引是否被使用，并解释为什么“物理表小”不等于“过滤后参与 JOIN 的结果集小”。
+
+### 7.8 `IN` 与 `EXISTS`
+
+分别用 `IN`、`EXISTS` 查询“至少有一笔已支付订单的用户”，先核对两种写法的结果，再比较执行计划；额外构造含 `NULL` 的子查询，观察 `NOT IN` 与 `NOT EXISTS` 的差异。不要只凭 SQL 写法断定谁更快。
+
+### 7.9 大表在线 DDL
+
+仅在练习库的百万行 `access_log` 上尝试添加 `user_id` 索引：先估算表大小、检查已有索引，再测试 MySQL 原生 `ALGORITHM=INPLACE, LOCK=NONE` 是否可用，并观察执行时间和会话状态。在线 DDL 仍可能短暂等待元数据锁；了解 `gh-ost`、`pt-online-schema-change` 的适用场景即可，不要求在本机安装。实验后删除新建的索引。
 
 ## 8. 使用建议
 
